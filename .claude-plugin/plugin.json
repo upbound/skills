@@ -14,6 +14,8 @@
     "crossplane",
     "control-plane",
     "kubernetes",
-    "platform-engineering"
+    "platform-engineering",
+    "claude-code",
+    "agent-skills"
   ]
 }
