@@ -22,8 +22,10 @@ dir="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
 . "$dir/hub-common.sh"
 
+usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
+
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ] || [ $# -eq 0 ]; then
-  sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
+  usage
   [ $# -eq 0 ] && exit 2
   exit 0
 fi

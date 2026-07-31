@@ -20,8 +20,11 @@ dir="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
 . "$dir/hub-common.sh"
 
+# The header comment is the help text. Stop at the first line that is not a
+# comment rather than at a fixed line number, so editing the header cannot leave
+# the help truncated mid-sentence or trailing a line of code.
 usage() {
-  sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"
 }
 
 if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then

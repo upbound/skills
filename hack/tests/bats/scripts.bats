@@ -121,6 +121,42 @@ teardown() { teardown_stubs; }
   done
 }
 
+@test "--help prints the whole header comment and no source" {
+  # Each script's help text is its own header comment. Extracting it with a
+  # fixed line range drifts the moment anyone edits the header: too short cuts
+  # the help mid-sentence, too long prints `set -euo pipefail` at the user.
+  # Exit status alone cannot see either, so assert on the content.
+  unset HUB_API_URL
+  for script in "$SKILL_DIR"/scripts/hub-*; do
+    case "$script" in
+      *hub-credential-helper | *.sh) continue ;;
+    esac
+    name="$(basename "$script")"
+
+    run "$script" --help
+    [ "$status" -eq 0 ]
+
+    if grep -qE '^(set -euo|dir=|usage\(\)|\. )' <<<"$output"; then
+      echo "$name --help leaked shell source:" >&2
+      grep -nE '^(set -euo|dir=|usage\(\)|\. )' <<<"$output" >&2
+      return 1
+    fi
+
+    # Derived from the file independently of how the script does it, so a
+    # hard-coded range that stops early fails here.
+    header_last="$(awk 'NR>2 && !/^#/{exit}
+                        NR>2{sub(/^# ?/, ""); if ($0 ~ /[^[:space:]]/) line=$0}
+                        END{print line}' "$script")"
+    help_last="$(grep -v '^[[:space:]]*$' <<<"$output" | tail -1)"
+    [ "$help_last" = "$header_last" ] || {
+      echo "$name --help does not reach the end of its header" >&2
+      echo "  last help line:   $help_last" >&2
+      echo "  last header line: $header_last" >&2
+      return 1
+    }
+  done
+}
+
 # --- behavior --------------------------------------------------------------
 
 @test "hub-list emits a JSON array when there are no items" {

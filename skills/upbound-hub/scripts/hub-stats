@@ -25,8 +25,10 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
 
+usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
+
 case "${1:-}" in
-  -h|--help) sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) usage; exit 0 ;;
 esac
 
 VALID_DIMENSIONS="kind group controlPlane realm space ready synced healthy crossplaneType"

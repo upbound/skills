@@ -19,7 +19,7 @@ set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
 
-usage() { sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
 
 case "${1:-}" in
   -h|--help) usage; exit 0 ;;
