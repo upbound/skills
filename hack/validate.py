@@ -290,6 +290,14 @@ def check_scripts() -> Iterator[Finding]:
         meta, _, path = entry.partition("\t")
         modes[path] = meta.split()[0]
 
+    # A skill may download something into its own scripts/ at runtime and gitignore
+    # it -- upbound-hub does exactly that with the credential helper. Without this,
+    # merely using a skill makes `make check` fail in that checkout, on three counts
+    # at once: untracked, no shebang, undocumented. Anything git is deliberately
+    # ignoring is not ours to check.
+    ignored = set(git_lines("ls-files", "--others", "--ignored",
+                            "--exclude-standard", "-z", "--", "skills") or [])
+
     for skill in skill_dirs():
         scripts_dir = skill / "scripts"
         if not scripts_dir.is_dir():
@@ -309,6 +317,8 @@ def check_scripts() -> Iterator[Finding]:
             if script.name.startswith("."):
                 continue
             key = rel(script)
+            if key in ignored:
+                continue
 
             with script.open("rb") as handle:
                 if handle.read(2) != b"#!":

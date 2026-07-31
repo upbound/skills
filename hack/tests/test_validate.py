@@ -192,6 +192,33 @@ class TestScriptsCheck(CheckCase):
         self.build(files, git=True, executable=("skills/demo-skill/scripts/do-thing",))
         self.assertFinding(validate.check_scripts(), "mentions it")
 
+    def test_gitignored_download_is_skipped(self):
+        """Using a skill must not break `make check` in that checkout.
+
+        upbound-hub downloads its credential helper into its own scripts/ and
+        gitignores it. Checked, it fails three ways at once: no shebang because
+        it is a binary, untracked because it is ignored, and undocumented.
+        """
+        files = self._skill_with_script()
+        files[".gitignore"] = "skills/*/scripts/downloaded-helper\n"
+        self.build(files, git=True, executable=("skills/demo-skill/scripts/do-thing",))
+
+        # After the commit, exactly as hub-setup writes it at runtime.
+        helper = self.root / "skills/demo-skill/scripts/downloaded-helper"
+        helper.write_bytes(b"\x7fELF not a script")
+        helper.chmod(0o755)
+
+        self.assertClean(validate.check_scripts())
+
+    def test_untracked_script_is_still_reported(self):
+        """Skipping ignored files must not start skipping merely-forgotten ones."""
+        files = self._skill_with_script()
+        self.build(files, git=True, executable=("skills/demo-skill/scripts/do-thing",))
+        stray = self.root / "skills/demo-skill/scripts/forgotten"
+        stray.write_text("#!/usr/bin/env bash\ntrue\n", encoding="utf-8")
+        stray.chmod(0o755)
+        self.assertFinding(validate.check_scripts(), "not tracked by git")
+
 
 class TestManifestsCheck(CheckCase):
     def test_clean(self):
