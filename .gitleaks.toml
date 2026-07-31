@@ -1,0 +1,14 @@
+[extend]
+useDefault = true
+
+# A repository that tests credential detection contains credential-shaped
+# strings. These two directories hold the patterns and the fixtures that
+# exercise them, and are exempt from hack/validate.py's own scan for the same
+# reason. Scoped to those paths only -- a real secret anywhere else, including
+# elsewhere under hack/, is still a finding.
+[[allowlists]]
+description = "Test fixtures and the denylist patterns themselves"
+paths = [
+  '''hack/tests/.*''',
+  '''hack/denylist/.*''',
+]
