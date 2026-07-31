@@ -115,6 +115,30 @@ reported", so the only denominator the API can actually produce is
 `readyTrue + readyFalse`. Report against that, and give the unknown count
 separately. `hub-health` computes all three.
 
+### The union above is a per-resource test, not a fleet count
+
+`resourcestats` counts each condition on its own axis — `readyFalse`,
+`syncedFalse`, `healthyFalse` — and a resource failing two of them is in two
+counters. They cannot be summed. One fleet returned 1475, 230 and 15 against a
+real union of **1599**, so adding them gives 1720 and invents 121 resources.
+
+So the two views answer different questions, and both are right:
+
+| Question | What answers it | Definition |
+|---|---|---|
+| How many are failing, fleet-wide? | `hub-stats` / `hub-health` | `Ready=False` — the only one the aggregate can express |
+| Is *this* resource failing? | `hub-resources-by-cp` | `Ready`, `Synced` or `Healthy` is `False` |
+
+If a fleet-wide union is genuinely wanted, a CEL filter produces it, at the cost
+of listing every match rather than aggregating:
+
+```bash
+scripts/hub-list resources 100 'filter=conditions.ready.status == "False" || conditions.synced.status == "False" || conditions.healthy.status == "False"' | jq length
+```
+
+Say which definition a number uses. "1475 failing" and "1599 failing" are both
+true of the same fleet.
+
 "12 unhealthy out of 312 assessable, with 3,888 not reporting" is an answer.
 "12 unhealthy out of 4,200" is not, and "99.7% healthy" is wrong.
 

@@ -82,6 +82,16 @@ jq -n \
       by_ready: ($by_ready.results.groups // []),
       unhealthy_top_kinds: top($unhealthy_kinds; 10),
       unhealthy_top_controlplanes: top($unhealthy_cps; 10),
-      note: "Report unhealthy against health_assessable, never against total. unknown_or_unreported is neither healthy nor unhealthy."
+      # Reported separately because they cannot be folded in. resourcestats
+      # counts each condition on its own axis and a resource can fail on more
+      # than one, so these overlap with unhealthy and with each other. Summing
+      # them overcounts: one fleet returned 1475/230/15 against a real union of
+      # 1599, not 1720.
+      also_failing: {
+        synced_false: ($totals.results.summary.syncedFalse // 0),
+        healthy_false: ($totals.results.summary.healthyFalse // 0),
+        note: "Overlapping counters, not additions to unhealthy. A fleet-wide Ready-or-Synced-or-Healthy count is not derivable from resourcestats; it needs a CEL filter over /resources."
+      },
+      note: "unhealthy counts Ready=False only, because that is what the aggregate can express without double counting. Report it against health_assessable, never against total. unknown_or_unreported is neither healthy nor unhealthy."
     }
   }'
