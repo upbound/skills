@@ -14,8 +14,9 @@
 # mix of definition sources (CRD / XRD / MRD).
 #
 # RES counts come from each type's own summary. They are not comparable with a
-# /resources count and must not be summed to get a fleet total -- the two have
-# been observed to disagree by roughly 3x.
+# /resources count and must not be summed to get a fleet total: resourcestats
+# has been observed several times larger, and the gap varies by deployment, so
+# report both rather than converting one into the other.
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
