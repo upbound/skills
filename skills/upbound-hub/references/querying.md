@@ -134,13 +134,19 @@ Three things that will skew a count if you ignore them:
 - **Freshness, unless you check.** Hub is an aggregator and its view is
   eventually consistent. A resource created or deleted seconds ago may not be
   reflected. `hub.lastSyncTime` and `hub.syncLagSeconds` are on `resources`
-  records only; read them before making a freshness claim. Non-zero lag is
-  normal.
+  records only; read `lastSyncTime` before making a freshness claim.
 
-  Compare `lastSyncTime` against the current time rather than trusting
-  `syncLagSeconds`: a deployment whose connector had stopped served
-  `syncLagSeconds: 0` beside a `lastSyncTime` 80 days old. Zero lag means the
-  last record ingested arrived promptly, not that anything arrived recently.
+  Compare it against the current time. Derive freshness that way rather than
+  from `syncLagSeconds`, which across a 100-record sample of a live deployment
+  read 0 on every single record, including records whose `lastSyncTime` was
+  three months old. That is a reported server-side defect rather than a
+  meaning, so a 0 there tells you nothing; comparing `lastSyncTime` against the
+  clock is correct whether or not it is fixed.
+
+  Freshness is per record, not per deployment. In that same sample 70 records
+  had synced that day while 30 trailed back over the previous three months, so
+  one record's timestamp says nothing about the fleet's, and a stale record
+  beside a fresh one is normal.
 
   `controlplanes`, `spaces`, `realms`, `typedefinitions` and
   `crossplanepackages` carry no `hub` block at all, so there is nothing to

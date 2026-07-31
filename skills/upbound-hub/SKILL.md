@@ -97,9 +97,12 @@ a collection silently returns one page as if it were the whole list. Read with
 
 **Assuming the view is current.** Hub is eventually consistent. Something created or
 deleted seconds ago may not be there yet. Only `resources` records carry `hub.lastSyncTime`;
-check it before saying one does not exist, and check it against the clock rather than
-trusting `hub.syncLagSeconds`, which has been seen reading 0 beside a timestamp 80 days old.
-Control planes, spaces and realms carry no freshness field, so for those say the view may be
+check it against the clock before saying one does not exist. Do not derive freshness from
+`hub.syncLagSeconds` instead — it has been seen reading 0 on every record of a live
+deployment, including records months out of date, which is a reported defect. Comparing
+`lastSyncTime` against the clock is correct either way. Freshness is per record, so one
+timestamp says nothing about the fleet's. Control
+planes, spaces and realms carry no freshness field at all, so for those say the view may be
 stale instead of implying it is current.
 
 ## Anti-patterns
