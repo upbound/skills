@@ -1,8 +1,9 @@
 name: commit hygiene
 
-# Runs on `edited` as well. This repository squashes with the commit messages,
-# not the pull request body, but the setting is a checkbox away from changing,
-# so the body is checked too.
+# This repository merges by rebase, so every commit lands individually and keeps
+# its own Signed-off-by. The pull request body is checked anyway: it costs one
+# step, and it covers the repository ever switching to squash, where GitHub can
+# compose the merge message from the body instead.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
