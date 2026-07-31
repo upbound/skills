@@ -1,0 +1,49 @@
+name: Agent support
+description: Ask for the skills to work in an agent this repo does not support yet
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Claude Code is the only agent supported today. The skills avoid vendor-specific frontmatter, so a
+        port is usually a packaging question rather than a rewrite — see #10 for the invariants and the
+        agents already being worked on.
+
+        The part we cannot look up for every agent is how it discovers skills in the first place. That
+        field matters most.
+
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent
+      placeholder: Codex, Cursor, Gemini CLI, Zed
+    validations:
+      required: true
+
+  - type: textarea
+    id: discovery
+    attributes:
+      label: How does it load skills or instructions?
+      description: A link to its docs is ideal. This decides whether a port is one manifest or a redesign.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What happens if you point it at `skills/upbound-hub/` today?
+      description: It may already partly work, since nothing in the skill is Claude-specific. A transcript is perfect. If you have not tried, say so.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Would you be willing to work on it?
+      options:
+        - "Yes"
+        - "Yes, with some guidance"
+        - "No, but I can test it"
+        - "No"
+    validations:
+      required: true
