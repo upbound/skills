@@ -46,7 +46,7 @@ endpoints and field names that have since been corrected.
 
 Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
 `skills/upbound-hub/` into another agent's skills directory should load. Nothing here is
-tested against another agent, and the scripts assume `bash`, `curl`, `jq`, and `column`.
+Nothing here is tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
 
 Adding an agent means a manifest alongside `.claude-plugin/`; the layout is arranged so it
 moves no files.
@@ -55,7 +55,7 @@ moves no files.
 
 | Skill | Needs |
 |---|---|
-| `upbound-hub` | `bash`, `curl`, `jq`, `column`, `shasum`; `kubectl` only for writes |
+| `upbound-hub` | `bash`, `curl`, `jq`, `shasum`; `kubectl` only for writes |
 
 On first run the skill downloads a credential helper from `storage.googleapis.com` and
 checks it against a published SHA-256. It asks once for your Hub API endpoint and saves it,

@@ -78,4 +78,4 @@ jq -r <<<"$resources" '
         why
      ]))
   | @tsv
-' | column -t -s "$(printf '\t')"
+| awk 'BEGIN { FS="\\t" } { for (i=1; i<=NF; i++) if (length($i) > w[i]) w[i] = length($i); lines[NR] = $0 } END { for (r=1; r<=NR; r++) { split(lines[r], f, FS); for (i=1; i<=NF; i++) printf (i<NF ? "%-" w[i] "s " : "%s"), f[i]; print "" } }'
