@@ -1,8 +1,9 @@
 # Upbound Skills
 
-The [Upbound Platform](https://upbound.io) runs fleets of [Crossplane](https://crossplane.io)
-control planes. These skills teach a coding agent to query and change that fleet correctly —
-which mostly means stopping it from confidently reporting numbers that are wrong.
+The [Upbound Platform](https://upbound.io) manages a fleet of Kubernetes control planes,
+[Crossplane](https://crossplane.io) or otherwise. These skills teach a coding agent to query
+and change that fleet correctly — which mostly means stopping it from confidently reporting
+numbers that are wrong.
 
 [Agent Skills](https://agentskills.io/) are instructions an agent loads when a task matches
 them.
