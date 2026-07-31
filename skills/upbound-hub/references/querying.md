@@ -133,5 +133,16 @@ Three things that will skew a count if you ignore them:
 - **Realm and package health.** Neither has a status surface. Say so.
 - **Freshness, unless you check.** Hub is an aggregator and its view is
   eventually consistent. A resource created or deleted seconds ago may not be
-  reflected. `hub.lastSyncTime` and `hub.syncLagSeconds` are on every record;
-  read them before making a freshness claim. Non-zero lag is normal.
+  reflected. `hub.lastSyncTime` and `hub.syncLagSeconds` are on `resources`
+  records only; read them before making a freshness claim. Non-zero lag is
+  normal.
+
+  Compare `lastSyncTime` against the current time rather than trusting
+  `syncLagSeconds`: a deployment whose connector had stopped served
+  `syncLagSeconds: 0` beside a `lastSyncTime` 80 days old. Zero lag means the
+  last record ingested arrived promptly, not that anything arrived recently.
+
+  `controlplanes`, `spaces`, `realms`, `typedefinitions` and
+  `crossplanepackages` carry no `hub` block at all, so there is nothing to
+  check. For those, say the view may be stale rather than implying it is
+  current.

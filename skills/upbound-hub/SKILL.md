@@ -96,8 +96,11 @@ a collection silently returns one page as if it were the whole list. Read with
 `scripts/hub-list`.
 
 **Assuming the view is current.** Hub is eventually consistent. Something created or
-deleted seconds ago may not be there yet. Check `hub.lastSyncTime` before saying a resource
-does not exist.
+deleted seconds ago may not be there yet. Only `resources` records carry `hub.lastSyncTime`;
+check it before saying one does not exist, and check it against the clock rather than
+trusting `hub.syncLagSeconds`, which has been seen reading 0 beside a timestamp 80 days old.
+Control planes, spaces and realms carry no freshness field, so for those say the view may be
+stale instead of implying it is current.
 
 ## Anti-patterns
 
