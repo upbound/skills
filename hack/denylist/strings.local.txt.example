@@ -1,0 +1,8 @@
+# Copy to strings.local.txt to add patterns for your own environment. The copy
+# is gitignored, so nothing here is published.
+#
+# Upbound CI supplies its own; contributors do not need this file.
+
+# \.example-internal\.dev
+# dev-[0-9a-f]{8}
+# -preview-artifacts

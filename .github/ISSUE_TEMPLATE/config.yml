@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Crossplane Slack
+    url: https://slack.crossplane.io/
+    about: Questions about Crossplane or Upbound usage. Faster than an issue here.
+  - name: Upbound documentation
+    url: https://docs.upbound.io/
+    about: Reference docs for the Upbound Platform.
+  - name: Report a security issue
+    url: https://github.com/upbound/skills/security/advisories/new
+    about: Do not open a public issue for a vulnerability. Report it privately here.

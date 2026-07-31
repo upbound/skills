@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-stats [groupBy ...] [-- filter=value ...]
+#
+# Aggregate resource counts from the resourcestats endpoint. This is the only
+# correct way to count: metadata.total saturates at 1000, so a paged count is a
+# lower bound.
+#
+#   hub-stats                                  # fleet totals
+#   hub-stats kind                             # by kind
+#   hub-stats controlPlane kind                # by control plane, then kind
+#   hub-stats kind -- ready=False              # only resources that aren't Ready
+#   hub-stats -- controlPlanes=prod-1,prod-2   # totals for two control planes
+#
+# groupBy dimensions: kind, group, controlPlane, realm, space, ready, synced,
+# healthy, crossplaneType. Anything else is rejected here rather than silently
+# becoming a bogus dimension.
+#
+# Stats filters are their own set, and are NOT the /resources filter fields:
+# kinds, groups, controlPlanes, realms, spaces (comma-separated lists) and
+# ready, synced, healthy (single values). Unknown keys are dropped by the
+# server without an error, so they are rejected here too.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+case "${1:-}" in
+  -h|--help) sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
+
+VALID_DIMENSIONS="kind group controlPlane realm space ready synced healthy crossplaneType"
+LIST_FILTERS="kinds groups controlPlanes realms spaces"
+SCALAR_FILTERS="ready synced healthy"
+
+group_by=()
+filters=()
+seen_separator=false
+for arg in "$@"; do
+  if [ "$arg" = "--" ]; then
+    seen_separator=true
+  elif [ "$seen_separator" = true ]; then
+    filters+=("$arg")
+  else
+    group_by+=("$arg")
+  fi
+done
+
+groups_json='[]'
+if [ ${#group_by[@]} -gt 0 ]; then
+  for dim in "${group_by[@]}"; do
+    case " $VALID_DIMENSIONS " in
+      *" $dim "*) ;;
+      *) echo "hub-stats: '$dim' is not a groupBy dimension." >&2
+         echo "  Valid: $VALID_DIMENSIONS" >&2
+         echo "  (filters go after --, e.g. hub-stats kind -- ready=False)" >&2
+         exit 2 ;;
+    esac
+  done
+  groups_json="$(printf '%s\n' "${group_by[@]}" | jq -R . | jq -s .)"
+fi
+
+filters_json='{}'
+if [ ${#filters[@]} -gt 0 ]; then
+  for filter in "${filters[@]}"; do
+    key="${filter%%=*}"
+    value="${filter#*=}"
+    if [ "$key" = "$filter" ]; then
+      echo "hub-stats: filter '$filter' must be key=value" >&2
+      exit 2
+    fi
+    if [[ " $SCALAR_FILTERS " == *" $key "* ]]; then
+      filters_json="$(jq -c --arg k "$key" --arg v "$value" '.[$k] = $v' <<<"$filters_json")"
+    elif [[ " $LIST_FILTERS " == *" $key "* ]]; then
+      filters_json="$(jq -c --arg k "$key" --arg v "$value" \
+        '.[$k] = ($v | split(","))' <<<"$filters_json")"
+    else
+      echo "hub-stats: '$key' is not a stats filter; the server would ignore it." >&2
+      echo "  Lists: $LIST_FILTERS" >&2
+      echo "  Single values: $SCALAR_FILTERS" >&2
+      exit 2
+    fi
+  done
+fi
+
+# apiVersion and kind are required: the handler decodes with no GVK defaults and
+# checks for an exact match, so a bare {"query": ...} is a 400.
+jq -nc --argjson groupBy "$groups_json" --argjson filters "$filters_json" \
+  '{apiVersion: "hub.upbound.io/v1beta1", kind: "ResourceStats",
+    query: {filters: $filters, groupBy: $groupBy}}' \
+| "$dir/hub-curl" /apis/hub.upbound.io/v1beta1/resourcestats \
+    -X POST -H 'Content-Type: application/json' --data-binary @-

@@ -1,0 +1,56 @@
+name: commit hygiene
+
+# Runs on `edited` as well. This repository squashes with the commit messages,
+# not the pull request body, but the setting is a checkbox away from changing,
+# so the body is checked too.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-hygiene-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  trailers:
+    name: trailers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Write the pull request body to a file
+        if: github.event_name == 'pull_request'
+        env:
+          # Through the environment, never interpolated into the shell, so a
+          # body containing shell metacharacters cannot execute.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > pr-body.txt
+
+      - name: Check pull request commits
+        if: github.event_name == 'pull_request'
+        env:
+          # Through the environment: a branch name may contain shell
+          # metacharacters, and fetch-depth: 0 already fetched every ref.
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          python3 hack/check_commit_trailers.py \
+            --range "origin/${BASE_REF}..HEAD" \
+            --pr-body-file pr-body.txt
+
+      - name: Check pushed commits
+        if: github.event_name == 'push'
+        run: |
+          before='${{ github.event.before }}'
+          if [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch; nothing to compare against."
+            exit 0
+          fi
+          python3 hack/check_commit_trailers.py --range "$before..${{ github.sha }}"

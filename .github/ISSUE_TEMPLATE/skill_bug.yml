@@ -1,0 +1,56 @@
+name: Skill bug
+description: A skill gave wrong advice, or did not load when it should have
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful thing you can give us is the exact prompt and what the agent did with it.
+
+  - type: input
+    id: skill
+    attributes:
+      label: Which skill
+      description: The directory name under `skills/`, if you know it. If the problem is that no skill loaded, say so.
+      placeholder: upbound-hub
+    validations:
+      required: true
+
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and version
+      placeholder: Claude Code 2.1.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: prompt
+    attributes:
+      label: What you asked
+      description: The prompt, verbatim.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What the agent did
+      description: What it said or ran. A transcript is ideal.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Where the skill is wrong
+      description: If you have a guess — a section of SKILL.md, a reference file, a script.
+    validations:
+      required: false

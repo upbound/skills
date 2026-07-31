@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-setup [--url <url>] [--update] [--no-login]
+#
+# Gets everything ready in one call: saves the API endpoint, installs the
+# credential helper, and signs in if needed. Run it once at the start of a
+# session and act on what it reports.
+#
+#   --url <url>   Save the Hub API endpoint. One time per machine.
+#   --update      Re-download the credential helper even if it is present.
+#   --no-login    Report that sign-in is needed instead of starting it.
+#
+# Exit codes:
+#   0  ready to use
+#   3  no endpoint configured -- ask the user for one, then pass --url
+#   1  something else went wrong; the message says what
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
+
+bin="$dir/hub-credential-helper"
+DEFAULT_BASE_URL="https://storage.googleapis.com/upbound-hub-artifacts/main/current"
+base_url="${HUB_CREDENTIAL_HELPER_BASE_URL:-$DEFAULT_BASE_URL}"
+
+# https only. Without this, file:// or http:// in the environment installs and
+# runs an arbitrary binary, and the checksum check does not help because the
+# same source supplies the checksum.
+case "$base_url" in
+  https://[A-Za-z0-9]*) ;;
+  *)
+    echo "error: HUB_CREDENTIAL_HELPER_BASE_URL must be an https:// URL" >&2
+    echo "  got: $base_url" >&2
+    exit 1 ;;
+esac
+if [ "$base_url" != "$DEFAULT_BASE_URL" ]; then
+  echo "note: fetching the credential helper from $base_url (overridden)" >&2
+fi
+
+update=false
+do_login=true
+url=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --url)
+      url="${2:-}"
+      [ -n "$url" ] || { echo "hub-setup: --url needs a value" >&2; exit 1; }
+      shift 2 ;;
+    --url=*)    url="${1#--url=}"; shift ;;
+    --update)   update=true; shift ;;
+    --no-login) do_login=false; shift ;;
+    -h|--help)  sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "hub-setup: unknown argument '$1'" >&2; exit 1 ;;
+  esac
+done
+
+if [ -n "$url" ]; then
+  case "$url" in
+    https://*|http://*) ;;
+    *) echo "hub-setup: --url must be a URL (got '$url')" >&2; exit 1 ;;
+  esac
+  echo "Saved endpoint to $(hub_save_url "$url")" >&2
+  HUB_API_URL="$url"
+  export HUB_API_URL
+fi
+
+hub_resolve_url
+if [ -z "${HUB_API_URL:-}" ]; then
+  cat >&2 <<'EOF'
+No Hub API endpoint configured.
+
+  Ask the user for their Upbound Hub API endpoint, then run:
+
+    scripts/hub-setup --url https://hub.example.com
+
+  It is saved, so this is a one-time step.
+EOF
+  exit 3
+fi
+
+# --- credential helper -----------------------------------------------------
+
+if [ ! -x "$bin" ] || [ "$update" = true ]; then
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')"
+  action="Downloading"
+  [ -x "$bin" ] && action="Updating"
+  echo "${action} hub-credential-helper (${os}/${arch})..." >&2
+
+  # Checksums first. If the channel is unreachable, stop rather than quietly
+  # installing something from somewhere else.
+  if ! checksums="$(curl -fsSL --proto '=https' --proto-redir '=https' \
+       --max-time 120 --retry 3 "${base_url}/checksums.txt")"; then
+    cat >&2 <<EOF
+error: could not reach ${base_url}/checksums.txt
+
+  Either the release channel is unavailable or a different one is needed.
+  Set HUB_CREDENTIAL_HELPER_BASE_URL, or install the helper yourself at:
+
+    $bin
+EOF
+    exit 1
+  fi
+
+  expected="$(printf '%s\n' "$checksums" \
+    | awk -v k="bin/${os}_${arch}/hub-credential-helper" '$2 == k {print $1}')"
+  if [ -z "$expected" ]; then
+    echo "error: no checksum published for ${os}/${arch}. Available:" >&2
+    printf '%s\n' "$checksums" | awk '{print "    " $2}' >&2
+    exit 1
+  fi
+
+  # Same directory as the destination, so the install below is an atomic rename
+  # rather than a cross-filesystem copy that a crash could truncate.
+  tmp="$(TMPDIR="$dir" mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  if ! curl -fsSLo "$tmp/helper" --proto '=https' --proto-redir '=https' \
+       --max-time 300 --retry 3 "${base_url}/bin/${os}_${arch}/hub-credential-helper"; then
+    echo "error: download failed for ${os}/${arch}" >&2
+    exit 1
+  fi
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "$tmp/helper" | awk '{print $1}')"
+  elif command -v shasum >/dev/null 2>&1; then
+    actual="$(shasum -a 256 "$tmp/helper" | awk '{print $1}')"
+  elif command -v openssl >/dev/null 2>&1; then
+    actual="$(openssl dgst -sha256 "$tmp/helper" | awk '{print $NF}')"
+  else
+    echo "error: need sha256sum, shasum, or openssl to verify the download" >&2
+    exit 1
+  fi
+  if [ "$actual" != "$expected" ]; then
+    echo "error: checksum mismatch -- refusing to install" >&2
+    echo "  expected: $expected" >&2
+    echo "  actual:   $actual" >&2
+    exit 1
+  fi
+
+  # Moved into place only once verified.
+  chmod +x "$tmp/helper"
+  mv "$tmp/helper" "$bin"
+  # The checksum comes from the same bucket as the binary, so it catches a
+  # corrupted or partial transfer, not a compromised source.
+  echo "Installed hub-credential-helper (sha256 matches the published checksum)" >&2
+fi
+
+# --- session ---------------------------------------------------------------
+
+if "$bin" get-token --hub-url="$HUB_API_URL" >/dev/null 2>&1; then
+  echo "Ready. Endpoint: $HUB_API_URL" >&2
+  exit 0
+fi
+
+if [ "$do_login" = false ]; then
+  echo "Not signed in. Re-run scripts/hub-setup without --no-login." >&2
+  exit 1
+fi
+
+cat >&2 <<'EOF'
+Not signed in. Opening a browser now -- tell the user to complete sign-in there.
+The session lasts around 90 days, so this comes up rarely.
+EOF
+
+if ! "$bin" login --hub-url="$HUB_API_URL"; then
+  echo "error: sign-in did not complete" >&2
+  exit 1
+fi
+
+echo "Ready. Endpoint: $HUB_API_URL" >&2

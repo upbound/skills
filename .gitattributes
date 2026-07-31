@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Skills are prose, not source. Without this the language bar reads 99% Markdown
+# and says nothing useful about the repo.
+*.md linguist-documentation

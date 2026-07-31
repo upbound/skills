@@ -1,0 +1,19 @@
+{
+  "name": "upbound",
+  "description": "Skills for working with the Upbound Platform: control planes, spaces, realms, packages, and fleet-wide resource queries.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Upbound",
+    "url": "https://upbound.io"
+  },
+  "homepage": "https://github.com/upbound/skills",
+  "repository": "https://github.com/upbound/skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "upbound",
+    "crossplane",
+    "control-plane",
+    "kubernetes",
+    "platform-engineering"
+  ]
+}

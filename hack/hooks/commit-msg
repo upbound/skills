@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Rejects model and agent co-author trailers before the commit is written, so
+# you find out here rather than in CI. Installed by `make hooks`.
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
+exec python3 "$repo/hack/check_commit_trailers.py" --message-file "$1"

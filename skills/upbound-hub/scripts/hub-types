@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-types [group-suffix]
+#
+# Tabulates the type catalog across the fleet, optionally filtered to groups
+# ending with a suffix.
+#
+#   hub-types                     # everything
+#   hub-types aws.upbound.io      # AWS provider types only
+#   hub-types spaces.upbound.io   # the Spaces type family
+#
+# Columns: KIND, GROUP, SCOPE, CPs (control planes), RES (resources), and the
+# mix of definition sources (CRD / XRD / MRD).
+#
+# RES counts come from each type's own summary. They are not comparable with a
+# /resources count and must not be summed to get a fleet total -- the two have
+# been observed to disagree by roughly 3x.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+case "${1:-}" in
+  -h|--help) sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
+
+suffix="${1:-}"
+
+"$dir/hub-list" typedefinitions 100 | jq -r --arg suffix "$suffix" '
+  def matches(g): ($suffix == "") or ((g // "") | endswith($suffix));
+  def src_mix(db):
+    [ (if (db.CustomResourceDefinition // 0)    > 0 then "CRD=\(db.CustomResourceDefinition)" else empty end),
+      (if (db.CompositeResourceDefinition // 0) > 0 then "XRD=\(db.CompositeResourceDefinition)" else empty end),
+      (if (db.ManagedResourceDefinition // 0)   > 0 then "MRD=\(db.ManagedResourceDefinition)" else empty end)
+    ] | join(",");
+
+  map(select(matches(.definition.group)))
+  | sort_by((.definition.group // "") + "/" + (.definition.kind // ""))
+  | (["KIND","GROUP","SCOPE","CPs","RES","SOURCES"],
+     (.[] | [
+        (.definition.kind  // "?"),
+        (.definition.group // "?"),
+        (.definition.scope // "?"),
+        (.summary.controlPlaneCount // 0 | tostring),
+        (.summary.resourceCount     // 0 | tostring),
+        src_mix(.definedBy // {})
+     ]))
+  | @tsv
+' | column -t -s "$(printf '\t')"

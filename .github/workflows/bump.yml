@@ -1,0 +1,91 @@
+name: bump version
+
+# Contributors do not bump the version; this does it after the merge.
+#
+# It pushes with a GitHub App token rather than GITHUB_TOKEN. Branch protection
+# rejects a direct push regardless of who makes it, and GITHUB_TOKEN cannot be
+# excepted: a ruleset bypass list accepts admins, roles, teams, GitHub Apps and
+# Dependabot, but not the Actions identity. That is deliberate -- the
+# github-actions[bot] identity is not branch-scoped, so a bypass would let any
+# workflow on any branch, including one added in a pull request, push to main.
+#
+# Needs the BUMP_APP_ID variable, the BUMP_APP_PRIVATE_KEY secret, and the app
+# in the branch ruleset's bypass list. Until those exist this job skips rather
+# than failing, so the repository works without them.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "skills/**"
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: bump
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'upbound/skills'
+      && vars.BUMP_APP_ID != ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      # Short-lived and scoped to this repository, so the only long-lived
+      # credential is the app's private key in the secret.
+      - name: Generate a token
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.BUMP_APP_ID }}
+          private-key: ${{ secrets.BUMP_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
+      - name: Compute and apply the bump
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "New branch; skipping."
+            exit 0
+          fi
+          python3 hack/bump_version.py --since "$BEFORE" --write
+
+      - name: Commit and push
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          APP_SLUG: ${{ steps.token.outputs.app-slug }}
+        run: |
+          # Scoped add, never -A, so nothing else can ride along.
+          git add .claude-plugin/plugin.json
+
+          if git diff --staged --quiet; then
+            echo "Version unchanged; nothing to push."
+            exit 0
+          fi
+
+          version="$(python3 -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["version"])')"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_SLUG}[bot]@users.noreply.github.com"
+          git commit -m "chore: bump version to ${version}"
+
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # Anything landing on main between checkout and push would otherwise
+          # make this a non-fast-forward, losing the bump with no alert.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt); rebasing on main" >&2
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort; exit 1; }
+          done
+          echo "error: could not push the version bump after 3 attempts" >&2
+          exit 1

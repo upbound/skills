@@ -1,0 +1,5 @@
+# Lines matching any pattern here are exempt from strings.txt.
+# Keep this short, and say why in a comment above each entry.
+
+# Documentation and error messages use example.com placeholders.
+hub-api\.internal\.example\.com

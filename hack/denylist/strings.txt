@@ -1,0 +1,24 @@
+# Patterns that must not appear in a tracked file. Python regex, matched
+# case-insensitively against each line. One per line; '#' starts a comment.
+#
+# gitleaks covers credentials and keys. This covers what it cannot know about:
+# hostnames and addresses that belong to a private environment.
+#
+# Deployment-specific patterns go in strings.local.txt, which is gitignored.
+# Keeping them out of a public repository avoids publishing an internal naming
+# scheme, which is reconnaissance whether or not the patterns are secret.
+
+# Hostnames that are not reachable from outside a private network.
+# Note ".local." is deliberately absent: it is a common filename convention
+# (settings.local.json) and would fire on ordinary files.
+\.internal\.(?!example\.com)
+\.svc\.cluster\.local\b
+
+# Private address space.
+\b10\.\d{1,3}\.\d{1,3}\.\d{1,3}\b
+\b192\.168\.\d{1,3}\.\d{1,3}\b
+\b172\.(1[6-9]|2[0-9]|3[01])\.\d{1,3}\.\d{1,3}\b
+
+# Key material and bearer tokens.
+-----BEGIN [A-Z ]*PRIVATE KEY-----
+\beyJ[A-Za-z0-9_-]{20,}\.

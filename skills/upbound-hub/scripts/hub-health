@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-health
+#
+# One JSON rollup of fleet health: control plane and space phases, plus resource
+# counts broken down by readiness.
+#
+# Counts come from resourcestats rather than paging: metadata.total saturates at
+# 1000, so a paged count is a lower bound on any real fleet.
+#
+# Most records carry no conditions, and Unknown is not failing, so three counts
+# are reported rather than two. Report against health_assessable.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+case "${1:-}" in
+  -h|--help) sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac
+
+# hub-curl resolves and reports a missing endpoint, so there is no guard here.
+controlplanes="$("$dir/hub-list" controlplanes 100)"
+spaces="$("$dir/hub-list" spaces 100)"
+realms="$("$dir/hub-list" realms 100)"
+packages="$("$dir/hub-list" crossplanepackages 100)"
+
+totals="$("$dir/hub-stats")"
+by_ready="$("$dir/hub-stats" ready)"
+unhealthy_kinds="$("$dir/hub-stats" kind -- ready=False)"
+unhealthy_cps="$("$dir/hub-stats" controlPlane -- ready=False)"
+
+jq -n \
+  --argjson controlplanes "$controlplanes" \
+  --argjson spaces "$spaces" \
+  --argjson realms "$realms" \
+  --argjson packages "$packages" \
+  --argjson totals "$totals" \
+  --argjson by_ready "$by_ready" \
+  --argjson unhealthy_kinds "$unhealthy_kinds" \
+  --argjson unhealthy_cps "$unhealthy_cps" '
+  def phases(items):
+    items
+    | map(.status.phase // "Unknown")
+    | group_by(.)
+    | map({key: .[0], value: length})
+    | from_entries;
+
+  def top(stats; n):
+    (stats.results.groups // [])
+    | sort_by(-(.totalCount // 0))
+    | .[0:n]
+    | map({dimensions: (.dimensions // {}), count: (.totalCount // 0)});
+
+  {
+    controlPlanes: {
+      total: ($controlplanes | length),
+      by_phase: phases($controlplanes)
+    },
+    spaces: {
+      total: ($spaces | length),
+      by_phase: phases($spaces)
+    },
+    realms: {
+      total: ($realms | length),
+      note: "Hub exposes no health surface for realms; do not invent one."
+    },
+    packages: {
+      total: ($packages | length),
+      note: "Catalog entries, not packages installed in any control plane."
+    },
+    resources: {
+      total: ($totals.results.summary.totalCount // null),
+      # readyUnknown merges "reported Unknown" with "never reported", so the
+      # only defensible denominator is the explicitly-True-or-False population.
+      health_assessable: (($totals.results.summary.readyTrue // 0)
+                          + ($totals.results.summary.readyFalse // 0)),
+      unhealthy: ($totals.results.summary.readyFalse // 0),
+      unknown_or_unreported: ($totals.results.summary.readyUnknown // 0),
+      by_ready: ($by_ready.results.groups // []),
+      unhealthy_top_kinds: top($unhealthy_kinds; 10),
+      unhealthy_top_controlplanes: top($unhealthy_cps; 10),
+      note: "Report unhealthy against health_assessable, never against total. unknown_or_unreported is neither healthy nor unhealthy."
+    }
+  }'

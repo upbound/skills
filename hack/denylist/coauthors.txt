@@ -1,0 +1,56 @@
+# Model and coding-agent identities that must not appear as commit co-authors.
+# Python regex, matched case-insensitively against the name and the email of a
+# Co-authored-by line, separately. One per line; '#' starts a comment.
+#
+# This denies identities, not the trailer itself: GitHub adds Co-authored-by for
+# humans on squash merges and accepted review suggestions.
+#
+# Claude, Gemini, Devin, Jules, Cody and Amp are also human names, so a name
+# matches only when it is the whole name, carries a model qualifier, or is marked
+# as a bot. Prefer the email patterns; the name patterns are a backstop.
+
+# --- name is exactly the product, with no surname ---
+^claude$
+^anthropic$
+^chatgpt$
+^openai$
+^codex$
+^copilot$
+^cursor$
+^gemini$
+^devin$
+^jules$
+^aider$
+^windsurf$
+^cody$
+^amp$
+
+# --- name carries a model or product qualifier ---
+^claude\s+(opus|sonnet|haiku|code|\d)
+^gpt[-\s]?\d
+^gemini\s+(code\s+assist|cli|pro|flash|\d)
+^cursor\s+agent\b
+^github\s+copilot\b
+^google[-\s]labs[-\s]jules\b
+^openai\s+codex\b
+^amazon\s+q\b
+^devin\s+ai\b
+
+# --- anything GitHub marks as an app ---
+\[bot\]$
+
+# --- vendor name paired with a product name ---
+^anthropic\s+claude\b
+^google\s+gemini\b
+^openai\s+(gpt|chatgpt)\b
+^github\s+copilot\b
+
+# --- emails, the reliable signal. Subdomains count: bot@api.anthropic.com is
+#     as much a model address as noreply@anthropic.com.
+@([\w-]+\.)*anthropic\.com$
+@([\w-]+\.)*openai\.com$
+@([\w-]+\.)*cursor\.(com|sh)$
+@([\w-]+\.)*cognition(-labs)?\.(ai|com)$
+@([\w-]+\.)*windsurf\.com$
+^copilot@github\.com$
+\[bot\]@users\.noreply\.github\.com$

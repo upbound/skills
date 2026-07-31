@@ -1,0 +1,52 @@
+name: canary
+
+# ci.yml pins the Claude Code CLI so an upstream change cannot turn every
+# contributor's pull request red. This runs the same validation against @latest
+# on a schedule instead, so a maintainer sees the break and triages it before
+# anyone bumps the pin.
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  latest-cli:
+    name: plugin manifest against @latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - run: npm i -g @anthropic-ai/claude-code@latest
+      - name: Report the version under test
+        run: claude --version
+      - name: Validate manifests
+        env:
+          CI: "true"
+          DISABLE_AUTOUPDATER: "1"
+        run: |
+          printf '{"hasCompletedOnboarding":true}' > "$HOME/.claude.json"
+          timeout 120 claude plugin validate .claude-plugin/plugin.json --strict
+          timeout 120 claude plugin validate .claude-plugin/marketplace.json --strict
+
+  external-links:
+    name: external links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Scheduled rather than a PR gate: external links are too flaky to block
+      # merges on, but a stale docs URL still needs catching.
+      #
+      # Status code alone is not enough. docs.crossplane.io/llms.txt answers 200
+      # with the site homepage, so a naive checker passes a page that does not
+      # exist. Anything that looks like a soft 404 is reported.
+      - name: Check links referenced by the docs
+        run: python3 hack/check_links.py

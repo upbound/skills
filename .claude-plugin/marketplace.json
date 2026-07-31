@@ -1,0 +1,16 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "upbound",
+  "description": "Skills for working with the Upbound Platform, published by Upbound.",
+  "owner": {
+    "name": "Upbound",
+    "url": "https://upbound.io"
+  },
+  "plugins": [
+    {
+      "name": "upbound",
+      "source": "./",
+      "description": "Skills for working with the Upbound Platform"
+    }
+  ]
+}

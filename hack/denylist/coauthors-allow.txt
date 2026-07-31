@@ -1,0 +1,6 @@
+# Identities exempt from coauthors.txt, matched against the whole
+# "Name <email>" of a Co-authored-by line. Python regex, case-insensitive.
+#
+# Use this when a bot the project wants credited is caught by the broad
+# [bot]@users.noreply.github.com rule. Add an entry in the same pull request as
+# the change that needs it, with a comment saying why.

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-kubectl <kubectl-arg ...>
+#
+# kubectl against the aggregated API. This is the write path; for reads prefer
+# hub-curl or hub-list, which paginate and are cheaper.
+#
+#   hub-kubectl get controlplanes -A
+#   hub-kubectl apply -f controlplane.yaml -n default
+#
+# TLS:
+#   HUB_CA_FILE   PEM bundle for the API's CA, when the system trust store
+#                 does not already include it.
+#   HUB_INSECURE  Set to 1 to skip verification. Development only.
+#
+# The token goes into a 0600 kubeconfig in a temporary directory rather than
+# --token=, so it never appears in the process table.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ] || [ $# -eq 0 ]; then
+  sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
+  [ $# -eq 0 ] && exit 2
+  exit 0
+fi
+
+hub_require_url
+
+token="$("$dir/hub-credential-helper" get-token --hub-url="$HUB_API_URL")"
+
+umask 077
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+config="$tmp/kubeconfig"
+
+{
+  printf 'apiVersion: v1\n'
+  printf 'kind: Config\n'
+  printf 'current-context: hub\n'
+  printf 'clusters:\n'
+  printf -- '- name: hub\n'
+  printf '  cluster:\n'
+  printf '    server: %s\n' "$HUB_API_URL"
+  if [ -n "${HUB_CA_FILE:-}" ]; then
+    printf '    certificate-authority: %s\n' "$HUB_CA_FILE"
+  elif [ "${HUB_INSECURE:-0}" = "1" ]; then
+    printf '    insecure-skip-tls-verify: true\n'
+  fi
+  printf 'users:\n'
+  printf -- '- name: hub\n'
+  printf '  user:\n'
+  printf '    token: %s\n' "$token"
+  printf 'contexts:\n'
+  printf -- '- name: hub\n'
+  printf '  context:\n'
+  printf '    cluster: hub\n'
+  printf '    user: hub\n'
+} > "$config"
+
+KUBECONFIG="$config" kubectl "$@"

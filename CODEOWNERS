@@ -1,0 +1,8 @@
+# Add a per-skill line when a skill gets a dedicated owner:
+#   /skills/<name>/   @upbound/<team>
+
+*                  @upbound/skills-maintainers
+
+/.github/          @upbound/skills-maintainers
+/hack/             @upbound/skills-maintainers
+/.claude-plugin/   @upbound/skills-maintainers

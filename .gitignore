@@ -1,0 +1,19 @@
+# The credential helper is downloaded at runtime by scripts/hub-setup, not
+# committed. Without this line a ~31 MB binary lands in the repo.
+skills/*/scripts/hub-credential-helper
+
+# Local, per-machine Claude Code settings. The checked-in .claude/settings.json
+# is the shared one.
+.claude/settings.local.json
+CLAUDE.local.md
+
+__pycache__/
+*.py[cod]
+.venv/
+
+.DS_Store
+*.sw?
+
+# Deployment-specific hygiene patterns. Kept out of the repository so an
+# internal naming scheme is not published; see hack/denylist/strings.txt.
+hack/denylist/*.local.txt

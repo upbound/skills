@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-list <resource> [pageSize] [query ...]
+#
+# Pages through a resource and emits one merged JSON array of items.
+#
+#   hub-list controlplanes
+#   hub-list resources 100 'filter=controlPlane == "prod-1"'
+#   hub-list resources 100 'filter=conditions.ready.status == "False"' | jq length
+#
+# Extra arguments become query parameters, URL-encoded. On /resources the useful
+# one is a CEL expression in `filter` -- see references/querying.md for the
+# fields. Filtering server-side beats pulling everything and using jq.
+#
+# Pagination is ?page=N&pageSize=S, one-indexed, not Kubernetes limit/continue.
+# pageSize is capped at 100 by the API contract.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+usage() { sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  "") usage >&2; exit 2 ;;
+esac
+
+# hub-curl resolves and reports a missing endpoint, so there is no guard here.
+resource="$1"
+shift
+
+# pageSize is optional and filters are trailing args, so a caller writing
+# `hub-list resources 'filter=...'` would otherwise set pageSize to the filter.
+size=100
+if [ $# -gt 0 ] && printf '%s' "$1" | grep -qE '^[0-9]+$'; then
+  size="$1"
+  shift
+fi
+if [ "$size" -lt 1 ] || [ "$size" -gt 100 ]; then
+  echo "hub-list: pageSize must be 1-100 (the API caps it at 100)" >&2
+  exit 2
+fi
+
+case "$resource" in
+  # Anything not listed here would silently build a wrong URL.
+  resources|resourcestats|controlplanes|spaces|realms|lenses|typedefinitions|\
+  crossplanepackages|resourcerelationships|resourcerelationshiptrees)
+                             group="hub.upbound.io"; version="v1beta1" ;;
+  identityproviders|users|groups)
+                             group="authentication.hub.upbound.io"; version="v1" ;;
+  organizationrolebindings|realmrolebindings)
+                             group="authorization.hub.upbound.io"; version="v1beta1" ;;
+  images)                    group="catalog.hub.upbound.io"; version="v1alpha1" ;;
+  namespaces)
+    echo "hub-list: namespaces are core/v1, not a hub group. Realms are exposed" >&2
+    echo "  as namespaces; use: hub-curl /api/v1/namespaces" >&2
+    exit 2 ;;
+  *)
+    echo "hub-list: unknown resource '$resource'" >&2
+    echo "  Check references/api-surface.md, or run: hub-curl /apis" >&2
+    exit 2 ;;
+esac
+
+# URL-encode values; a name containing & would otherwise widen the query.
+query=""
+for param in "$@"; do
+  key="${param%%=*}"
+  value="${param#*=}"
+  if [ "$key" = "$param" ]; then
+    echo "hub-list: query argument '$param' must be key=value" >&2
+    exit 2
+  fi
+  encoded="$(jq -rn --arg v "$value" '$v|@uri')"
+  query="${query}&${key}=${encoded}"
+done
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+page=1
+truncated=0
+max_pages="${HUB_MAX_PAGES:-200}"
+while :; do
+  out="$tmp/$(printf 'p%04d' "$page").json"
+  url="/apis/${group}/${version}/${resource}?page=${page}&pageSize=${size}${query}"
+
+  # Capture the status before anything else runs; inside `if ! cmd`, $? is the
+  # status of the negation rather than the command, which is always 0.
+  status=0
+  "$dir/hub-curl" "$url" -o "$out" || status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "error: GET $resource page $page failed (curl exit $status)" >&2
+    # The server writes its Status body to $out, which the trap is about to
+    # delete; without this the caller sees only an exit code.
+    [ -s "$out" ] && sed 's/^/  /' "$out" >&2
+    exit 1
+  fi
+
+  if ! jq -e 'has("items")' "$out" >/dev/null 2>&1; then
+    echo "error: $resource page $page returned no items field; refusing to treat" >&2
+    echo "  an unexpected response as the end of the list" >&2
+    [ -s "$out" ] && head -c 400 "$out" | sed 's/^/  /' >&2
+    exit 1
+  fi
+
+  count="$(jq '(.items // []) | length' "$out" 2>/dev/null || echo 0)"
+  [ "$count" -eq 0 ] && break
+
+  page=$(( page + 1 ))
+
+  [ "$count" -lt "$size" ] && break
+
+  # A safety stop, not an API limit. Exit 4 so a caller can tell a truncated
+  # answer from a complete one -- a warning on stderr is invisible to $( ).
+  if [ "$page" -gt "$max_pages" ]; then
+    echo "error: stopped after $max_pages pages of $resource without reaching the end." >&2
+    echo "  The result is TRUNCATED. Narrow it with a filter, or use hub-stats" >&2
+    echo "  for counts." >&2
+    truncated=1
+    break
+  fi
+done
+
+# nullglob so an empty result set yields [] rather than a jq error.
+shopt -s nullglob
+pages=("$tmp"/*.json)
+if [ ${#pages[@]} -eq 0 ]; then
+  echo '[]'
+else
+  jq -s '[.[].items // []] | add // []' "${pages[@]}"
+fi
+
+exit "$(( truncated * 4 ))"

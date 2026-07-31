@@ -1,0 +1,880 @@
+[
+  {
+    "src": "---\nname: a\n---\nbody\n",
+    "yaml": {
+      "name": "a"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\n---\nbody\n",
+    "yaml": {},
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\n\n# comment\nlicense: MIT\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "license": "MIT"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - one.md\n  - two.md\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "one.md",
+        "two.md"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": null
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\n---\n# Title\n\n---\n\nmore\n",
+    "yaml": {
+      "name": "a"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: Plain text long enough to be a real description.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "Plain text long enough to be a real description."
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - Plain text long enough to be a real description.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "Plain text long enough to be a real description."
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: A thing — with an em dash, (parens) and 'quotes'.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "A thing — with an em dash, (parens) and 'quotes'."
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - A thing — with an em dash, (parens) and 'quotes'.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "A thing — with an em dash, (parens) and 'quotes'."
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: See https://docs.upbound.io/llms.txt for more.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "See https://docs.upbound.io/llms.txt for more."
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - See https://docs.upbound.io/llms.txt for more.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "See https://docs.upbound.io/llms.txt for more."
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: Ends with a number 42 inline.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "Ends with a number 42 inline."
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - Ends with a number 42 inline.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "Ends with a number 42 inline."
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: emoji 🎉 survives\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "emoji 🎉 survives"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - emoji 🎉 survives\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "emoji 🎉 survives"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: \"Do X. MANDATORY: do Y.\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "Do X. MANDATORY: do Y."
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"Do X. MANDATORY: do Y.\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "Do X. MANDATORY: do Y."
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 'It''s a thing'\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "It's a thing"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 'It''s a thing'\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "It's a thing"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: \"tab\\tseparated\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "tab\tseparated"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"tab\\tseparated\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "tab\tseparated"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: \"newline\\nescaped\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "newline\nescaped"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"newline\\nescaped\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "newline\nescaped"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: \"unicode \\u00e9\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "unicode é"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"unicode \\u00e9\"\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "unicode é"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: Do X. MANDATORY: do Y.\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - Do X. MANDATORY: do Y.\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        {
+          "Do X. MANDATORY": "do Y."
+        }
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: See here:\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - See here:\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        {
+          "See here": null
+        }
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: \"unterminated\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"unterminated\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: 'unterminated\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 'unterminated\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: 'It's a thing'\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 'It's a thing'\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: \"He said \"hi\"\"\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - \"He said \"hi\"\"\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: Use for X # not for Y\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "Use for X"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - Use for X # not for Y\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "Use for X"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: - foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - - foo\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        [
+          "foo"
+        ]
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: @foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - @foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: `foo`\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - `foo`\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: !Foo bar\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - !Foo bar\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: %foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - %foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: ? foo\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - ? foo\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        {
+          "foo": null
+        }
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: [x]\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": [
+        "x"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - [x]\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        [
+          "x"
+        ]
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: {a: b}\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": {
+        "a": "b"
+      }
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - {a: b}\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        {
+          "a": "b"
+        }
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: &anchor x\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "x"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - &anchor x\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "x"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: *alias\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - *alias\n---\nbody\n",
+    "yaml": null,
+    "yaml_rejects": true
+  },
+  {
+    "src": "---\nname: a\ndescription: |\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": ""
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - |\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        ""
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: >\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": ""
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - >\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        ""
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: yes\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": true
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - yes\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        true
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: no\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": false
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - no\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        false
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: on\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": true
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - on\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        true
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: off\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": false
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - off\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        false
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: true\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": true
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - true\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        true
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: false\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": false
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - false\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        false
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: null\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": null
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - null\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        null
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: ~\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": null
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - ~\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        null
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 1.0\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": 1.0
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 1.0\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        1.0
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 1:30\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": 90
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 1:30\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        90
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 0x1F\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": 31
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 0x1F\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        31
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 0b101\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": 5
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 0b101\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        5
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 1_000\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": 1000
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 1_000\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        1000
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: .inf\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": Infinity
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - .inf\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        Infinity
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: .nan\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": NaN
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - .nan\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        NaN
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: -5\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": -5
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - -5\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        -5
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 1e3\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "1e3"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 1e3\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "1e3"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: https://x.io/y#z\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "https://x.io/y#z"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - https://x.io/y#z\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "https://x.io/y#z"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: trailing#hash\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "trailing#hash"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - trailing#hash\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "trailing#hash"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: a:b\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "a:b"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - a:b\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "a:b"
+      ]
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\ndescription: 1.2.3-rc1\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "description": "1.2.3-rc1"
+    },
+    "yaml_rejects": false
+  },
+  {
+    "src": "---\nname: a\nrefs:\n  - 1.2.3-rc1\n---\nbody\n",
+    "yaml": {
+      "name": "a",
+      "refs": [
+        "1.2.3-rc1"
+      ]
+    },
+    "yaml_rejects": false
+  }
+]

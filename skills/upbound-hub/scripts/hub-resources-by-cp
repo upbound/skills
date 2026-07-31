@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-resources-by-cp <control-plane> [realm] [--unhealthy]
+#
+# Table of the resources in one control plane, with a health column.
+#
+#   hub-resources-by-cp prod-1
+#   hub-resources-by-cp prod-1 us-west
+#   hub-resources-by-cp prod-1 --unhealthy    # only resources that aren't Ready
+#
+# Filtering happens on the server via query parameters, so this pulls only the
+# matching records rather than the whole inventory.
+#
+# HEALTH is one of: Ready, Unhealthy, or "-" when the record carries no
+# conditions at all. "-" means unknown, not healthy.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+case "${1:-}" in
+  -h|--help) sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  "") sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+esac
+
+control_plane="$1"
+shift
+
+realm=""
+unhealthy_only=false
+for arg in "$@"; do
+  case "$arg" in
+    --unhealthy) unhealthy_only=true ;;
+    *) realm="$arg" ;;
+  esac
+done
+
+# A CEL expression. The server drops query parameters it does not recognize
+# without an error, so a wrong filter name returns the whole fleet.
+cel="controlPlane == \"${control_plane}\""
+[ -n "$realm" ] && cel="${cel} && realm == \"${realm}\""
+[ "$unhealthy_only" = true ] && cel="${cel} && conditions.ready.status == \"False\""
+query=("filter=${cel}")
+
+status=0
+resources="$("$dir/hub-list" resources 100 "${query[@]}")" || status=$?
+if [ "$status" -eq 4 ]; then
+  echo "warning: the list was truncated; narrow it further" >&2
+elif [ "$status" -ne 0 ]; then
+  exit "$status"
+fi
+
+jq -r <<<"$resources" '
+  # Unknown is its own bucket: a condition that has not reported yet is not a
+  # failure. Ready=Unknown is the normal state while a resource is being created.
+  def health:
+    (.status.conditions // []) as $c
+    | if ($c | length) == 0 then "-"
+      elif ($c | map(select(.type == "Ready" or .type == "Synced" or .type == "Healthy"))
+              | map(select(.status == "False")) | length) > 0 then "Unhealthy"
+      elif ($c | map(select(.type == "Ready")) | map(select(.status == "True")) | length) > 0
+        then "Ready"
+      else "Unknown"
+      end;
+  def why:
+    [(.status.conditions // [])[] | select(.status == "False")
+     | "\(.type)=\(.reason // "?")"] | join(",") | if . == "" then "-" else . end;
+
+  sort_by(.source.kind // "", .source.name // "")
+  | (["HEALTH","KIND","NAME","NAMESPACE","REASON"],
+     (.[] | [
+        health,
+        (.source.kind      // "?"),
+        (.source.name      // "?"),
+        (.source.namespace // "-"),
+        why
+     ]))
+  | @tsv
+' | column -t -s "$(printf '\t')"

@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-curl <path> [curl-flag ...]
+#
+# curl against the Upbound Platform aggregated API, with auth attached.
+#
+#   hub-curl /apis | jq '.groups[].name'
+#   hub-curl '/apis/hub.upbound.io/v1beta1/resources?pageSize=100'
+#
+# The bearer token goes into a 0600 curl config file rather than a -H argument,
+# so it never appears in the process table. Anything on a command line is
+# readable by every process on the machine via ps.
+#
+# The config is a file rather than stdin on purpose: stdin has to stay free so
+# callers can pipe a request body through, as hub-stats does with --data-binary @-.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
+
+usage() {
+  sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  usage
+  exit 0
+fi
+
+if [ $# -lt 1 ]; then
+  usage >&2
+  exit 2
+fi
+
+hub_require_url
+
+path="$1"
+shift
+
+case "$path" in
+  //*) echo "hub-curl: path must not start with '//'" >&2; exit 2 ;;
+  /*)  ;;
+  *)   echo "hub-curl: path must start with '/' (got '$path')." >&2
+       echo "  Anything else can retarget the request to another host, and the" >&2
+       echo "  bearer token would go with it." >&2
+       exit 2 ;;
+esac
+
+# Caller flags are filtered rather than passed through: -v and --trace print the
+# Authorization header, and a second URL operand would receive the token too.
+for arg in "$@"; do
+  case "$arg" in
+    -v|--verbose|--trace|--trace-ascii|--trace-config|--libcurl|-K|--config|--proxy*|-T|--upload-file|-k|--insecure)
+      echo "hub-curl: '$arg' is not allowed; it would expose the bearer token" >&2
+      exit 2 ;;
+    *://*)
+      echo "hub-curl: refusing a second URL ('$arg'); auth applies to every URL" >&2
+      exit 2 ;;
+  esac
+done
+
+token="$("$dir/hub-credential-helper" get-token --hub-url="$HUB_API_URL")"
+
+tls=()
+if [ -n "${HUB_CA_FILE:-}" ]; then
+  tls+=(--cacert "$HUB_CA_FILE")
+elif [ "${HUB_INSECURE:-0}" = "1" ]; then
+  tls+=(--insecure)
+fi
+
+case "$token" in
+  *[!A-Za-z0-9._~+/=-]*)
+    echo "hub-curl: credential helper returned an unexpected token format" >&2
+    exit 1 ;;
+esac
+
+umask 077
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+printf 'header = "Authorization: Bearer %s"\n' "$token" > "$tmp/curlrc"
+
+# --disable stops curl reading ~/.curlrc, so only what we pass here applies.
+curl --disable --config "$tmp/curlrc" \
+  --fail-with-body -sS \
+  --connect-timeout 10 --max-time 60 \
+  --retry 3 --retry-delay 2 --retry-connrefused \
+  "${tls[@]}" \
+  "$@" \
+  "${HUB_API_URL}${path}"

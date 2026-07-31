@@ -1,0 +1,45 @@
+name: Skill request
+description: Propose a new skill, or new coverage in an existing one
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Skills exist to stop agents getting specific things wrong. The clearer you can be about what
+        goes wrong today, the more likely the skill fixes it.
+
+  - type: textarea
+    id: failure
+    attributes:
+      label: What do agents get wrong today
+      description: The mistake you keep seeing. An example prompt and a wrong answer is perfect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct
+    attributes:
+      label: What should happen instead
+      description: The right answer, or the right procedure.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sources
+    attributes:
+      label: Authoritative sources
+      description: Docs, API references, or source that establish the correct behavior.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: willing
+    attributes:
+      label: Would you be willing to write it?
+      options:
+        - "Yes"
+        - "Yes, with some guidance"
+        - "No, but I can review it"
+        - "No"
+    validations:
+      required: true

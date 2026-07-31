@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# Blocks a commit that would add something shaped like a credential. Installed
+# by `make hooks`.
+#
+# Catching it here matters: once a secret is committed it is in the reflog and
+# in every clone, and removing it means a history rewrite. CI finding it later
+# is already too late.
+#
+# To override in a genuine false positive, commit with --no-verify, then add the
+# case to hack/denylist/secrets-allow.txt so the next person is not blocked.
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
+exec python3 "$repo/hack/validate.py" secrets --staged
