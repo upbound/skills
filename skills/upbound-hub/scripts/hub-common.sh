@@ -79,6 +79,27 @@ hub_save_url() {
   printf '%s\n' "$config"
 }
 
+# hub-setup downloads the helper rather than the repository committing it, so on
+# a fresh checkout it is simply absent. Without this the caller gets bash's
+# "No such file or directory" and exit 127, which names a path but not the fix.
+hub_require_helper() {
+  local bin="$1"
+  [ -x "$bin" ] && return 0
+
+  if [ -e "$bin" ]; then
+    echo "error: the Hub credential helper is not executable: $bin" >&2
+  else
+    echo "error: the Hub credential helper is not installed." >&2
+  fi
+  cat >&2 <<'EOF'
+
+  Run: scripts/hub-setup
+
+  It downloads the helper, checks it against a published SHA-256, and signs in.
+EOF
+  return 1
+}
+
 hub_require_url() {
   hub_resolve_url
   [ -n "${HUB_API_URL:-}" ] && return 0

@@ -3,7 +3,10 @@
 
 SHELL := /usr/bin/env bash
 PYTHON ?= python3
-SKILL_SCRIPTS := $(wildcard skills/*/scripts/*)
+# git ls-files rather than a wildcard: hub-setup downloads a credential helper
+# into a skill's scripts/ and the repository gitignores it, so a glob hands
+# shellcheck a 31 MB binary in any checkout that has actually used the skill.
+SKILL_SCRIPTS := $(shell git ls-files 'skills/*/scripts/*' 2>/dev/null)
 
 .PHONY: help
 help: ## Show this help

@@ -32,6 +32,7 @@ fi
 
 hub_require_url
 
+hub_require_helper "$dir/hub-credential-helper"
 token="$("$dir/hub-credential-helper" get-token --hub-url="$HUB_API_URL")"
 
 umask 077

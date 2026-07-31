@@ -15,9 +15,20 @@ setup_stubs() {
   ARGV_LOG="$STUB_DIR/argv.log"
   : > "$ARGV_LOG"
 
-  # Scripts resolve the helper from their own directory, so it is installed there
-  # and removed again in teardown.
+  # Scripts resolve the helper from their own directory, so the stub has to go
+  # there -- which means a real one installed by hub-setup is in the way. Move it
+  # aside instead of clobbering it: teardown deletes the stub, and deleting a
+  # 31 MB binary costs the user a re-download and possibly a fresh sign-in.
+  #
+  # A rename within the same directory, so it is atomic and moves no bytes. Dot
+  # prefixed because validate.py skips dotfiles, and an interrupted run leaves
+  # this behind.
   HELPER="$SKILL_DIR/scripts/hub-credential-helper"
+  HELPER_BACKUP="$SKILL_DIR/scripts/.hub-credential-helper.bats-backup"
+  if [ -e "$HELPER" ]; then
+    mv "$HELPER" "$HELPER_BACKUP"
+  fi
+
   cat > "$HELPER" <<EOF
 #!/usr/bin/env bash
 echo "hub-credential-helper \$*" >> "$ARGV_LOG"
@@ -80,7 +91,12 @@ EOF
 }
 
 teardown_stubs() {
-  rm -f "$SKILL_DIR/scripts/hub-credential-helper"
+  local helper="$SKILL_DIR/scripts/hub-credential-helper"
+  local backup="$SKILL_DIR/scripts/.hub-credential-helper.bats-backup"
+  rm -f "$helper"
+  if [ -e "$backup" ]; then
+    mv "$backup" "$helper"
+  fi
   rm -rf "$STUB_DIR"
 }
 

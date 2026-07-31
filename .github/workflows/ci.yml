@@ -47,15 +47,16 @@ jobs:
       # shellcheck is preinstalled on ubuntu-latest.
       - name: shellcheck
         run: |
-          shopt -s nullglob
-          files=(skills/*/scripts/* hack/hooks/*)
+          # git ls-files, not a glob: a skill may download something into its own
+          # scripts/ and gitignore it, and a glob would hand shellcheck a binary.
+          # CI never runs a skill, but the same lines run locally via make lint.
+          mapfile -t files < <(git ls-files 'skills/*/scripts/*' 'hack/hooks/*')
           [ ${#files[@]} -eq 0 ] && { echo "no scripts"; exit 0; }
           shellcheck -x -S style "${files[@]}"
       - name: SPDX headers
         run: |
-          shopt -s nullglob
           missing=0
-          for f in skills/*/scripts/* hack/hooks/*; do
+          for f in $(git ls-files 'skills/*/scripts/*' 'hack/hooks/*'); do
             if ! head -5 "$f" | grep -q 'SPDX-License-Identifier'; then
               echo "$f: missing SPDX-License-Identifier header" >&2
               missing=1

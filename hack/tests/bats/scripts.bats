@@ -97,6 +97,24 @@ teardown() { teardown_stubs; }
   [[ "$output" == *"HUB_API_URL"* ]]
 }
 
+@test "hub-curl names the fix when the credential helper is missing" {
+  # The helper is downloaded, not committed, so a fresh checkout has none. Bash
+  # would otherwise report exit 127 and a path, which is not a fix.
+  rm -f "$SKILL_DIR/scripts/hub-credential-helper"
+  run "$SKILL_DIR/scripts/hub-curl" /apis
+  [ "$status" -ne 0 ]
+  [ "$status" -ne 127 ]
+  [[ "$output" == *"hub-setup"* ]]
+}
+
+@test "hub-kubectl names the fix when the credential helper is missing" {
+  rm -f "$SKILL_DIR/scripts/hub-credential-helper"
+  run "$SKILL_DIR/scripts/hub-kubectl" get controlplanes
+  [ "$status" -ne 0 ]
+  [ "$status" -ne 127 ]
+  [[ "$output" == *"hub-setup"* ]]
+}
+
 @test "hub-list with no arguments explains itself" {
   run "$SKILL_DIR/scripts/hub-list"
   [ "$status" -eq 2 ]
