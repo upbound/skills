@@ -44,4 +44,6 @@ scripts it ships. Two things worth knowing about this repository specifically:
   it. That checksum shares an origin with the binary, so it catches a corrupted download, not a
   compromised source.
 - `HUB_CREDENTIAL_HELPER_BASE_URL` changes where that binary comes from, and is restricted to
-  `https://`. `HUB_INSECURE=1` disables TLS verification. Set neither unless you know why.
+  `https://`. `HUB_INSECURE=1` disables TLS verification. Set neither unless you know why. The
+  default channel is the only supported one; other paths in that bucket are build artifacts that
+  may change or disappear without notice.
