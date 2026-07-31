@@ -15,19 +15,48 @@ permissions by attempting the operation — an earlier version of this skill sai
 to, and for `delete` that is destructive.
 
 It is in `authorization.hub.upbound.io`, not `authorization.k8s.io`, so
-`kubectl auth can-i` will not work. POST it:
+`kubectl auth can-i` will not work. The spec field is `hubResourceRequest`, not
+upstream's `resourceAttributes`, and `group`, `version`, `resource` and `verb`
+are all required. Omitting any of them is a 422, which is not a denial — do not
+read a validation error as "not permitted":
 
 ```bash
 printf '%s' '{
   "apiVersion": "authorization.hub.upbound.io/v1beta1",
   "kind": "SelfSubjectAccessReview",
-  "spec": {"resourceAttributes": {
-    "group": "hub.upbound.io", "resource": "realms", "verb": "delete", "name": "us-west"
+  "spec": {"hubResourceRequest": {
+    "group": "hub.upbound.io", "version": "v1beta1", "resource": "realms",
+    "verb": "delete", "name": "us-west"
   }}
 }' | scripts/hub-curl /apis/authorization.hub.upbound.io/v1beta1/selfsubjectaccessreviews \
       -X POST -H 'Content-Type: application/json' --data-binary @- \
   | jq '.status'
 ```
+
+`realm` decides the scope, and leaving it out is not neutral: absent means
+cluster-scoped resources only, `""` means every realm of a realm-scoped
+resource, and a name means that realm. Asking about `controlplanes` without a
+realm is therefore not the question you meant. `name` empty means any name, and
+`subresource` scopes to a subresource.
+
+The answer is `.status.decision`, not upstream's `.status.allowed`, and there
+are three outcomes:
+
+| `decision` | What it means |
+|---|---|
+| `Allow` | Permitted. |
+| `Deny` | Not permitted. |
+| `Filtered` | Permitted for **some rows only**. `.status.filter` holds the predicate. |
+
+`Filtered` is the one that causes wrong answers. It arrives looking like
+success, and `.status.filter` is what narrows it — for example
+`{"stringVarIn": {"variable": "realm", "values": ["default"]}}` allows the verb
+only in the `default` realm. Treat it as a no for anything outside the filter,
+and say which realms it covers rather than reporting plain access. `filter` is
+populated only for `Filtered`.
+
+`.status.error` can be set alongside either `Allow` or `Deny`, and
+`.status.reason` is a human-readable explanation.
 
 `SelfSubjectRulesReview` genuinely does not exist — you cannot enumerate every
 permission, only ask about a specific one.
