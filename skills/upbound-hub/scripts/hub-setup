@@ -22,7 +22,9 @@ dir="$(cd "$(dirname "$0")" && pwd)"
 . "$dir/hub-common.sh"
 
 bin="$dir/hub-credential-helper"
-DEFAULT_BASE_URL="https://storage.googleapis.com/upbound-hub-artifacts/main/current"
+# The released helper. HUB_CREDENTIAL_HELPER_BASE_URL overrides it for testing
+# against an unreleased build -- not a supported configuration.
+DEFAULT_BASE_URL="https://storage.googleapis.com/upbound-hub-artifacts/stable/current"
 base_url="${HUB_CREDENTIAL_HELPER_BASE_URL:-$DEFAULT_BASE_URL}"
 
 # https only. Without this, file:// or http:// in the environment installs and
