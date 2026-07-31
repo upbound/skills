@@ -1,17 +1,12 @@
 name: bump version
 
-# Contributors do not bump the version; this does it after the merge.
+# Bumps the version after a merge, so contributors never touch it.
 #
-# It pushes with a GitHub App token rather than GITHUB_TOKEN. Branch protection
-# rejects a direct push regardless of who makes it, and GITHUB_TOKEN cannot be
-# excepted: a ruleset bypass list accepts admins, roles, teams, GitHub Apps and
-# Dependabot, but not the Actions identity. That is deliberate -- the
-# github-actions[bot] identity is not branch-scoped, so a bypass would let any
-# workflow on any branch, including one added in a pull request, push to main.
+# GITHUB_TOKEN cannot do this: branch protection blocks direct pushes and only
+# apps, roles and teams can be given a bypass. The app needs its own entry in the
+# main ruleset's bypass list, which nothing here can express.
 #
-# Needs the BUMP_APP_ID variable, the BUMP_APP_PRIVATE_KEY secret, and the app
-# in the branch ruleset's bypass list. Until those exist this job skips rather
-# than failing, so the repository works without them.
+# `secrets` is unavailable in a job-level `if`, so the guard is the fork check only.
 on:
   push:
     branches: [main]
@@ -25,9 +20,7 @@ jobs:
   bump:
     name: bump
     runs-on: ubuntu-latest
-    if: >-
-      github.repository == 'upbound/skills'
-      && vars.BUMP_APP_ID != ''
+    if: github.repository == 'upbound/skills'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -40,7 +33,7 @@ jobs:
         id: token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ vars.BUMP_APP_ID }}
+          app-id: ${{ secrets.BUMP_APP_ID }}
           private-key: ${{ secrets.BUMP_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: ${{ github.event.repository.name }}
