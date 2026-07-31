@@ -28,6 +28,20 @@ git clone https://github.com/upbound/skills upbound-skills
 claude --plugin-dir upbound-skills
 ```
 
+## Updating
+
+```bash
+claude plugin marketplace update upbound   # refresh the source
+claude plugin update upbound@upbound       # then the plugin; restart to apply
+```
+
+`claude plugin list` shows the version you are on, and the version here is bumped on every
+merge that touches `skills/`.
+
+Worth doing rather than leaving to drift. A skill is instructions, so an out-of-date copy
+does not fail — it keeps confidently answering from whatever it last knew, including
+endpoints and field names that have since been corrected.
+
 ### Other agents
 
 Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
