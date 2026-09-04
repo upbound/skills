@@ -196,6 +196,55 @@ teardown() { teardown_stubs; }
   grep -q "authentication.hub.upbound.io" "$ARGV_LOG"
 }
 
+# --- version negotiation ---------------------------------------------------
+#
+# The stub's /apis serves authentication.hub.upbound.io at v1alpha1 and v1beta1
+# but not v1, and hub.upbound.io at v1alpha1 and v1beta1 while preferring
+# v1alpha1. Those two shapes are what these assert against.
+
+@test "hub-list asks the server which version a group serves" {
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
+  [ "$status" -eq 0 ]
+  # The discovery request itself, not the /apis prefix every collection URL has.
+  grep -qE "hub\.example\.com/apis( |$)" "$ARGV_LOG"
+}
+
+@test "hub-list drops a pinned version the server does not serve" {
+  # The bug this replaced: identityproviders is pinned to v1, a Hub serving
+  # only v1alpha1 and v1beta1 404s it, and asserting on the group alone did
+  # not notice.
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
+  [ "$status" -eq 0 ]
+  grep -q "authentication.hub.upbound.io/v1beta1/identityproviders" "$ARGV_LOG"
+  ! grep -q "authentication.hub.upbound.io/v1/identityproviders" "$ARGV_LOG"
+}
+
+@test "hub-list says so when it substitutes a version" {
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
+  [ "$status" -eq 0 ]
+  # bats folds stderr into $output unless --separate-stderr is used.
+  [[ "$output" == *"does not serve v1"* ]]
+}
+
+@test "hub-list keeps its pin over the server's preferred version" {
+  # hub.upbound.io serves v1beta1 and prefers v1alpha1, where Resource and
+  # ResourceStats are deprecated. Following .preferredVersion would silently
+  # downgrade every read.
+  run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  grep -q "hub.upbound.io/v1beta1/resources" "$ARGV_LOG"
+  ! grep -q "hub.upbound.io/v1alpha1/resources" "$ARGV_LOG"
+}
+
+@test "hub-list falls back to the pin when discovery gives nothing usable" {
+  # catalog.hub.upbound.io is absent from the stub's /apis, as it is from a
+  # deployment with the gate off. The request should still be built and the
+  # server left to report the 404.
+  run "$SKILL_DIR/scripts/hub-list" images
+  [ "$status" -eq 0 ]
+  grep -q "catalog.hub.upbound.io/v1alpha1/images" "$ARGV_LOG"
+}
+
 @test "hub-list routes images to the catalog group" {
   run "$SKILL_DIR/scripts/hub-list" images
   [ "$status" -eq 0 ]

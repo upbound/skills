@@ -65,7 +65,29 @@ for a in "\$@"; do
   if [ "\$prev" = "-o" ]; then out="\$a"; fi
   prev="\$a"
 done
+# /apis is discovery, not a collection. hub-list reads it to find which
+# version a group actually serves, so answering it with an item list would
+# make every lookup fall back to its pinned version and prove nothing.
+#
+# hub.upbound.io deliberately prefers v1alpha1 while also serving v1beta1:
+# that is what shows the pin winning over .preferredVersion. The
+# authentication group deliberately omits v1, which is what the pin gets
+# wrong on a real deployment.
+discovery='{"kind":"APIGroupList","groups":[
+  {"name":"hub.upbound.io",
+   "versions":[{"version":"v1alpha1"},{"version":"v1beta1"}],
+   "preferredVersion":{"version":"v1alpha1"}},
+  {"name":"authentication.hub.upbound.io",
+   "versions":[{"version":"v1alpha1"},{"version":"v1beta1"}],
+   "preferredVersion":{"version":"v1beta1"}},
+  {"name":"authorization.hub.upbound.io",
+   "versions":[{"version":"v1beta1"}],
+   "preferredVersion":{"version":"v1beta1"}}
+]}'
 body='{"items":[],"metadata":{"total":{"count":0,"relation":"eq"}}}'
+case " \$* " in
+  *"/apis "*|*"/apis?"*) body="\$discovery" ;;
+esac
 if [ -n "\$out" ]; then printf '%s' "\$body" > "\$out"; else printf '%s' "\$body"; fi
 EOF
   chmod +x "$STUB_DIR/curl"

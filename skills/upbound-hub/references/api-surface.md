@@ -1,7 +1,9 @@
 # API surface
 
-Versions differ by group. To see what a deployment exposes, and which resources
-are behind a feature gate:
+Versions differ by group, and by deployment. The tables below are what to expect,
+not a guarantee: a Hub serving `authentication.hub.upbound.io` at v1alpha1 and
+v1beta1 but not v1 exists, so `hub-list` asks `/apis` and drops a pinned version
+the server does not serve. Check any deployment you are on:
 
 ```bash
 scripts/hub-curl /apis | jq '.groups[] | {name, versions: [.versions[].version]}'
@@ -12,7 +14,7 @@ scripts/hub-curl /apis/hub.upbound.io/v1beta1 | jq '.resources[] | {name, namesp
 |---|---|
 | `hub.upbound.io` | v1alpha1, v1alpha2, **v1beta1** |
 | `ingest.hub.upbound.io` | v1alpha1, v1beta1 |
-| `authentication.hub.upbound.io` | v1, v1beta1 |
+| `authentication.hub.upbound.io` | v1alpha1, v1beta1, and on some deployments v1 |
 | `authorization.hub.upbound.io` | v1alpha1, v1beta1 |
 | `catalog.hub.upbound.io` | v1alpha1 |
 
@@ -63,7 +65,7 @@ as counts, and `summary.{controlPlaneCount,resourceCount,versionCount}`.
 
 | Group | Resources |
 |---|---|
-| `authentication.hub.upbound.io/v1` | `identityproviders`, `users`, `groups` |
+| `authentication.hub.upbound.io` | `identityproviders`, `users`, `groups` — **version varies**; `users` and `groups` require an `identityProvider` query parameter, and `users` a `group` as well |
 | `authorization.hub.upbound.io/v1beta1` | `organizationrolebindings` (cluster), `realmrolebindings` (namespaced), **`selfsubjectaccessreviews`** (create) |
 | `catalog.hub.upbound.io/v1alpha1` | `images` (subresources `usage`, `curated`, `openapi`), `imagesearches` (create-only, cannot be listed) |
 | `registry.hub.upbound.io` | `repositories`, `connections` (namespaced) |
