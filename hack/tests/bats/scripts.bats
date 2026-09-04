@@ -74,6 +74,52 @@ teardown() { teardown_stubs; }
   grep -q -- "--disable" "$ARGV_LOG"
 }
 
+# --- TLS flags -------------------------------------------------------------
+
+@test "hub-curl passes no TLS flags when neither variable is set" {
+  # The common case, and the one that used to abort on bash 3.2: with neither
+  # variable set the tls array is empty, and expanding an empty array under
+  # `set -u` is an error there.
+  run "$SKILL_DIR/scripts/hub-curl" /apis
+  [ "$status" -eq 0 ]
+  ! grep -q -- "--cacert" "$ARGV_LOG"
+  ! grep -q -- "--insecure" "$ARGV_LOG"
+}
+
+@test "hub-curl passes HUB_CA_FILE through as --cacert" {
+  ca="$STUB_DIR/ca.pem"
+  : > "$ca"
+  HUB_CA_FILE="$ca" run "$SKILL_DIR/scripts/hub-curl" /apis
+  [ "$status" -eq 0 ]
+  grep -q -- "--cacert $ca" "$ARGV_LOG"
+}
+
+@test "hub-curl passes HUB_INSECURE=1 through as --insecure" {
+  HUB_INSECURE=1 run "$SKILL_DIR/scripts/hub-curl" /apis
+  [ "$status" -eq 0 ]
+  grep -q -- "--insecure" "$ARGV_LOG"
+}
+
+@test "hub-curl runs under bash 3.2, where an empty array counts as unset" {
+  # bash 4.4 stopped treating "${empty[@]}" as an unbound variable under
+  # `set -u`, so no bash CI runs on can reproduce this. macOS still ships 3.2
+  # as /bin/bash, which is the only place left to catch it -- skipped, not
+  # failed, everywhere else.
+  [ -x /bin/bash ] || skip "no /bin/bash to test against"
+  case "$(/bin/bash -c 'echo "$BASH_VERSION"')" in
+    3.*) ;;
+    *)   skip "/bin/bash is not 3.x" ;;
+  esac
+
+  run /bin/bash "$SKILL_DIR/scripts/hub-curl" /apis
+
+  # Not `[ "$status" -eq 0 ]`: bash 3.2 aborts on the unbound variable but exits
+  # with the status of the command before it, which is 0 here. The failure is
+  # silent, so the message and curl having run are the only honest assertions.
+  [[ "$output" != *"unbound variable"* ]]
+  grep -q "^curl " "$ARGV_LOG"
+}
+
 # --- failing cleanly -------------------------------------------------------
 
 @test "hub-curl fails clearly when HUB_API_URL is unset" {
