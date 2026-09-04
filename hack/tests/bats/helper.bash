@@ -39,11 +39,20 @@ esac
 EOF
   chmod +x "$HELPER"
 
+  # The stub answers only what the discovery document below advertises, and
+  # 404s everything else the way the server would. A stub that says yes to every
+  # path is how two real bugs shipped with passing tests: hub-curl aborting on
+  # bash 3.2, and hub-list requesting a version the server does not serve. The
+  # test harness should not be more permissive than the thing it stands in for.
+  #
+  # hub.upbound.io deliberately prefers v1alpha1 while also serving v1beta1:
+  # that is what shows a pinned version winning over .preferredVersion. The
+  # authentication group deliberately omits v1, which is what the pin gets wrong
+  # on a real deployment. catalog.hub.upbound.io is absent entirely, standing in
+  # for a feature gate that is off.
   cat > "$STUB_DIR/curl" <<EOF
 #!/usr/bin/env bash
 echo "curl \$*" >> "$ARGV_LOG"
-# Keep a copy of the auth config, and its mode, so both can be asserted after
-# the script's trap has cleaned it up.
 prev=""
 for a in "\$@"; do
   if [ "\$prev" = "--config" ] && [ -f "\$a" ]; then
@@ -56,23 +65,19 @@ done
 # Read stdin only when a body is actually being sent. Testing \`[ ! -t 0 ]\`
 # instead would block forever whenever stdin is an unclosed inherited pipe,
 # which is how this stub is invoked outside bats.
+sent_body=""
 case " \$* " in
-  *" --data-binary @- "*) cat >> "$STUB_DIR/stdin.log" ;;
+  *" --data-binary @- "*) sent_body="\$(cat)"; printf '%s' "\$sent_body" >> "$STUB_DIR/stdin.log" ;;
 esac
 out=""
+url=""
 prev=""
 for a in "\$@"; do
   if [ "\$prev" = "-o" ]; then out="\$a"; fi
+  case "\$a" in https://*|http://*) url="\$a" ;; esac
   prev="\$a"
 done
-# /apis is discovery, not a collection. hub-list reads it to find which
-# version a group actually serves, so answering it with an item list would
-# make every lookup fall back to its pinned version and prove nothing.
-#
-# hub.upbound.io deliberately prefers v1alpha1 while also serving v1beta1:
-# that is what shows the pin winning over .preferredVersion. The
-# authentication group deliberately omits v1, which is what the pin gets
-# wrong on a real deployment.
+
 discovery='{"kind":"APIGroupList","groups":[
   {"name":"hub.upbound.io",
    "versions":[{"version":"v1alpha1"},{"version":"v1beta1"}],
@@ -84,11 +89,55 @@ discovery='{"kind":"APIGroupList","groups":[
    "versions":[{"version":"v1beta1"}],
    "preferredVersion":{"version":"v1beta1"}}
 ]}'
-body='{"items":[],"metadata":{"total":{"count":0,"relation":"eq"}}}'
-case " \$* " in
-  *"/apis "*|*"/apis?"*) body="\$discovery" ;;
+items='{"items":[],"metadata":{"total":{"count":0,"relation":"eq"}}}'
+# Opt-in via a query parameter, so only the test that wants a saturated count
+# gets one: metadata.total.count caps at 1000 and then reports relation "gt".
+case "\$url" in
+  *saturate=1*) items='{"items":[],"metadata":{"total":{"count":1000,"relation":"gt"}}}' ;;
 esac
-if [ -n "\$out" ]; then printf '%s' "\$body" > "\$out"; else printf '%s' "\$body"; fi
+
+# The path, with any query string removed.
+path="\${url#*://}"; path="/\${path#*/}"; path="\${path%%\\?*}"
+
+emit() {
+  if [ -n "\$out" ]; then printf '%s' "\$1" > "\$out"; else printf '%s' "\$1"; fi
+}
+not_found() {
+  # --fail-with-body: curl writes the body and still exits 22.
+  emit '{"kind":"Status","apiVersion":"v1","status":"Failure","message":"404 page not found","reason":"NotFound","code":404}'
+  exit 22
+}
+
+case "\$path" in
+  /apis|/apis/) emit "\$discovery"; exit 0 ;;
+esac
+
+# Everything else must name a group and version the discovery document serves.
+gv="\$(printf '%s' "\$path" | awk -F/ 'NF>3 {print \$3 "/" \$4}')"
+case "\$gv" in
+  hub.upbound.io/v1alpha1|hub.upbound.io/v1beta1) ;;
+  authentication.hub.upbound.io/v1alpha1|authentication.hub.upbound.io/v1beta1) ;;
+  authorization.hub.upbound.io/v1beta1) ;;
+  *) not_found ;;
+esac
+
+case "\$path" in
+  */resourcestats)
+    # Echo back the filters that were applied, dropping the ones this server
+    # does not know -- which is exactly what the real handler does, silently.
+    # 'spaces' is treated as unknown here to stand in for a server whose filter
+    # set has drifted from the client's.
+    emit "\$(printf '%s' "\$sent_body" | jq -c '
+      {kind: "ResourceStats", apiVersion: "hub.upbound.io/v1beta1",
+       query: {filters: ((.query.filters // {}) | with_entries(select(.key |
+                 IN("kinds","groups","controlPlanes","realms","ready","synced","healthy")))),
+               groupBy: (.query.groupBy // [])},
+       results: {summary: {totalCount: 0, readyTrue: 0, readyFalse: 0, readyUnknown: 0},
+                 groups: []}}')"
+    exit 0 ;;
+esac
+
+emit "\$items"
 EOF
   chmod +x "$STUB_DIR/curl"
 
