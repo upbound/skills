@@ -74,6 +74,70 @@ teardown() { teardown_stubs; }
   grep -q -- "--disable" "$ARGV_LOG"
 }
 
+# --- saying so when the answer is not what was asked for --------------------
+
+@test "hub-list says a saturated count is not exact" {
+  # metadata.total.count caps at 1000 and reports relation "gt" with no
+  # magnitude, so reading count alone cannot tell 1,001 from 200,000.
+  run "$SKILL_DIR/scripts/hub-list" resources 100 'saturate=1'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"more than 1000"* ]]
+}
+
+@test "hub-list stays quiet about an exact count" {
+  run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"saturates"* ]]
+}
+
+@test "hub-stats reports a filter the server ignored" {
+  # The stub drops "spaces", standing in for a server whose filter set has
+  # drifted from this script's. The real handler drops unknown keys and returns
+  # 200, so the whole fleet comes back looking like a filtered answer.
+  run "$SKILL_DIR/scripts/hub-stats" kind -- spaces=insights-demo
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the server ignored these filters: spaces"* ]]
+}
+
+@test "hub-stats stays quiet when every filter was applied" {
+  run "$SKILL_DIR/scripts/hub-stats" kind -- kinds=Bucket
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"ignored these filters"* ]]
+}
+
+# --- hub-doctor ------------------------------------------------------------
+
+@test "hub-doctor reports the endpoint and the versions each group serves" {
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"https://hub.example.com"* ]]
+  [[ "$output" == *"hub.upbound.io"* ]]
+  [[ "$output" == *"v1beta1"* ]]
+}
+
+@test "hub-doctor names a group the deployment does not serve" {
+  # catalog.hub.upbound.io is absent from the stub's discovery document, which
+  # is what a feature gate being off looks like.
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"images"* ]]
+  [[ "$output" == *"feature gate off"* ]]
+}
+
+@test "hub-doctor names a resource served at other than its pinned version" {
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"identityproviders"* ]]
+  [[ "$output" == *"pinned v1, using v1beta1"* ]]
+}
+
+@test "hub-doctor fails clearly when HUB_API_URL is unset" {
+  unset HUB_API_URL
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"HUB_API_URL"* ]]
+}
+
 # --- failing cleanly -------------------------------------------------------
 
 @test "hub-curl fails clearly when HUB_API_URL is unset" {
@@ -196,9 +260,61 @@ teardown() { teardown_stubs; }
   grep -q "authentication.hub.upbound.io" "$ARGV_LOG"
 }
 
-@test "hub-list routes images to the catalog group" {
-  run "$SKILL_DIR/scripts/hub-list" images
+# --- version negotiation ---------------------------------------------------
+#
+# The stub's /apis serves authentication.hub.upbound.io at v1alpha1 and v1beta1
+# but not v1, and hub.upbound.io at v1alpha1 and v1beta1 while preferring
+# v1alpha1. Those two shapes are what these assert against.
+
+@test "hub-list asks the server which version a group serves" {
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
   [ "$status" -eq 0 ]
+  # The discovery request itself, not the /apis prefix every collection URL has.
+  grep -qE "hub\.example\.com/apis( |$)" "$ARGV_LOG"
+}
+
+@test "hub-list drops a pinned version the server does not serve" {
+  # The bug this replaced: identityproviders is pinned to v1, a Hub serving
+  # only v1alpha1 and v1beta1 404s it, and asserting on the group alone did
+  # not notice.
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
+  [ "$status" -eq 0 ]
+  grep -q "authentication.hub.upbound.io/v1beta1/identityproviders" "$ARGV_LOG"
+  ! grep -q "authentication.hub.upbound.io/v1/identityproviders" "$ARGV_LOG"
+}
+
+@test "hub-list says so when it substitutes a version" {
+  run "$SKILL_DIR/scripts/hub-list" identityproviders
+  [ "$status" -eq 0 ]
+  # bats folds stderr into $output unless --separate-stderr is used.
+  [[ "$output" == *"does not serve v1"* ]]
+}
+
+@test "hub-list keeps its pin over the server's preferred version" {
+  # hub.upbound.io serves v1beta1 and prefers v1alpha1, where Resource and
+  # ResourceStats are deprecated. Following .preferredVersion would silently
+  # downgrade every read.
+  run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  grep -q "hub.upbound.io/v1beta1/resources" "$ARGV_LOG"
+  ! grep -q "hub.upbound.io/v1alpha1/resources" "$ARGV_LOG"
+}
+
+@test "hub-list falls back to the pin when discovery gives nothing usable" {
+  # catalog.hub.upbound.io is absent from the stub's /apis, as it is from a
+  # deployment with the gate off. The request is still built with the pin, and
+  # the server is left to report the 404 -- guessing a version for a group that
+  # is not served would only turn one clear error into a confusing one.
+  run "$SKILL_DIR/scripts/hub-list" images
+  [ "$status" -ne 0 ]
+  grep -q "catalog.hub.upbound.io/v1alpha1/images" "$ARGV_LOG"
+  [[ "$output" == *"404"* ]]
+}
+
+@test "hub-list routes images to the catalog group" {
+  # Exits non-zero because the stub serves no catalog group; the assertion here
+  # is the routing, which happens before the request.
+  run "$SKILL_DIR/scripts/hub-list" images
   grep -q "catalog.hub.upbound.io" "$ARGV_LOG"
 }
 

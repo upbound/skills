@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+#
+# hub-doctor
+#
+# Reports what this deployment actually is, before a wrong assumption becomes a
+# wrong answer.
+#
+#   hub-doctor
+#
+# The static tables in references/api-surface.md are what to expect, not what
+# any given Hub serves. Versions differ by deployment, and whole resources sit
+# behind feature gates that are off, which returns 404 for the resource rather
+# than anything that says "gated". This prints the endpoint, whether the
+# credential is good, which version each group serves, and which of the
+# resources the skill knows about are actually reachable.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
+
+usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+esac
+
+hub_require_url
+
+echo "endpoint: $HUB_API_URL"
+
+if ! groups="$("$dir/hub-curl" /apis 2>&1)"; then
+  echo "  unreachable, or the credential is not good:" >&2
+  printf '%s\n' "$groups" | sed 's/^/  /' >&2
+  echo >&2
+  echo "  If this is a 401 the session expired: run scripts/hub-setup." >&2
+  echo "  If it is a connection error the endpoint may be wrong -- the API and" >&2
+  echo "  the web UI are often different hosts." >&2
+  exit 1
+fi
+echo "  reachable, credential accepted"
+echo
+
+echo "groups served here:"
+printf '%s' "$groups" | jq -r '
+  .groups[] | "  \(.name)\n    versions:  \([.versions[].version] | join(", "))\n    preferred: \(.preferredVersion.version)"'
+echo
+
+# The resources hub-list knows how to route, with the version it pins for each.
+# A 404 here means the feature gate is off, not that the API lacks the concept.
+echo "resources the skill knows about:"
+while read -r group pinned resource; do
+  [ -n "$resource" ] || continue
+  version="$(printf '%s' "$groups" | jq -r --arg g "$group" --arg pin "$pinned" '
+    [.groups[]? | select(.name == $g)] as $m
+    | if ($m | length) == 0 then "-"
+      elif ([$m[0].versions[]?.version] | index($pin)) != null then $pin
+      else ($m[0].preferredVersion.version // $pin)
+      end')"
+  if [ "$version" = "-" ]; then
+    printf '  %-28s group not served (feature gate off)\n' "$resource"
+    continue
+  fi
+  if "$dir/hub-curl" "/apis/${group}/${version}/${resource}?pageSize=1" >/dev/null 2>&1; then
+    note=""
+    [ "$version" != "$pinned" ] && note="  (pinned $pinned, using $version)"
+    printf '  %-28s ok at %s%s\n' "$resource" "$version" "$note"
+  else
+    printf '  %-28s NOT reachable at %s\n' "$resource" "$version"
+  fi
+done <<'RESOURCES'
+hub.upbound.io v1beta1 resources
+hub.upbound.io v1beta1 controlplanes
+hub.upbound.io v1beta1 spaces
+hub.upbound.io v1beta1 realms
+hub.upbound.io v1beta1 lenses
+hub.upbound.io v1beta1 typedefinitions
+hub.upbound.io v1beta1 crossplanepackages
+authentication.hub.upbound.io v1 identityproviders
+authorization.hub.upbound.io v1beta1 organizationrolebindings
+catalog.hub.upbound.io v1alpha1 images
+RESOURCES
+echo
+echo "A resource that is not reachable is usually a feature gate that is off."
+echo "Read access can also be narrowed per realm; ask selfsubjectaccessreviews"
+echo "rather than inferring scope from what a list returns."

@@ -87,8 +87,32 @@ fi
 
 # apiVersion and kind are required: the handler decodes with no GVK defaults and
 # checks for an exact match, so a bare {"query": ...} is a 400.
-jq -nc --argjson groupBy "$groups_json" --argjson filters "$filters_json" \
+status=0
+response="$(jq -nc --argjson groupBy "$groups_json" --argjson filters "$filters_json" \
   '{apiVersion: "hub.upbound.io/v1beta1", kind: "ResourceStats",
     query: {filters: $filters, groupBy: $groupBy}}' \
 | "$dir/hub-curl" /apis/hub.upbound.io/v1beta1/resourcestats \
-    -X POST -H 'Content-Type: application/json' --data-binary @-
+    -X POST -H 'Content-Type: application/json' --data-binary @-)" || status=$?
+if [ "$status" -ne 0 ]; then
+  [ -n "$response" ] && printf '%s\n' "$response" >&2
+  exit "$status"
+fi
+
+# The server drops filter keys it does not recognize and returns 200, so a
+# filter this client accepts but the server ignores comes back as the whole
+# fleet wearing the shape of a filtered answer. It does echo what it applied
+# under .query.filters, which makes the drop detectable -- so compare, rather
+# than trusting that the query ran as written.
+#
+# The check is against the server, not against this script's own list: the two
+# can drift, and it is the drift that produces the wrong number.
+dropped="$(jq -r --argjson sent "$filters_json" '
+  ($sent | keys_unsorted) - ((.query.filters // {}) | keys_unsorted)
+  | join(", ")' <<<"$response" 2>/dev/null || true)"
+if [ -n "$dropped" ]; then
+  echo "hub-stats: the server ignored these filters: $dropped" >&2
+  echo "  The count below is NOT filtered by them. Check the spelling against" >&2
+  echo "  references/querying.md, or the server's filter set has changed." >&2
+fi
+
+printf '%s\n' "$response"
