@@ -133,6 +133,16 @@ while :; do
     exit 1
   fi
 
+  # metadata.total.count saturates at 1000 and then reports relation "gt" with
+  # no magnitude, so a caller reading count alone cannot tell 1,001 from
+  # 200,000. Say so once rather than letting a capped number look exact.
+  if [ "$page" -eq 1 ] && [ "$(jq -r '.metadata.total.relation // "eq"' "$out" 2>/dev/null)" != "eq" ]; then
+    echo "warning: the server reports more than $(jq -r '.metadata.total.count // "?"' "$out") $resource;" >&2
+    echo "  metadata.total.count saturates and carries no magnitude past that." >&2
+    echo "  This listing is still complete unless a truncation error follows;" >&2
+    echo "  for counts use hub-stats, which aggregates server-side." >&2
+  fi
+
   count="$(jq '(.items // []) | length' "$out" 2>/dev/null || echo 0)"
   [ "$count" -eq 0 ] && break
 

@@ -74,6 +74,70 @@ teardown() { teardown_stubs; }
   grep -q -- "--disable" "$ARGV_LOG"
 }
 
+# --- saying so when the answer is not what was asked for --------------------
+
+@test "hub-list says a saturated count is not exact" {
+  # metadata.total.count caps at 1000 and reports relation "gt" with no
+  # magnitude, so reading count alone cannot tell 1,001 from 200,000.
+  run "$SKILL_DIR/scripts/hub-list" resources 100 'saturate=1'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"more than 1000"* ]]
+}
+
+@test "hub-list stays quiet about an exact count" {
+  run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"saturates"* ]]
+}
+
+@test "hub-stats reports a filter the server ignored" {
+  # The stub drops "spaces", standing in for a server whose filter set has
+  # drifted from this script's. The real handler drops unknown keys and returns
+  # 200, so the whole fleet comes back looking like a filtered answer.
+  run "$SKILL_DIR/scripts/hub-stats" kind -- spaces=insights-demo
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the server ignored these filters: spaces"* ]]
+}
+
+@test "hub-stats stays quiet when every filter was applied" {
+  run "$SKILL_DIR/scripts/hub-stats" kind -- kinds=Bucket
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"ignored these filters"* ]]
+}
+
+# --- hub-doctor ------------------------------------------------------------
+
+@test "hub-doctor reports the endpoint and the versions each group serves" {
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"https://hub.example.com"* ]]
+  [[ "$output" == *"hub.upbound.io"* ]]
+  [[ "$output" == *"v1beta1"* ]]
+}
+
+@test "hub-doctor names a group the deployment does not serve" {
+  # catalog.hub.upbound.io is absent from the stub's discovery document, which
+  # is what a feature gate being off looks like.
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"images"* ]]
+  [[ "$output" == *"feature gate off"* ]]
+}
+
+@test "hub-doctor names a resource served at other than its pinned version" {
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"identityproviders"* ]]
+  [[ "$output" == *"pinned v1, using v1beta1"* ]]
+}
+
+@test "hub-doctor fails clearly when HUB_API_URL is unset" {
+  unset HUB_API_URL
+  run "$SKILL_DIR/scripts/hub-doctor"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"HUB_API_URL"* ]]
+}
+
 # --- failing cleanly -------------------------------------------------------
 
 @test "hub-curl fails clearly when HUB_API_URL is unset" {
@@ -238,16 +302,19 @@ teardown() { teardown_stubs; }
 
 @test "hub-list falls back to the pin when discovery gives nothing usable" {
   # catalog.hub.upbound.io is absent from the stub's /apis, as it is from a
-  # deployment with the gate off. The request should still be built and the
-  # server left to report the 404.
+  # deployment with the gate off. The request is still built with the pin, and
+  # the server is left to report the 404 -- guessing a version for a group that
+  # is not served would only turn one clear error into a confusing one.
   run "$SKILL_DIR/scripts/hub-list" images
-  [ "$status" -eq 0 ]
+  [ "$status" -ne 0 ]
   grep -q "catalog.hub.upbound.io/v1alpha1/images" "$ARGV_LOG"
+  [[ "$output" == *"404"* ]]
 }
 
 @test "hub-list routes images to the catalog group" {
+  # Exits non-zero because the stub serves no catalog group; the assertion here
+  # is the routing, which happens before the request.
   run "$SKILL_DIR/scripts/hub-list" images
-  [ "$status" -eq 0 ]
   grep -q "catalog.hub.upbound.io" "$ARGV_LOG"
 }
 

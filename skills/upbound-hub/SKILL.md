@@ -62,6 +62,7 @@ Prefer these over hand-rolled curl. They handle auth, pagination, and the quirks
 | Script | What it does |
 |---|---|
 | `scripts/hub-setup [--url <url>]` | Saves the endpoint, installs the credential helper, signs in. Run first. |
+| `scripts/hub-doctor` | What this deployment actually serves: versions per group, and which resources are gated off. Run it before trusting the tables in the references. |
 | `scripts/hub-common.sh` | Shared helpers the others source. Not run directly. |
 | `scripts/hub-curl <path>` | Authenticated curl. Path must start with `/`. |
 | `scripts/hub-list <resource> [pageSize] [key=value...]` | Pages a resource into one JSON array. Exits **4** if the result was truncated. |
@@ -94,6 +95,12 @@ failing, and not reporting. Never divide by the total.
 **Reading through kubectl.** Hub implements no `limit`/`continue`, so `hub-kubectl get` on
 a collection silently returns one page as if it were the whole list. Read with
 `scripts/hub-list`.
+
+**Trusting that a query ran as written.** The server drops filter keys it does not
+recognize and still returns 200, so a misspelled filter comes back as the whole fleet
+wearing the shape of a filtered answer. It echoes what it applied under
+`.query.filters`; `hub-stats` compares the two and says so when they differ. Never read a
+count without knowing which filters actually reached it.
 
 **Assuming the view is current.** Hub is eventually consistent. Something created or
 deleted seconds ago may not be there yet. Only `resources` records carry `hub.lastSyncTime`;
