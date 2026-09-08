@@ -46,7 +46,7 @@ endpoints and field names that have since been corrected.
 
 Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
 `skills/upbound-hub/` into another agent's skills directory should load. Nothing here is
-Nothing here is tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
+tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
 
 Adding an agent means a manifest alongside `.claude-plugin/`; the layout is arranged so it
 moves no files.

@@ -49,4 +49,4 @@ suffix="${1:-}"
         src_mix(.definedBy // {})
      ]))
   | @tsv
-| awk 'BEGIN { FS="\\t" } { for (i=1; i<=NF; i++) if (length($i) > w[i]) w[i] = length($i); lines[NR] = $0 } END { for (r=1; r<=NR; r++) { split(lines[r], f, FS); for (i=1; i<=NF; i++) printf (i<NF ? "%-" w[i] "s " : "%s"), f[i]; print "" } }'
+' | awk 'BEGIN { FS="\t" } { for (i=1; i<=NF; i++) if (length($i) > w[i]) w[i] = length($i); lines[NR] = $0 } END { for (r=1; r<=NR; r++) { n = split(lines[r], f, FS); out = ""; for (i=1; i<=n; i++) { c = f[i]; while (length(c) < w[i]+2) c = c " "; out = out c } sub(/ +$/, "", out); print out } }'
