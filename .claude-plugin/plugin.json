@@ -1,7 +1,7 @@
 {
   "name": "upbound",
   "description": "Skills for working with the Upbound Platform: control planes, spaces, realms, packages, and fleet-wide resource queries.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "author": {
     "name": "Upbound",
     "url": "https://upbound.io"
