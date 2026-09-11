@@ -20,11 +20,9 @@ with no group-version defaults and checks for an exact match, so a body of just
 `{"query": …}` is a 400:
 
 ```json
-POST /apis/hub.upbound.io/v1beta1/resourcestats        # Hub 1.0.x
-POST /apis/inventory.hub.upbound.io/v1beta1/resourcestats   # Hub 1.1.0
-# scripts/hub-stats resolves this for you
+POST /apis/hub.upbound.io/v1beta1/resourcestats
 {
-  "apiVersion": "hub.upbound.io/v1beta1",   // inventory.hub.upbound.io/v1beta1 on 1.1.0
+  "apiVersion": "hub.upbound.io/v1beta1",
   "kind": "ResourceStats",
   "query": {
     "filters": { "ready": "False", "controlPlanes": ["prod-1", "prod-2"] },

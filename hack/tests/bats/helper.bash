@@ -84,9 +84,66 @@ discovery='{"kind":"APIGroupList","groups":[
    "versions":[{"version":"v1beta1"}],
    "preferredVersion":{"version":"v1beta1"}}
 ]}'
+# Opt-in 1.1.0 surface: set HUB_STUB_SHAPE=1.1.0 in a test. Group names match a
+# live 1.1.0 deployment, where hub.upbound.io survives but serves only realms.
+if [ "\${HUB_STUB_SHAPE:-1.0.x}" = "1.1.0" ]; then
+  discovery='{"kind":"APIGroupList","groups":[
+    {"name":"hub.upbound.io","versions":[{"version":"v1beta1"}],
+     "preferredVersion":{"version":"v1beta1"}},
+    {"name":"inventory.hub.upbound.io","versions":[{"version":"v1beta1"}],
+     "preferredVersion":{"version":"v1beta1"}},
+    {"name":"fleet.hub.upbound.io","versions":[{"version":"v1beta1"}],
+     "preferredVersion":{"version":"v1beta1"}},
+    {"name":"iam.hub.upbound.io","versions":[{"version":"v1beta1"}],
+     "preferredVersion":{"version":"v1beta1"}}
+  ]}'
+fi
+# Per-group resource lists, which is what makes the group-resolution path
+# testable. Without these the probe always misses and every lookup silently
+# exercises the pinned fallback instead - which is how a version downgrade
+# slipped past this suite once.
+#
+# This is the 1.0.x layout: hub.upbound.io carries the inventory and fleet
+# resources that 1.1.0 moves out to inventory./fleet.
+hub_resources='"resources","resourcestats","lenses","typedefinitions","crossplanepackages","resourcerelationships","resourcerelationshiptrees","controlplanes","spaces","realms"'
+authn_resources='"identityproviders","users","groups"'
+authz_resources='"organizationrolebindings","realmrolebindings","selfsubjectaccessreviews"'
+mk_list() {
+  printf '{"kind":"APIResourceList","resources":['
+  first=1
+  for n in \$(printf '%s' "\$1" | tr ',' ' ' | tr -d '"'); do
+    [ \$first -eq 1 ] || printf ','
+    printf '{"name":"%s","namespaced":false,"verbs":["get","list"]}' "\$n"
+    first=0
+  done
+  printf ']}'
+}
+# Pick out the request URL and reduce it to a path, so a group-version
+# discovery request (/apis/g/v) can be told apart from a collection under it
+# (/apis/g/v/resources). Matching on a substring would answer both with the
+# same body and quietly break one of them.
+url=""
+for a in "\$@"; do
+  case "\$a" in https://*|http://*) url="\$a" ;; esac
+done
+path="\${url#*://}"; path="/\${path#*/}"; path="\${path%%\\?*}"; path="\${path%/}"
+
+if [ "\${HUB_STUB_SHAPE:-1.0.x}" = "1.1.0" ]; then
+  hub_resources='"realms"'
+  inventory_resources='"resources","resourcestats","lenses","typedefinitions","crossplanepackages","resourcerelationships","resourcerelationshiptrees"'
+  fleet_resources='"controlplanes","spaces","controlplaneregistrations","spaceregistrations"'
+  iam_resources='"identityproviders","users","groups","organizationrolebindings","realmrolebindings","selfsubjectaccessreviews"'
+fi
 body='{"items":[],"metadata":{"total":{"count":0,"relation":"eq"}}}'
-case " \$* " in
-  *"/apis "*|*"/apis?"*) body="\$discovery" ;;
+case "\$path" in
+  /apis) body="\$discovery" ;;
+  /apis/*/*/*) : ;;                       # collection: keep the item list
+  /apis/hub.upbound.io/*)                 body="\$(mk_list "\$hub_resources")" ;;
+  /apis/authentication.hub.upbound.io/*)  body="\$(mk_list "\$authn_resources")" ;;
+  /apis/authorization.hub.upbound.io/*)   body="\$(mk_list "\$authz_resources")" ;;
+  /apis/inventory.hub.upbound.io/*)       body="\$(mk_list "\$inventory_resources")" ;;
+  /apis/fleet.hub.upbound.io/*)           body="\$(mk_list "\$fleet_resources")" ;;
+  /apis/iam.hub.upbound.io/*)             body="\$(mk_list "\$iam_resources")" ;;
 esac
 if [ -n "\$out" ]; then printf '%s' "\$body" > "\$out"; else printf '%s' "\$body"; fi
 EOF

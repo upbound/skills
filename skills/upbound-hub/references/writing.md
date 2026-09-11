@@ -19,18 +19,22 @@ It is in `authorization.hub.upbound.io` on Hub 1.0.x and `iam.hub.upbound.io` on
 `kubectl auth can-i` will not work. The spec field is `hubResourceRequest`, not
 upstream's `resourceAttributes`, and `group`, `version`, `resource` and `verb`
 are all required. Omitting any of them is a 422, which is not a denial — do not
-read a validation error as "not permitted":
+read a validation error as "not permitted".
+
+The group below is `authorization.hub.upbound.io` on Hub 1.0.x and
+`iam.hub.upbound.io` on 1.1.0; substitute it in both the `apiVersion` and the
+URL. The `group` inside `hubResourceRequest` names the resource being checked,
+not the review's own group, so `realms` stays `hub.upbound.io` on both:
 
 ```bash
 printf '%s' '{
-  "apiVersion": "authorization.hub.upbound.io/v1beta1",  // iam.hub.upbound.io/v1beta1 on 1.1.0
+  "apiVersion": "authorization.hub.upbound.io/v1beta1",
   "kind": "SelfSubjectAccessReview",
   "spec": {"hubResourceRequest": {
     "group": "hub.upbound.io", "version": "v1beta1", "resource": "realms",
     "verb": "delete", "name": "us-west"
   }}
 }' | scripts/hub-curl /apis/authorization.hub.upbound.io/v1beta1/selfsubjectaccessreviews \
-  # iam.hub.upbound.io/v1beta1 on Hub 1.1.0 \
       -X POST -H 'Content-Type: application/json' --data-binary @- \
   | jq '.status'
 ```

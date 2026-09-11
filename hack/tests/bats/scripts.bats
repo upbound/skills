@@ -291,6 +291,36 @@ teardown() { teardown_stubs; }
   grep -q "catalog.hub.upbound.io/v1alpha1/images" "$ARGV_LOG"
 }
 
+@test "hub-list probes the pinned version before the alphabetically first" {
+  # unique_by(.) SORTS, so building the candidate list that way puts the
+  # deprecated v1alpha1 ahead of v1beta1 and every read silently downgrades.
+  # hub.upbound.io serves both and prefers v1alpha1, so this is the real shape.
+  run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  ! grep -q "/apis/hub.upbound.io/v1alpha1" "$ARGV_LOG"
+}
+
+@test "hub-list resolves the 1.1.0 groups" {
+  HUB_STUB_SHAPE=1.1.0 run "$SKILL_DIR/scripts/hub-list" resources
+  [ "$status" -eq 0 ]
+  grep -q "inventory.hub.upbound.io/v1beta1/resources" "$ARGV_LOG"
+  ! grep -q "/apis/hub.upbound.io/v1beta1/resources" "$ARGV_LOG"
+}
+
+@test "hub-list keeps realms on hub.upbound.io under 1.1.0" {
+  # The reason this is not a rename: hub.upbound.io survives on 1.1.0 and is
+  # still the only group serving realms.
+  HUB_STUB_SHAPE=1.1.0 run "$SKILL_DIR/scripts/hub-list" realms
+  [ "$status" -eq 0 ]
+  grep -q "/apis/hub.upbound.io/v1beta1/realms" "$ARGV_LOG"
+}
+
+@test "hub-list routes rolebindings to iam under 1.1.0" {
+  HUB_STUB_SHAPE=1.1.0 run "$SKILL_DIR/scripts/hub-list" realmrolebindings
+  [ "$status" -eq 0 ]
+  grep -q "iam.hub.upbound.io/v1beta1/realmrolebindings" "$ARGV_LOG"
+}
+
 @test "hub-list routes images to the catalog group" {
   run "$SKILL_DIR/scripts/hub-list" images
   [ "$status" -eq 0 ]

@@ -119,10 +119,8 @@ EOF
 # ---------------------------------------------------------------------------
 # Resource -> group/version resolution
 #
-# Hub 1.1.0 split the API surface that Hub 1.0.x served from one group. Pinning
-# a group in the caller means every request against the other major silently
-# builds a wrong URL, so the group is resolved the same way the version already
-# was: ask the server.
+# Hub 1.1.0 split the API surface that 1.0.x served from one group, so pinning a
+# group in the caller builds a wrong URL against one major or the other:
 #
 #   1.0.x                                     1.1.0
 #   hub.upbound.io      resources, lenses,    inventory.hub.upbound.io
@@ -138,85 +136,120 @@ EOF
 #   authorization.      *rolebindings,        iam.hub.upbound.io
 #                       selfsubjectaccessreviews
 #
-# realms is why this cannot be a rename: hub.upbound.io still exists on 1.1.0
-# and still serves it. Verified against a live 1.1.0 deployment.
+# realms is why this cannot be a rename: hub.upbound.io still exists on 1.1.0 and
+# still serves it.
 #
-# The index is built once per process and cached, so the /apis walk costs a
-# handful of requests rather than one per lookup.
+# The caller's pin is a PREFERENCE, not just a fallback. It is probed first, so a
+# 1.0.x Hub that serves the resource at the pinned version keeps it. That matters
+# because hub.upbound.io serves v1alpha1, v1alpha2 and v1beta1 while PREFERRING
+# v1alpha1, where Resource and ResourceStats are deprecated - following
+# .preferredVersion would silently downgrade every read.
+#
+# Probing in preference order also keeps discovery cheap: the pinned group and
+# version are usually right, so the common case is /apis plus one probe rather
+# than a walk of every group at every version.
 # ---------------------------------------------------------------------------
 
-HUB_GV_CACHE=""
+HUB_APIS_DOC=""       # cached /apis
+HUB_GV_PROBES=""      # cached "group/version<TAB>resource resource ..." lines
 
-# Emit "resource<TAB>group<TAB>version" for every resource under a *.hub.upbound.io
-# group. Subresources (a/b) are skipped: they are addressed through their parent.
-hub_build_gv_index() {
-  local dir="$1" groups_doc group versions version body
-  groups_doc="$("$dir/hub-curl" /apis 2>/dev/null)" || return 1
-  [ -n "$groups_doc" ] || return 1
-
-  for group in $(jq -r '.groups[]?.name | select(endswith("hub.upbound.io"))' <<<"$groups_doc" 2>/dev/null); do
-    # Preferred first, then the rest, so a deployment serving both an old and a
-    # new version resolves to the one the server itself prefers.
-    versions="$(jq -r --arg g "$group" '
-      [.groups[] | select(.name == $g)][0]
-      | [.preferredVersion.version] + [.versions[]?.version]
-      | unique_by(.) | .[]' <<<"$groups_doc" 2>/dev/null)"
-    for version in $versions; do
-      case "$version" in ""|null) continue ;; esac
-      body="$("$dir/hub-curl" "/apis/$group/$version" 2>/dev/null)" || continue
-      jq -r --arg g "$group" --arg v "$version" '
-        .resources[]? | select(.name | contains("/") | not)
-        | "\(.name)\t\($g)\t\($v)"' <<<"$body" 2>/dev/null
-    done
-  done
+# Cached GET of /apis. One space means "tried and failed", so an unreachable Hub
+# is not re-requested on every lookup.
+hub_apis_doc() {
+  local dir="$1"
+  if [ -z "$HUB_APIS_DOC" ]; then
+    HUB_APIS_DOC="$("$dir/hub-curl" /apis 2>/dev/null)" || HUB_APIS_DOC=" "
+    [ -n "$HUB_APIS_DOC" ] || HUB_APIS_DOC=" "
+  fi
+  case "$HUB_APIS_DOC" in " ") return 1 ;; esac
+  printf '%s' "$HUB_APIS_DOC"
 }
 
-# hub_resolve_gv <dir> <resource> [fallback_group] [fallback_version]
-# Prints "group version". Falls back to the caller's pins when discovery fails,
-# so the request returns the real error rather than one about /apis.
-hub_resolve_gv() {
-  local dir="$1" resource="$2" fb_group="${3:-}" fb_version="${4:-}" hit
-
-  if [ -z "$HUB_GV_CACHE" ]; then
-    HUB_GV_CACHE="$(hub_build_gv_index "$dir" 2>/dev/null)"
-    # A single space marks "tried and got nothing", so a Hub that cannot be
-    # reached is not re-walked on every lookup.
-    [ -n "$HUB_GV_CACHE" ] || HUB_GV_CACHE=" "
+# Does <group>/<version> serve <resource>? Cached per group/version.
+hub_gv_serves() {
+  local dir="$1" gv="$2" resource="$3" body names cached
+  cached="$(printf '%s\n' "$HUB_GV_PROBES" | awk -F'\t' -v k="$gv" '$1 == k {print $2; found=1} END {if (!found) print "\x01"}')"
+  if [ "$cached" = $'\x01' ]; then
+    body="$("$dir/hub-curl" "/apis/$gv" 2>/dev/null)" || body=""
+    names="$(printf '%s' "$body" | jq -r '[.resources[]? | select(.name | contains("/") | not) | .name] | join(" ")' 2>/dev/null)" || names=""
+    HUB_GV_PROBES="$(printf '%s\n%s\t%s' "$HUB_GV_PROBES" "$gv" "$names")"
+    cached="$names"
   fi
-
-  hit="$(printf '%s\n' "$HUB_GV_CACHE" | awk -F'\t' -v r="$resource" '$1 == r {print $2, $3; exit}')"
-  if [ -n "$hit" ]; then
-    printf '%s\n' "$hit"
-    return 0
-  fi
-
-  if [ -n "$fb_group" ]; then
-    printf '%s %s\n' "$fb_group" "$(hub_resolve_version "$dir" "$fb_group" "$fb_version")"
-    return 0
-  fi
+  case " $cached " in *" $resource "*) return 0 ;; esac
   return 1
 }
 
-# hub_resolve_version <dir> <group> <pin>
+# hub_pin_fallback <apis> <group> <pin>
 #
-# The pre-existing behaviour, kept for the fallback path: a group whose resource
-# list could not be read still gets its version negotiated, so a pin the server
-# does not serve is dropped rather than 404ing. The pin wins whenever the server
-# serves it, because .preferredVersion is a different question - hub.upbound.io
-# prefers v1alpha1, where Resource and ResourceStats are deprecated.
-hub_resolve_version() {
-  local dir="$1" group="$2" pin="$3" groups_doc resolved
-  if groups_doc="$("$dir/hub-curl" /apis 2>/dev/null)"; then
-    resolved="$(jq -r --arg g "$group" --arg pin "$pin" '
-      [.groups[]? | select(.name == $g)] as $match
-      | if ($match | length) == 0 then $pin
-        elif ([$match[0].versions[]?.version] | index($pin)) != null then $pin
-        else ($match[0].preferredVersion.version // $pin)
-        end' <<<"$groups_doc" 2>/dev/null)" || resolved=""
-    case "$resolved" in
-      ""|null) ;;
-      *) printf '%s\n' "$resolved"; return 0 ;;
-    esac
+# Version negotiation for the path where no group's resource list could be read.
+# The pin wins when the server serves it; otherwise the server's preferred
+# version. Without this a Hub that lists groups but whose per-group documents are
+# unreachable keeps a pinned version the server does not serve, and 404s.
+hub_pin_fallback() {
+  local apis="$1" group="$2" pin="$3" resolved
+  resolved="$(printf '%s' "$apis" | jq -r --arg g "$group" --arg pin "$pin" '
+    [.groups[]? | select(.name == $g)] as $match
+    | if ($match | length) == 0 then $pin
+      elif ([$match[0].versions[]?.version] | index($pin)) != null then $pin
+      else ($match[0].preferredVersion.version // $pin)
+      end' 2>/dev/null)" || resolved=""
+  case "$resolved" in ""|null) printf '%s\n' "$pin" ;; *) printf '%s\n' "$resolved" ;; esac
+}
+
+# hub_resolve_gv <dir> <resource> [pin_group] [pin_version]
+#
+# Prints "group version". Probes the pinned group/version first, then the rest of
+# the pinned group's versions, then every other *.hub.upbound.io group. Falls
+# back to the pin unchanged when discovery fails, so the caller's request returns
+# the real error rather than one about /apis.
+hub_resolve_gv() {
+  local dir="$1" resource="$2" pin_group="${3:-}" pin_version="${4:-}"
+  local apis groups group versions version
+
+  if ! apis="$(hub_apis_doc "$dir")"; then
+    [ -n "$pin_group" ] && { printf '%s %s\n' "$pin_group" "$pin_version"; return 0; }
+    return 1
   fi
-  printf '%s\n' "$pin"
+
+  # Probe order: the caller's pin, then the groups most likely to serve a
+  # listable resource, then whatever else the server reports. This is a HINT
+  # only - an unknown or reordered group still resolves, it just costs one more
+  # request. ingest. is last because it is the connector's write path and serves
+  # nothing anyone lists.
+  groups="$(printf '%s' "$apis" | jq -r --arg pin "$pin_group" '
+    ["inventory.hub.upbound.io","fleet.hub.upbound.io","iam.hub.upbound.io",
+     "hub.upbound.io","catalog.hub.upbound.io","registry.hub.upbound.io",
+     "agent.hub.upbound.io","ingest.hub.upbound.io"] as $pref
+    | [.groups[]?.name | select(endswith("hub.upbound.io"))] as $all
+    | ($all | map(select(. == $pin))) as $first
+    | ($all | map(select(. != $pin))) as $rest
+    | ($first
+       + ($pref | map(select(. as $g | $rest | index($g))))
+       + ($rest | map(select(. as $g | $pref | index($g) | not))))
+    | .[]' 2>/dev/null)"
+
+  for group in $groups; do
+    # Pinned version first, then the server's preferred, then the rest. reduce
+    # rather than unique_by, because unique_by SORTS - and an alphabetical sort
+    # puts the deprecated v1alpha1 ahead of v1beta1.
+    versions="$(printf '%s' "$apis" | jq -r --arg g "$group" --arg pin "$pin_version" '
+      [.groups[] | select(.name == $g)][0] as $m
+      | ([$pin] + [$m.preferredVersion.version] + [$m.versions[]?.version])
+      | map(select(. != null and . != ""))
+      | reduce .[] as $v ([]; if index([$v]) then . else . + [$v] end)
+      | map(select(. as $v | [$m.versions[]?.version] | index($v)))
+      | .[]' 2>/dev/null)"
+    for version in $versions; do
+      if hub_gv_serves "$dir" "$group/$version" "$resource"; then
+        printf '%s %s\n' "$group" "$version"
+        return 0
+      fi
+    done
+  done
+
+  [ -n "$pin_group" ] && {
+    printf '%s %s\n' "$pin_group" "$(hub_pin_fallback "$apis" "$pin_group" "$pin_version")"
+    return 0
+  }
+  return 1
 }
