@@ -91,7 +91,9 @@ is broken rather than only that it is.
 no continue token, so **`hub-kubectl get` on a large collection silently reports
 one page as the whole list**. Use `hub-list` or `hub-curl` for reads.
 
-`pageSize` is capped at 100.
+`pageSize` is clamped to the server's maximum, which varies by deployment.
+The response reports what was honoured in `metadata.pageSize`; compare a page's
+item count against that, not against what you asked for.
 
 There is no page ceiling. `hub-list` pages until a short page, and exits **4**
 if it hits its own safety stop, so a truncated answer is distinguishable from a
