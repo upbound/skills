@@ -14,7 +14,8 @@
 # fields. Filtering server-side beats pulling everything and using jq.
 #
 # Pagination is ?page=N&pageSize=S, one-indexed, not Kubernetes limit/continue.
-# pageSize is capped at 100 by the API contract.
+# The server clamps pageSize to its own maximum, which varies by deployment, and
+# reports what it honoured in metadata.pageSize. Asking for more is not an error.
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
@@ -32,13 +33,13 @@ shift
 
 # pageSize is optional and filters are trailing args, so a caller writing
 # `hub-list resources 'filter=...'` would otherwise set pageSize to the filter.
-size=100
+size=500
 if [ $# -gt 0 ] && printf '%s' "$1" | grep -qE '^[0-9]+$'; then
   size="$1"
   shift
 fi
-if [ "$size" -lt 1 ] || [ "$size" -gt 100 ]; then
-  echo "hub-list: pageSize must be 1-100 (the API caps it at 100)" >&2
+if [ "$size" -lt 1 ]; then
+  echo "hub-list: pageSize must be at least 1" >&2
   exit 2
 fi
 
@@ -136,9 +137,18 @@ while :; do
   count="$(jq '(.items // []) | length' "$out" 2>/dev/null || echo 0)"
   [ "$count" -eq 0 ] && break
 
+  # Compare against the page size the server honoured, not the one requested.
+  # Asking for more than it allows makes every page look short, which would end
+  # the walk after page one and silently truncate the result.
+  honoured="$(jq -r '.metadata.pageSize // empty' "$out" 2>/dev/null || true)"
+  case "$honoured" in
+    ''|*[!0-9]*) honoured="$size" ;;
+  esac
+  [ "$honoured" -lt 1 ] && honoured="$size"
+
   page=$(( page + 1 ))
 
-  [ "$count" -lt "$size" ] && break
+  [ "$count" -lt "$honoured" ] && break
 
   # A safety stop, not an API limit. Exit 4 so a caller can tell a truncated
   # answer from a complete one -- a warning on stderr is invisible to $( ).
