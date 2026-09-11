@@ -92,8 +92,11 @@ numbers rather than picking a winner.
 ## "Where did this resource come from?"
 
 ```bash
-scripts/hub-curl "/apis/hub.upbound.io/v1beta1/resourcerelationshiptrees/<name>?direction=up&depth=5"
-scripts/hub-curl "/apis/hub.upbound.io/v1beta1/resources/<name>/events"
+# hub.upbound.io on 1.0.x; inventory.hub.upbound.io on 1.1.0. Confirm with:
+#   scripts/hub-curl /apis | jq -r '.groups[].name'
+GV=inventory.hub.upbound.io/v1beta1
+scripts/hub-curl "/apis/$GV/resourcerelationshiptrees/<name>?direction=up&depth=5"
+scripts/hub-curl "/apis/$GV/resources/<name>/events"
 ```
 
 `direction=up` walks toward the composite that owns it, `down` toward what it

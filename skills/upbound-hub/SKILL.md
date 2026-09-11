@@ -13,8 +13,30 @@ synthesized view assembled from every connected control plane.
 Treat it as an aggregator, not as a cluster's own apiserver. It looks like Kubernetes and
 mostly behaves like it, and the places it does not are where wrong answers come from.
 
-Use `hub.upbound.io/v1beta1`. The v1alpha1 `Resource` and `ResourceStats` types are
-deprecated, and v1beta1 is served everywhere.
+**The API surface differs by Hub major, so do not pin a group.** Hub 1.0.x served
+almost everything from `hub.upbound.io`. Hub 1.1.0 split it:
+
+| Resources | 1.0.x | 1.1.0 |
+|---|---|---|
+| `resources`, `resourcestats`, `lenses`, `typedefinitions`, `crossplanepackages`, `resourcerelationships`, `resourcerelationshiptrees` | `hub.upbound.io` | `inventory.hub.upbound.io` |
+| `controlplanes`, `spaces`, `controlplaneregistrations`, `spaceregistrations` | `hub.upbound.io` | `fleet.hub.upbound.io` |
+| `realms` | `hub.upbound.io` | `hub.upbound.io` (unchanged) |
+| `identityproviders`, `users`, `groups` | `authentication.hub.upbound.io` | `iam.hub.upbound.io` |
+| `organizationrolebindings`, `realmrolebindings`, `selfsubjectaccessreviews` | `authorization.hub.upbound.io` | `iam.hub.upbound.io` |
+
+`realms` is why this is not a rename: `hub.upbound.io` still exists on 1.1.0 and
+still serves it, so a blanket find-and-replace breaks a working call.
+
+`scripts/hub-list` and `scripts/hub-stats` resolve both group and version from
+`/apis` at runtime and work against either major. When writing a path by hand,
+check first:
+
+```bash
+scripts/hub-curl /apis | jq -r '.groups[].name'
+```
+
+Within a group, v1beta1 is served everywhere; the v1alpha1 `Resource` and
+`ResourceStats` types are deprecated.
 
 ## Setup
 

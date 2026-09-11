@@ -18,6 +18,8 @@
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
 
 usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
 
@@ -43,15 +45,17 @@ if [ "$size" -lt 1 ] || [ "$size" -gt 100 ]; then
 fi
 
 case "$resource" in
-  # Anything not listed here would silently build a wrong URL.
-  resources|resourcestats|controlplanes|spaces|realms|lenses|typedefinitions|\
-  crossplanepackages|resourcerelationships|resourcerelationshiptrees)
-                             group="hub.upbound.io"; pinned="v1beta1" ;;
+  # Fallbacks only. These are the Hub 1.0.x locations, used when /apis cannot be
+  # reached; the live surface is resolved from the server below. Anything not
+  # listed here is still rejected, so a typo cannot build a wrong URL.
+  resources|resourcestats|lenses|typedefinitions|crossplanepackages|\
+  resourcerelationships|resourcerelationshiptrees|controlplanes|spaces|realms)
+                             fb_group="hub.upbound.io"; fb_version="v1beta1" ;;
   identityproviders|users|groups)
-                             group="authentication.hub.upbound.io"; pinned="v1" ;;
+                             fb_group="authentication.hub.upbound.io"; fb_version="v1" ;;
   organizationrolebindings|realmrolebindings)
-                             group="authorization.hub.upbound.io"; pinned="v1beta1" ;;
-  images)                    group="catalog.hub.upbound.io"; pinned="v1alpha1" ;;
+                             fb_group="authorization.hub.upbound.io"; fb_version="v1beta1" ;;
+  images)                    fb_group="catalog.hub.upbound.io"; fb_version="v1alpha1" ;;
   namespaces)
     echo "hub-list: namespaces are core/v1, not a hub group. Realms are exposed" >&2
     echo "  as namespaces; use: hub-curl /api/v1/namespaces" >&2
@@ -62,33 +66,27 @@ case "$resource" in
     exit 2 ;;
 esac
 
-# Which version a group serves differs by deployment. The pins above are not
-# reliable on their own: this repository documents authentication.hub.upbound.io
-# at v1, and against a Hub serving only v1alpha1 and v1beta1 every
-# identityproviders, users and groups request 404s. So ask the server.
+# Ask the server which group and version actually serve this resource.
 #
-# The pin still wins whenever the server serves it, because .preferredVersion is
-# not the same question. hub.upbound.io marks v1alpha1 Resource and ResourceStats
-# deprecated in favour of v1beta1, and a deployment that still prefers v1alpha1
-# would otherwise silently downgrade every read to the deprecated type.
+# Hub 1.1.0 moved most of hub.upbound.io into inventory.hub.upbound.io and
+# fleet.hub.upbound.io, and merged authentication./authorization. into
+# iam.hub.upbound.io, while hub.upbound.io itself stayed and still serves realms.
+# A pinned group is therefore wrong on one major or the other, whichever is
+# pinned. Resolving both group and version keeps one script correct on both.
 #
-# If discovery fails, the pin is used unchanged so the request returns the real
-# error rather than one about /apis.
-version="$pinned"
-if groups_doc="$("$dir/hub-curl" /apis 2>/dev/null)"; then
-  resolved="$(jq -r --arg g "$group" --arg pin "$pinned" '
-    [.groups[]? | select(.name == $g)] as $match
-    | if ($match | length) == 0 then $pin
-      elif ([$match[0].versions[]?.version] | index($pin)) != null then $pin
-      else ($match[0].preferredVersion.version // $pin)
-      end' <<<"$groups_doc" 2>/dev/null)" || resolved=""
-  case "$resolved" in
-    ""|null) ;;
-    *) version="$resolved" ;;
-  esac
+# The pins above are used unchanged when discovery fails, so the request returns
+# the real error rather than one about /apis.
+if resolved="$(hub_resolve_gv "$dir" "$resource" "$fb_group" "$fb_version")"; then
+  group="${resolved%% *}"
+  version="${resolved##* }"
+else
+  group="$fb_group"
+  version="$fb_version"
 fi
-if [ "$version" != "$pinned" ]; then
-  echo "hub-list: $group does not serve $pinned here; using $version" >&2
+if [ "$group" != "$fb_group" ]; then
+  echo "hub-list: $resource is served by $group/$version here, not $fb_group/$fb_version" >&2
+elif [ "$version" != "$fb_version" ]; then
+  echo "hub-list: $group does not serve $fb_version here; using $version" >&2
 fi
 
 # URL-encode values; a name containing & would otherwise widen the query.

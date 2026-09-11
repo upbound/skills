@@ -115,3 +115,108 @@ error: no Hub API URL configured.
 EOF
   return 1
 }
+
+# ---------------------------------------------------------------------------
+# Resource -> group/version resolution
+#
+# Hub 1.1.0 split the API surface that Hub 1.0.x served from one group. Pinning
+# a group in the caller means every request against the other major silently
+# builds a wrong URL, so the group is resolved the same way the version already
+# was: ask the server.
+#
+#   1.0.x                                     1.1.0
+#   hub.upbound.io      resources, lenses,    inventory.hub.upbound.io
+#                       typedefinitions,
+#                       crossplanepackages,
+#                       resourcestats,
+#                       resourcerelationship*
+#   hub.upbound.io      controlplanes,        fleet.hub.upbound.io
+#                       spaces, *registrations
+#   hub.upbound.io      realms                hub.upbound.io   (unchanged)
+#   authentication.     identityproviders,    iam.hub.upbound.io
+#                       users, groups
+#   authorization.      *rolebindings,        iam.hub.upbound.io
+#                       selfsubjectaccessreviews
+#
+# realms is why this cannot be a rename: hub.upbound.io still exists on 1.1.0
+# and still serves it. Verified against a live 1.1.0 deployment.
+#
+# The index is built once per process and cached, so the /apis walk costs a
+# handful of requests rather than one per lookup.
+# ---------------------------------------------------------------------------
+
+HUB_GV_CACHE=""
+
+# Emit "resource<TAB>group<TAB>version" for every resource under a *.hub.upbound.io
+# group. Subresources (a/b) are skipped: they are addressed through their parent.
+hub_build_gv_index() {
+  local dir="$1" groups_doc group versions version body
+  groups_doc="$("$dir/hub-curl" /apis 2>/dev/null)" || return 1
+  [ -n "$groups_doc" ] || return 1
+
+  for group in $(jq -r '.groups[]?.name | select(endswith("hub.upbound.io"))' <<<"$groups_doc" 2>/dev/null); do
+    # Preferred first, then the rest, so a deployment serving both an old and a
+    # new version resolves to the one the server itself prefers.
+    versions="$(jq -r --arg g "$group" '
+      [.groups[] | select(.name == $g)][0]
+      | [.preferredVersion.version] + [.versions[]?.version]
+      | unique_by(.) | .[]' <<<"$groups_doc" 2>/dev/null)"
+    for version in $versions; do
+      case "$version" in ""|null) continue ;; esac
+      body="$("$dir/hub-curl" "/apis/$group/$version" 2>/dev/null)" || continue
+      jq -r --arg g "$group" --arg v "$version" '
+        .resources[]? | select(.name | contains("/") | not)
+        | "\(.name)\t\($g)\t\($v)"' <<<"$body" 2>/dev/null
+    done
+  done
+}
+
+# hub_resolve_gv <dir> <resource> [fallback_group] [fallback_version]
+# Prints "group version". Falls back to the caller's pins when discovery fails,
+# so the request returns the real error rather than one about /apis.
+hub_resolve_gv() {
+  local dir="$1" resource="$2" fb_group="${3:-}" fb_version="${4:-}" hit
+
+  if [ -z "$HUB_GV_CACHE" ]; then
+    HUB_GV_CACHE="$(hub_build_gv_index "$dir" 2>/dev/null)"
+    # A single space marks "tried and got nothing", so a Hub that cannot be
+    # reached is not re-walked on every lookup.
+    [ -n "$HUB_GV_CACHE" ] || HUB_GV_CACHE=" "
+  fi
+
+  hit="$(printf '%s\n' "$HUB_GV_CACHE" | awk -F'\t' -v r="$resource" '$1 == r {print $2, $3; exit}')"
+  if [ -n "$hit" ]; then
+    printf '%s\n' "$hit"
+    return 0
+  fi
+
+  if [ -n "$fb_group" ]; then
+    printf '%s %s\n' "$fb_group" "$(hub_resolve_version "$dir" "$fb_group" "$fb_version")"
+    return 0
+  fi
+  return 1
+}
+
+# hub_resolve_version <dir> <group> <pin>
+#
+# The pre-existing behaviour, kept for the fallback path: a group whose resource
+# list could not be read still gets its version negotiated, so a pin the server
+# does not serve is dropped rather than 404ing. The pin wins whenever the server
+# serves it, because .preferredVersion is a different question - hub.upbound.io
+# prefers v1alpha1, where Resource and ResourceStats are deprecated.
+hub_resolve_version() {
+  local dir="$1" group="$2" pin="$3" groups_doc resolved
+  if groups_doc="$("$dir/hub-curl" /apis 2>/dev/null)"; then
+    resolved="$(jq -r --arg g "$group" --arg pin "$pin" '
+      [.groups[]? | select(.name == $g)] as $match
+      | if ($match | length) == 0 then $pin
+        elif ([$match[0].versions[]?.version] | index($pin)) != null then $pin
+        else ($match[0].preferredVersion.version // $pin)
+        end' <<<"$groups_doc" 2>/dev/null)" || resolved=""
+    case "$resolved" in
+      ""|null) ;;
+      *) printf '%s\n' "$resolved"; return 0 ;;
+    esac
+  fi
+  printf '%s\n' "$pin"
+}

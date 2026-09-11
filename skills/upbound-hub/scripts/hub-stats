@@ -24,6 +24,8 @@
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+. "$dir/hub-common.sh"
 
 usage() { awk 'NR>2 && !/^#/{exit} NR>2{sub(/^# ?/, ""); print}' "$0"; }
 
@@ -87,8 +89,20 @@ fi
 
 # apiVersion and kind are required: the handler decodes with no GVK defaults and
 # checks for an exact match, so a bare {"query": ...} is a 400.
-jq -nc --argjson groupBy "$groups_json" --argjson filters "$filters_json" \
-  '{apiVersion: "hub.upbound.io/v1beta1", kind: "ResourceStats",
+# resourcestats moved to inventory.hub.upbound.io on Hub 1.1.0. Ask the server
+# rather than pinning, so one script works against both majors. The 1.0.x
+# location is the fallback when /apis cannot be reached.
+if resolved="$(hub_resolve_gv "$dir" resourcestats hub.upbound.io v1beta1)"; then
+  stats_group="${resolved%% *}"
+  stats_version="${resolved##* }"
+else
+  stats_group="hub.upbound.io"
+  stats_version="v1beta1"
+fi
+
+jq -nc --arg av "$stats_group/$stats_version" \
+  --argjson groupBy "$groups_json" --argjson filters "$filters_json" \
+  '{apiVersion: $av, kind: "ResourceStats",
     query: {filters: $filters, groupBy: $groupBy}}' \
-| "$dir/hub-curl" /apis/hub.upbound.io/v1beta1/resourcestats \
+| "$dir/hub-curl" "/apis/$stats_group/$stats_version/resourcestats" \
     -X POST -H 'Content-Type: application/json' --data-binary @-

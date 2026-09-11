@@ -14,7 +14,8 @@ Hub serves `selfsubjectaccessreviews`, so ask before acting. Do **not** discover
 permissions by attempting the operation — an earlier version of this skill said
 to, and for `delete` that is destructive.
 
-It is in `authorization.hub.upbound.io`, not `authorization.k8s.io`, so
+It is in `authorization.hub.upbound.io` on Hub 1.0.x and `iam.hub.upbound.io` on
+1.1.0, and in neither case `authorization.k8s.io`, so
 `kubectl auth can-i` will not work. The spec field is `hubResourceRequest`, not
 upstream's `resourceAttributes`, and `group`, `version`, `resource` and `verb`
 are all required. Omitting any of them is a 422, which is not a denial — do not
@@ -22,13 +23,14 @@ read a validation error as "not permitted":
 
 ```bash
 printf '%s' '{
-  "apiVersion": "authorization.hub.upbound.io/v1beta1",
+  "apiVersion": "authorization.hub.upbound.io/v1beta1",  // iam.hub.upbound.io/v1beta1 on 1.1.0
   "kind": "SelfSubjectAccessReview",
   "spec": {"hubResourceRequest": {
     "group": "hub.upbound.io", "version": "v1beta1", "resource": "realms",
     "verb": "delete", "name": "us-west"
   }}
 }' | scripts/hub-curl /apis/authorization.hub.upbound.io/v1beta1/selfsubjectaccessreviews \
+  # iam.hub.upbound.io/v1beta1 on Hub 1.1.0 \
       -X POST -H 'Content-Type: application/json' --data-binary @- \
   | jq '.status'
 ```
@@ -74,7 +76,7 @@ permission, only ask about a specific one.
 ## Minimum viable manifests
 
 ```yaml
-apiVersion: hub.upbound.io/v1beta1
+apiVersion: hub.upbound.io/v1beta1     # fleet.hub.upbound.io/v1beta1 on Hub 1.1.0
 kind: ControlPlane
 metadata:
   name: <name>
@@ -83,7 +85,7 @@ spec: {}
 ```
 
 ```yaml
-apiVersion: hub.upbound.io/v1beta1
+apiVersion: hub.upbound.io/v1beta1     # fleet.hub.upbound.io/v1beta1 on Hub 1.1.0
 kind: Space
 metadata:
   name: <name>
@@ -91,7 +93,7 @@ spec: {}
 ```
 
 ```yaml
-apiVersion: hub.upbound.io/v1beta1
+apiVersion: hub.upbound.io/v1beta1     # unchanged on Hub 1.1.0
 kind: Realm
 metadata:
   name: <name>
@@ -124,10 +126,11 @@ A subresource POST. The body must carry full TypeMeta matching the parent kind
 even though it is otherwise ignored, and `-f /dev/null` therefore fails:
 
 ```bash
+# apiVersion is fleet.hub.upbound.io/v1beta1 on Hub 1.1.0
 printf '%s' '{"apiVersion":"hub.upbound.io/v1beta1","kind":"ControlPlane",
   "metadata":{"name":"<name>","namespace":"<realm>"}}' \
 | scripts/hub-kubectl create --raw \
-    "/apis/hub.upbound.io/v1beta1/namespaces/<realm>/controlplanes/<name>/registrationtoken" \
+    "/apis/fleet.hub.upbound.io/v1beta1/namespaces/<realm>/controlplanes/<name>/registrationtoken" \
     -f - \
 | jq -r '.status.registrationToken'
 ```
