@@ -67,6 +67,11 @@ then carry on. The credential lasts around 90 days.
 The endpoint is stored in `${XDG_CONFIG_HOME:-~/.config}/upbound/hub.env`. Setting
 `HUB_API_URL` in the environment overrides it for a one-off against another deployment.
 
+On a Hub that serves multiple organizations, set `HUB_ORG` to the organization to
+authenticate against. The credential helper reads it from the environment, so
+`hub-setup` and every other script pick it up and scope the token to that
+organization. Leave it unset for a single-organization Hub, which is the default.
+
 `HUB_CA_FILE` points at a PEM bundle when the system trust store does not include Hub's CA.
 Do not set `HUB_INSECURE=1`; it disables TLS verification. Set it only if the user asks for
 it by name.
