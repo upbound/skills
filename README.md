@@ -88,6 +88,7 @@ More questions it handles:
 <!-- BEGIN skills-table -->
 | Skill | What it is for |
 |---|---|
+| [`provider-conformance-validator`](skills/provider-conformance-validator/SKILL.md) | Validate a Crossplane or Upjet provider repository against the provider conformance standard and produce a conformance report. |
 | [`upbound-hub`](skills/upbound-hub/SKILL.md) | Query and mutate Upbound Hub, the central API for an Upbound Platform deployment, which gives one cross-fleet view of control planes, spaces, realms, types, packages, resources, identity providers, and the image catalog. |
 <!-- END skills-table -->
 
