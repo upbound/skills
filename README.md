@@ -44,12 +44,22 @@ endpoints and field names that have since been corrected.
 
 ### Other agents
 
-Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
-`skills/upbound-hub/` into another agent's skills directory should load. Nothing here is
-tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
+**Cursor.** Open the repository in Cursor and run an agent session from the repository
+root. Cursor natively supports the Agent Skills format and discovers project skills from
+`~/.cursor/skills` and `.cursor/skills/` (per <https://cursor.com/docs/context/skills>),
+so this repository ships [`.cursor/skills/upbound-hub`](.cursor/skills/upbound-hub) — a
+relative symlink into `skills/upbound-hub/` — and no file is moved. The skill carries no
+vendor-specific frontmatter, so nothing in it needs adapting for Cursor. Verified
+mechanically: the symlink resolves to `skills/upbound-hub/SKILL.md` and
+`hack/validate.py all` still passes. A live `hub-setup` run needs a Hub login and an
+endpoint, which are the same prerequisites as for any other agent.
 
-Adding an agent means a manifest alongside `.claude-plugin/`; the layout is arranged so it
-moves no files.
+Other agents: the skills carry no vendor-specific frontmatter, so copying
+`skills/upbound-hub/` into an agent's skills directory should load. Not tested yet, and the
+scripts assume `bash`, `curl`, and `jq`.
+
+Adding an agent means a symlink or manifest alongside `.claude-plugin/`; the layout is
+arranged so it moves no files.
 
 ## Prerequisites
 
