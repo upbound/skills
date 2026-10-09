@@ -13,31 +13,6 @@ synthesized view assembled from every connected control plane.
 Treat it as an aggregator, not as a cluster's own apiserver. It looks like Kubernetes and
 mostly behaves like it, and the places it does not are where wrong answers come from.
 
-**The API surface differs by Hub major, so do not pin a group.** Hub 1.0.x served
-almost everything from `hub.upbound.io`. Hub 1.1.0 split it:
-
-| Resources | 1.0.x | 1.1.0 |
-|---|---|---|
-| `resources`, `resourcestats`, `lenses`, `typedefinitions`, `crossplanepackages`, `resourcerelationships`, `resourcerelationshiptrees` | `hub.upbound.io` | `inventory.hub.upbound.io` |
-| `controlplanes`, `spaces`, `controlplaneregistrations`, `spaceregistrations` | `hub.upbound.io` | `fleet.hub.upbound.io` |
-| `realms` | `hub.upbound.io` | `hub.upbound.io` (unchanged) |
-| `identityproviders`, `users`, `groups` | `authentication.hub.upbound.io` | `iam.hub.upbound.io` |
-| `organizationrolebindings`, `realmrolebindings`, `selfsubjectaccessreviews` | `authorization.hub.upbound.io` | `iam.hub.upbound.io` |
-
-`realms` is why this is not a rename: `hub.upbound.io` still exists on 1.1.0 and
-still serves it, so a blanket find-and-replace breaks a working call.
-
-`scripts/hub-list` and `scripts/hub-stats` resolve both group and version from
-`/apis` at runtime and work against either major. When writing a path by hand,
-check first:
-
-```bash
-scripts/hub-curl /apis | jq -r '.groups[].name'
-```
-
-Within a group, v1beta1 is served everywhere; the v1alpha1 `Resource` and
-`ResourceStats` types are deprecated.
-
 ## Setup
 
 Every script path in this skill is relative to **the directory containing this file**, not
@@ -64,6 +39,12 @@ Asking for the endpoint is the only thing you need the user for, and only the fi
 If sign-in is required, `hub-setup` opens a browser — tell the user to complete it there,
 then carry on. The credential lasts around 90 days.
 
+Confirm it works:
+
+```bash
+scripts/hub-curl /apis | jq '.groups[].name'
+```
+
 The endpoint is stored in `${XDG_CONFIG_HOME:-~/.config}/upbound/hub.env`. Setting
 `HUB_API_URL` in the environment overrides it for a one-off against another deployment.
 
@@ -75,12 +56,6 @@ organization. Leave it unset for a single-organization Hub, which is the default
 `HUB_CA_FILE` points at a PEM bundle when the system trust store does not include Hub's CA.
 Do not set `HUB_INSECURE=1`; it disables TLS verification. Set it only if the user asks for
 it by name.
-
-Confirm it works:
-
-```bash
-scripts/hub-curl /apis | jq '.groups[].name'
-```
 
 ## Scripts
 
@@ -97,6 +72,27 @@ Prefer these over hand-rolled curl. They handle auth, pagination, and the quirks
 | `scripts/hub-health` | Fleet-wide rollup as JSON, with honest denominators. |
 | `scripts/hub-resources-by-cp <cp> [realm] [--unhealthy]` | Resources in one control plane, with health and reason. |
 | `scripts/hub-kubectl <args...>` | kubectl against Hub. The write path only — see below. |
+
+## API groups differ by Hub version
+
+**The API surface differs by Hub major, so do not pin a group.** Hub 1.0.x served
+almost everything from `hub.upbound.io`; Hub 1.1.0 split it into `inventory.`, `fleet.` and
+`iam.hub.upbound.io` (which group serves which resource on each major:
+[api-surface.md](references/api-surface.md)).
+
+`realms` is why this is not a rename: `hub.upbound.io` still exists on 1.1.0 and
+still serves it, so a blanket find-and-replace breaks a working call.
+
+`scripts/hub-list` and `scripts/hub-stats` resolve both group and version from
+`/apis` at runtime and work against either major. When writing a path by hand,
+check first:
+
+```bash
+scripts/hub-curl /apis | jq -r '.groups[].name'
+```
+
+Within a group, v1beta1 is served everywhere; the v1alpha1 `Resource` and
+`ResourceStats` types are deprecated.
 
 ## Reference
 
@@ -123,14 +119,16 @@ a collection silently returns one page as if it were the whole list. Read with
 `scripts/hub-list`.
 
 **Assuming the view is current.** Hub is eventually consistent. Something created or
-deleted seconds ago may not be there yet. Only `resources` records carry `hub.lastSyncTime`;
-check it against the clock before saying one does not exist. Do not derive freshness from
-`hub.syncLagSeconds` instead — it has been seen reading 0 on every record of a live
-deployment, including records months out of date, which is a reported defect. Comparing
-`lastSyncTime` against the clock is correct either way. Freshness is per record, so one
-timestamp says nothing about the fleet's. Control
-planes, spaces and realms carry no freshness field at all, so for those say the view may be
-stale instead of implying it is current.
+deleted seconds ago may not be there yet.
+
+- Only `resources` records carry `hub.lastSyncTime`; check it against the clock before saying
+  one does not exist.
+- Do not derive freshness from `hub.syncLagSeconds` instead — it has been seen reading 0 on
+  every record of a live deployment, including records months out of date, which is a reported
+  defect. Comparing `lastSyncTime` against the clock is correct either way.
+- Freshness is per record, so one timestamp says nothing about the fleet's.
+- Control planes, spaces and realms carry no freshness field at all, so for those say the view
+  may be stale instead of implying it is current.
 
 ## Anti-patterns
 
