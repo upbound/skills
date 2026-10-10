@@ -158,7 +158,7 @@ into files of the same test directory:
 ```text
 tests/test-<resource>-sequence/
 ├── main.k         # the tests
-├── resources.k    # resource1, resource2: expectations, each with its composition-resource-name annotation
+├── resources.k    # resource1, resource2: expectations, each with its crossplane.io/composition-resource-name annotation
 ├── conditions.k   # shared condition sets
 └── kcl.mod
 ```
@@ -181,7 +181,7 @@ _baseSpec = {
     compositionPath: "apis/<resource>/composition.yaml"
     xrdPath: "apis/<resource>/definition.yaml"
     timeoutSeconds: 60
-    validate: False            # the mocked status is not schema-valid
+    validate: False            # up test run never reads it (author-tests' test-model.md)
 }
 
 _xr = {
@@ -190,6 +190,11 @@ _xr = {
     metadata: { name: "test-<resource>", namespace: "default" }
     spec: { region: "us-west-2" }
 }
+
+# A mock is observed only with metadata.name and the XR's namespace; without them it is silently
+# ignored (charter/evidence.md). Any valid name works, and the render gives it to the composed
+# resource, so this case's assertions name it too.
+_resource1Name = "test-<resource>-resource1"
 
 _test1 = metav1alpha1.CompositionTest {
     metadata.name: "sequence-0-initial"
@@ -202,9 +207,16 @@ _test2 = metav1alpha1.CompositionTest {
         **_baseSpec
         xr: _xr
         observedResources: [
-            { **resources.resource1, status: { atProvider: { id: "id1" }, conditions: conditions.readyConditions } }
+            # `metadata:` merges and keeps the annotation from resources.k; `metadata =` drops it
+            resources.resource1 | {
+                metadata: { name: _resource1Name, namespace: _xr.metadata.namespace }
+                status: { atProvider: { id: "id1" }, conditions: conditions.readyConditions }
+            }
         ]
-        assertResources: _test1.spec.assertResources + [resources.resource2]
+        assertResources: [
+            resources.resource1 | { metadata: { name: _resource1Name } }
+            resources.resource2
+        ]
     }
 }
 

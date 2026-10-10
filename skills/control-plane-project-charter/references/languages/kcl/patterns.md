@@ -23,6 +23,7 @@ functions/<composition-name>/
 
 ```kcl
 import models.io.upbound.platform.myxrd.v1alpha1 as myxrd   # your XR: models.io.<reversed-group>.<version>
+import regex
 import network
 import security
 import storage
@@ -37,9 +38,15 @@ _metadata = lambda name: str -> any {
     { annotations = { "krm.kcl.dev/composition-resource-name" = name }}
 }
 
-# Kubernetes label values: 63 characters, alphanumerics and - _ .
+# Kubernetes label values: at most 63 characters of alphanumerics and - _ ., beginning and
+# ending with an alphanumeric. Replace every other character, cut, then trim what the cut left
+# at either end ("-leading" becomes "leading", "a/b:c" becomes "a-b-c").
+_labelValue = lambda v: str -> str {
+    _cut = regex.replace(v, "[^A-Za-z0-9_.-]", "-")[:63]
+    regex.replace(_cut, "^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "")
+}
 _sanitizeLabels = lambda tags: {str:str} -> {str:str} {
-    {k: v.replace("/", "-").replace(":", "-")[:63] for k, v in tags}
+    {k: _labelValue(v) for k, v in tags}
 }
 
 # Typed access to the XR. A missing field is a type error here, not a runtime surprise.

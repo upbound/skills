@@ -36,12 +36,19 @@ observed to fail, and is where false coverage claims come from.
 *that test* goes red while the others stay green, then revert:
 
 ```bash
-git diff --quiet -- <file> || echo "uncommitted changes in <file>: keep them first (below)"
-# 1. mutate the implementation (delete the field, move the block below an early return, ...)
-up test run "tests/test-*"   # expect: exactly the new test fails, and it names the right field
-git checkout -- <file>       # restores the last commit, not the state before step 1
-up test run "tests/test-*"   # expect: green again
+if git ls-files --error-unmatch -- <file> >/dev/null 2>&1 && git diff --quiet -- <file>; then
+  # 1. mutate the implementation (delete the field, move the block below an early return, ...)
+  up test run "tests/test-*"   # expect: exactly the new test fails, and it names the right field
+  git checkout -- <file>       # restores the last commit, not the state before step 1
+  up test run "tests/test-*"   # expect: green again
+else
+  echo "<file> is untracked or has uncommitted changes: commit or copy it first (below)"
+fi
 ```
+
+The guard is an `if`, not `|| exit`, so pasting the block whole into an interactive shell neither
+closes it nor reaches `git checkout` on a file holding uncommitted work; `git diff --quiet`
+alone passes a file git doesn't track.
 
 **Keep uncommitted work out of the revert's reach.** `git checkout -- <file>` puts back the
 committed version and discards every uncommitted change in the file, not only the mutation:

@@ -112,7 +112,8 @@ spec:
 ## Observed state (real example)
 
 Feed a mocked `status` for an earlier resource and assert what renders from it. Keep
-`validate: false`, as the scaffold does: the mocked status is not schema-valid.
+`validate: false`, as the scaffold does: `up test run` never reads it (up v0.55.0 source), so
+`true` would check nothing (author-tests' `test-model.md`).
 
 ```yaml
 apiVersion: meta.dev.upbound.io/v1alpha1
@@ -138,9 +139,9 @@ spec:
         k8gb:
           enabled: "yes"
   observedResources:
-  # Each mock: the composition-resource-name annotation, the name the render gave the resource,
-  # and for a namespaced XR the XR's namespace - without it the mock is silently ignored
-  # (charter/evidence.md, Coverage).
+  # Each mock: the composition-resource-name annotation (the match key), and for a namespaced XR
+  # the XR's namespace - without it the mock is silently ignored. The mock's name becomes the
+  # composed resource's name (charter/evidence.md, Coverage).
   # EKS cluster name/account come from the observed EKS XR status contract.
   - apiVersion: aws.platform.upbound.io/v1alpha1
     kind: EKS

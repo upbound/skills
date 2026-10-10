@@ -15,8 +15,15 @@ the workflow; how to reach the control plane while it exists is in [local.md](lo
 4. **Validation-rejection wording is terminal**, whatever status code it arrived in; providers wrap
    request-validation errors in 500s.
 
-Known transient: `failed to get restmapping: no matches for kind` early in a run (provider CRDs not installed
-yet). Target-specific ones are in the target's reference.
+Known transient:
+
+- `failed to get restmapping: no matches for kind` early in a run (provider CRDs not installed yet).
+- `unexpected status code 429` (or 502/503) from `xpkg.upbound.io` at `Checking dependencies` or during
+  control-plane creation: a registry rate limit. Retry with backoff rather than diagnosing it; a failure
+  during control-plane creation can leave the control plane behind, so check for leftovers before the retry
+  (the target's reference).
+
+Target-specific ones are in the target's reference.
 
 ## Resources under test
 
@@ -31,10 +38,12 @@ not land in your output.
 # KCL (tests/<n>/*.k)
 kcl tests/<n>/ | yq -o json '.items[].spec.manifests'
 
-# Python (tests/<n>/test/__main__.py): generated in a container, so no local command renders it. A previous
-# run leaves tests/<n>/test.yaml behind; if it is absent or stale, read kinds and names from the source.
-yq -o json '.items[].spec.manifests' tests/<n>/test.yaml 2>/dev/null \
-  || grep -nE 'kind=|name=' tests/<n>/test/__main__.py
+# Python SDK layout (tests/<n>/test/__main__.py): up runs it in a container (hatch run test), but it also
+# runs on the host once setup_venv.py has installed the test directory; there it sees your full environment
+(cd tests/<n> && UP_AWS_CREDENTIALS=x ../../.venv/bin/python -m test) | yq -o json '.items[].spec.manifests'
+
+# go-templating (tests/<n>/*.gotmpl): rendered in-process by up; `up test run --help` (v0.55.0) offers no
+# flag that prints the generated test. Read kinds and names from the template.
 
 # YAML (tests/<n>/*.yaml)
 yq -o json '.items[].spec.manifests' tests/<n>/*.yaml
@@ -103,10 +112,15 @@ Category: <composition | provider | credentials | infrastructure | test definiti
 - <quoted error or condition>
 ```
 
-Hand the sub-agent the table below with the brief. Once it reports, stop the run and report it as terminated.
-A stopped run can skip up's teardown and leave the control plane with live cloud resources on it: stop it and
-clean up as `control-plane-project-charter/references/charter/targets.md` ("Delete the XRs, and wait, before
-the control plane") says, before you report.
+Hand the sub-agent the table below with the brief. Its report decides what happens to the run:
+
+- **A terminal cause** ([Transient or terminal?](#transient-or-terminal)): waiting cannot fix it, so stop the
+  run and report it as terminated, with the analysis. A stopped run can skip up's teardown and leave the
+  control plane with live cloud resources on it: clean up as
+  `control-plane-project-charter/references/charter/targets.md` ("Delete the XRs, and wait, before the control
+  plane") says, before you report.
+- **Anything else**, including no cause found: keep waiting. The test's own `timeoutSeconds` ends the run, and
+  up tears it down; report that outcome with the analysis.
 
 ## Failure patterns
 

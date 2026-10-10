@@ -1,6 +1,6 @@
 ---
 name: author-composition
-description: Use this skill when the user asks to create, extend, modify, or debug a Crossplane composition function in a control-plane project — in any language (KCL, Python, TypeScript, Go). Detects the function language and applies the matching reference. Also use when asked about Crossplane v2 composition patterns, model/type import paths, namespaced `.m.` APIs, or why a composition renders green but the resource never reconciles. For authoring the tests themselves use author-tests; for XRD design use author-configuration-package. Always load this skill before writing or changing composition function code, instead of writing it directly - also when you get there partway through another skill's workflow, such as scaffolding a new package. It enforces the v2 rules that composition tests cannot catch — `forProvider`-only resources, no dangling `providerConfigRef`, resolved import paths — and the test-first loop that makes a coverage claim checkable.
+description: Use this skill when the user asks to create, extend, modify, or debug a Crossplane composition function in a control-plane project — in any language (KCL, Python, TypeScript, Go, go-templating). Detects the function language and applies the matching reference. Also use when asked about Crossplane v2 composition patterns, model/type import paths, namespaced `.m.` APIs, or why a composition renders green but the resource never reconciles. For authoring the tests themselves use author-tests; for XRD design use author-configuration-package. Always load this skill before writing or changing composition function code, instead of writing it directly - also when you get there partway through another skill's workflow, such as scaffolding a new package. It enforces the v2 rules that composition tests cannot catch — `forProvider`-only resources, no dangling `providerConfigRef`, resolved import paths — and the test-first loop that makes a coverage claim checkable.
 license: Apache-2.0
 references:
   - references/patterns.md
@@ -47,14 +47,15 @@ design or gate script wins over these: say where you departed.
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
-   is the right one. One whose connection details the function reads also needs
+   exists and is the right one. One whose connection details the function reads also needs
    `writeConnectionSecretToRef`, and a missing detail never falls back to a value. A v1 project
    stays v1 (§5).
 5. **Claim only what ran:** the command's own exit code, not `tail`'s: redirect, then read
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
-   zsh `$pipestatus[1]`. `No test files found` means nothing ran; the layer you reached; for
-   each new test, the change that turns it red, or call it unproven. Comments and docs claim
-   no more (§4, §8).
+   zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
+   render, composition test, local control plane, cloud — and never claim one you did not
+   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   docs claim no more (§4, §8).
 
 ## Phase 1: Detect the language and the Crossplane generation — do not ask
 
@@ -173,8 +174,9 @@ repeat. Before you call anything covered (charter §8):
    it.
 3. **Read the render, not the assertions:** `up test run "tests/test-*" --function-logs`, then
    read it as `control-plane-project-charter/references/charter/evidence.md` says (the directory
-   the run prints as `Test artifacts written to <dir>`). Add each emitted resource to `assertResources`; until you do, it is
-   untested even though the suite is green.
+   the run prints as `Test artifacts written to <dir>`). A run without the flag writes nothing,
+   and any existing directory is stale. Add each emitted resource to `assertResources`; until you
+   do, it is untested even though the suite is green.
 4. **The suite satisfies `control-plane-project-charter/references/charter/evidence.md`
    "Coverage"**: each input shape including a minimal XR, each observed-state branch, every
    `status` field on the composite.

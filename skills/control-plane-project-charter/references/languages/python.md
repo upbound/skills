@@ -16,20 +16,21 @@ gone by the next.
 | | |
 |---|---|
 | Scaffold a function | `up function generate <n> [<composition-path>] --language python` |
-| Scaffold a test | `up test generate <n> --language python` (add `--e2e`): writes `tests/test-<n>/`; the CLI prepends `test-` itself, so do not pass it |
+| Scaffold a test | `up test generate <n> --language python`: writes `tests/test-<n>/` (with `--e2e`: `tests/e2etest-<n>/`); the CLI prepends the prefix itself, so do not pass it |
 | Set up the venv, first | `python3 <author-composition>/scripts/setup_venv.py --project <root>`, right after the first `up project build` ([below](#set-up-the-venv-first)) |
 | Probe the project | `python3 <author-composition>/scripts/probe_project.py --project <root> [<Kind>…]`: layout, import prefix, import lines, class names. Standard library only |
 | A Kind's fields | `python3 <author-composition>/scripts/probe_project.py --project <root> --fields <Kind>`: every `forProvider` field, list fields with misleadingly singular Upjet names (`attribute`, `globalSecondaryIndex`) flagged, and the cross-resource `*Ref`/`*Selector` fields. Its first line reports the project's generation |
-| Fast inner loop | `python3 <author-composition>/scripts/run_function.py --project <root> --minimal examples/<kind>/<xr-name>.yaml`: needs the venv |
+| Fast inner loop | `python3 <author-composition>/scripts/run_function.py --project <root> --minimal examples/<kind>/<xr-name>.yaml`: needs the venv. XRD defaults are not applied (unlike `up test run` with `xrdPath`), so give every required field, defaulted ones included |
+| Function unit tests | `.venv/bin/python -m unittest discover -s functions/<n>/tests -t functions/<n>`; layout and template in [`python/tests.md`](python/tests.md#function-unit-tests) |
 
 ## Where everything is
 
 | File | What is in it |
 |---|---|
 | [`python/imports.md`](python/imports.md) | deriving the import path for any Kind, and the class names inside a generated model |
-| [`python/patterns.md`](python/patterns.md) | the function bootstrap, building a managed resource, tag maps, `resource.update()` clobbering, optional XRD objects, namespaces, XRD schemas that generate clean models |
+| [`python/patterns.md`](python/patterns.md) | the function bootstrap, building a managed resource, tag maps, `resource.update()` clobbering, optional XRD objects, namespaces, XRD schemas that generate clean models, a Fatal result |
 | [`python/readiness.md`](python/readiness.md) | observed resources by composition key, connection Secrets, ProviderConfig readiness, safe conditional creation, the early-return chain |
-| [`python/tests.md`](python/tests.md) | the coverage shapes in Python syntax, the dump modes, assertion rules |
+| [`python/tests.md`](python/tests.md) | the coverage shapes in Python syntax, the dump modes, assertion rules, function unit tests |
 | [`python/test-templates.md`](python/test-templates.md) | composition-test and E2E-test templates, SDK and embedded |
 | [`python/examples.md`](python/examples.md) | two complete functions and an `upbound.yaml` |
 | [`python/pitfalls.md`](python/pitfalls.md) | mistakes that give a green run and a broken platform, and the errors they print |

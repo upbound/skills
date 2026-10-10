@@ -15,7 +15,7 @@ language from `tests/<n>/`; a project may mix them. The markers are the ones `up
 | `kcl.mod` | KCL | [`kcl.md`](kcl.md) + [`kcl/`](kcl/) | [`kcl/tests.md`](kcl/tests.md) |
 | `main.py` | Python, embedded layout | [`python.md`](python.md) + [`python/`](python/) | [`python/tests.md`](python/tests.md), [`python/test-templates.md`](python/test-templates.md) |
 | `go.mod` | Go | [`go.md`](go.md), [`go/functions.md`](go/functions.md) | [`go.md`](go.md), [`go/tests.md`](go/tests.md) |
-| only `*.gotmpl` / `*.tmpl` files (subdirectories allowed) | go-templating | [`go-templating.md`](go-templating.md) — covers the function scaffold only | [`go-templating.md`](go-templating.md) |
+| only `*.gotmpl` / `*.tmpl` files (subdirectories allowed) | go-templating | [`go-templating.md`](go-templating.md) | [`go-templating.md`](go-templating.md) |
 | `test.yaml` (tests only) | YAML | — | [`yaml.md`](yaml.md) |
 | `package.json` / `*.ts` (functions) | TypeScript: `up` has no builder, so `up project build` fails with `no suitable builder found` | [`typescript.md`](typescript.md) — its header says how these projects are built | — (no TypeScript test language) |
 

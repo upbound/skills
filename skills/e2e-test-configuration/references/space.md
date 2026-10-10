@@ -35,8 +35,9 @@ up repository get "$REPO" --format=json 2>/dev/null \
 it *creates* public, so it fixes "does not exist yet" and changes nothing for an existing private one
 (`control-plane-project-charter/references/charter/targets.md`).
 
-- If the caller already chose `--public` (in the brief or earlier in the conversation), use it; don't ask
-  again.
+- If the user already chose `--public` (earlier in the conversation, or relayed in the brief by an
+  orchestrating agent as the user's explicit choice), use it; don't ask again. An orchestrator never decides
+  it itself.
 - Otherwise, before burning a run, name the options: publish publicly, change the existing repository's
   visibility (the user's call, outside this skill), push to a repository the control plane can already pull
   from (`--repository`), or have the caller choose the local target instead. Interactive, ask; unattended,
@@ -56,7 +57,7 @@ flags for SKILL.md Phase 4's run idiom are then:
 
 ```bash
 up test run "tests/e2etest-<n>" --e2e --control-plane-group="<group>" --kubeconfig "<kubeconfig>"
-# add --public ONLY if the caller chose it
+# add --public ONLY if the user chose it
 ```
 
 ## What the run does
@@ -94,6 +95,9 @@ CPCFG=$(mktemp -t kubeconfig-cp.XXXXXX)
 up ctx ./<control-plane-name> -f - > "$CPCFG"   # from the group context
 echo "kubeconfig: $CPCFG"   # reuse the path as a value: the variable is gone by your next command
 ```
+
+Once you are done with it, `rm -f <kubeconfig>`, and the run's own `--kubeconfig` file once the run has
+exited (charter §9: delete what this run created).
 
 ## Evidence and cleanup
 

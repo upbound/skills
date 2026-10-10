@@ -87,6 +87,9 @@ kubectl --kubeconfig "$KCFG" get managed -A
 echo "kubeconfig: $KCFG"   # reuse the path as a value: the variable is gone by your next command
 ```
 
+Once the run has exited, `rm -f <kubeconfig>`: the cluster it points at is gone, and the file is this run's
+leftover (charter §9).
+
 Use `kind get kubeconfig`, not a kubeconfig `up` leaves in `/tmp`: observed with up v0.55.0,
 `/tmp/up-*.kubeconfig` was empty (0 bytes), and the test's own `/tmp/<test><random>/kubeconfig.yaml` was gone by
 the next read.
@@ -95,9 +98,11 @@ If the run never got past the package install, check that before tracing any man
 `docker logs <cluster>-registry` (the umask precondition), then `kubectl get pkgrev -o wide` and `kubectl
 describe configuration`. Then use the brief in [troubleshooting.md](troubleshooting.md).
 
-**A status field or condition.** An `E2ETest` can't assert one (author-tests' `e2e.md` reference). To read one,
-take it inside the one run you need anyway, and **watch rather than poll**: the delete starts about a second
-after the assert sees `Ready` (observed with up v0.55.0), so a read every few seconds misses the one moment the
+### Reading a status during the run (an `E2ETest` can't assert one)
+
+An `E2ETest` can't assert a status field or condition (author-tests' `e2e.md` reference). To read one, take
+it inside the one run you need anyway, and **watch rather than poll**: the delete starts about a second after
+the assert sees `Ready` (observed with up v0.55.0), so a read every few seconds misses the one moment the
 status is complete. Wait, bounded, until the XR exists, then watch that one object (`get managed -w` fails:
 `managed` is a category), bounded too:
 
@@ -109,20 +114,30 @@ for _ in $(seq 1 60); do                            # until the XR exists, or th
     break
   sleep 5
 done
-timeout 600 kubectl --kubeconfig <kubeconfig> get <xr-kind> <xr-name> -n <namespace> -w \
+kubectl --kubeconfig <kubeconfig> --request-timeout=600s get <xr-kind> <xr-name> -n <namespace> -w \
   -o jsonpath='{.status.conditions[?(@.type=="Ready")].status} {.status}{"\n"}' >> /tmp/e2e-<n>-status.txt 2>&1
 grep '^True ' /tmp/e2e-<n>-status.txt | tail -1      # the last read taken while Ready
 ```
 
-The watch prints one line per change and ends with the cluster or at its timeout; size that to one command's
-timeout, and if it ends before `EXIT=` is in the log, start it again (it prints the current state first). Give
-every other `kubectl` call `--request-timeout`: one without it hung for 150 s once the cluster was gone.
+The watch prints one line per change and ends with the cluster or after 600 s: on a watch, kubectl applies
+`--request-timeout` to the whole response, so it is the watch's time limit (stock macOS has no `timeout`).
+Size it to one command's timeout, never to the few seconds other calls get, and if it ends before `EXIT=` is in
+the log, start it again (it prints the current state first). Give every other `kubectl` call
+`--request-timeout`: one without it hung for 150 s once the cluster was gone. A composed resource is read the
+same way, one watch per object.
 
 Quote it as **"read-back, not asserted"**, with its `Ready` condition: a read while `Ready` is `False` can be
-partial. It is not a provider read. Never re-run a green e2e only to read status: if the window was missed,
-report "not read back". It is report evidence, never a pass condition (author-tests' `e2e.md` reference).
+partial. It is not a provider read. If the window was missed, report "not read back" rather than re-running a
+green e2e just for the read ([SKILL.md](../SKILL.md), Never). It is report evidence, never a pass condition
+(author-tests' `e2e.md` reference).
 
-**A provider read** (the cloud's own API, by the resources' external ids) works from the moment those ids
+The resource tables the log prints during the assert are progress output, not a read-back: in the runs observed
+with up v0.55.0, none showed the XR `Ready` although the assert passed. Quote the assert's `PASS` line, never a
+table as a resource's state.
+
+### A provider read
+
+A provider read (the cloud's own API, by the resources' external ids) works from the moment those ids
 appear, in the XR's status or on the managed resources, until the assert sees `Ready`: nothing deletes the
 resources before then. Take it as soon as the ids appear, not at `Ready`: a read taken at `Ready` raced the
 delete and got NotFound (observed once with up v0.55.0).
