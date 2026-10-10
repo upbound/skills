@@ -1,6 +1,6 @@
 ---
 name: author-configuration-package
-description: Use this skill when user requests to create, scaffold, modify, or extend a Crossplane configuration package. Handles project initialization, XRD creation/modification, composition setup, dependency management (including MRAPs and `up dep add --api`), function generation, building, and setting up the local development environment. Use immediately when user mentions creating/scaffolding/modifying/extending a configuration package, adding new resources to an existing package, installing or adding a provider ("add provider-aws-s3", "install the AWS provider", `up dep add`), or setting up the Python environment ("configure a venv", "my imports do not resolve", "set the VS Code interpreter"). Use this skill instead of manually creating project structures, XRDs, or running `up project init`/`up function generate` commands directly. This skill ensures correct build order, proper scaffolding, and prevents common initialization mistakes that manual setup lacks.
+description: Use this skill when user requests to create, scaffold, modify, or extend a Crossplane configuration package. Handles project initialization, XRD creation/modification, composition setup, dependency management (including MRAPs and `up dep add --api`), function generation, building, and setting up the local development environment. Use immediately when user mentions creating/scaffolding/modifying/extending a configuration package, adding new resources to an existing package, installing or adding a provider ("add provider-aws-s3", "install the AWS provider", `up dep add`), or setting up the Python environment ("configure a venv", "my imports do not resolve", "set the VS Code interpreter"). Use this skill instead of manually creating project structures, XRDs, or running `up project init`/`up function generate` commands directly. Not for composition function code — use author-composition; not for verifying or running the project — use verify-configuration.
 license: Apache-2.0
 references:
   - references/templates.md
@@ -47,14 +47,15 @@ design or gate script wins over these: say where you departed.
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
-   is the right one. One whose connection details the function reads also needs
+   exists and is the right one. One whose connection details the function reads also needs
    `writeConnectionSecretToRef`, and a missing detail never falls back to a value. A v1 project
    stays v1 (§5).
 5. **Claim only what ran:** the command's own exit code, not `tail`'s: redirect, then read
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
-   zsh `$pipestatus[1]`. `No test files found` means nothing ran; the layer you reached; for
-   each new test, the change that turns it red, or call it unproven. Comments and docs claim
-   no more (§4, §8).
+   zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
+   render, composition test, local control plane, cloud — and never claim one you did not
+   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   docs claim no more (§4, §8).
 
 ## Phase 1: Gather the project and resource information
 
@@ -187,8 +188,9 @@ the required fields only, and a complete one
 
 **A field list is not the schema.** It cannot tell you that a field is `vpcId` while the Kind is
 `VPC`, that a repeated group prefix may or may not be stutter, that an unbounded array leaves no
-CEL budget, or that redefining `READY` prints the column twice. XRD versions must round-trip, so
-all of that is permanent from the first version that ships.
+CEL budget, or that redefining `READY` prints the column twice. XRD versions must round-trip
+(even a rename needs a conversion webhook), so all of that is permanent from the first version
+that ships.
 `control-plane-project-charter/references/charter/xrd-design.md` has the rules. Run the
 mechanical ones before the first build with the script in this skill's directory
 (`<author-configuration-package>`, the directory containing this SKILL.md). Invoke it by its
@@ -212,20 +214,30 @@ project root, under its rule class, with a mandatory `reason`:
 
 ```yaml
 enumCasing:
-  - field: spec.engine   # the path the FAIL prints, minus file and [version]
+  - field: apis/db/definition.yaml[*].spec.engine   # the location the FAIL prints
     reason: AWS RDS engine names, passed through verbatim
 maxItems:
-  - field: status.subnetIds
+  - field: apis/network/definition.yaml[v1alpha1].status.subnetIds
     reason: frozen API, shipped without a bound
 ```
 
-Classes keyed by field path: `enumCasing`, `description`, `listType`, `maxItems`,
-`lowerCamel`, `fieldCasing`; by name: `kindAcronym` (the Kind), `printerColumn` (`READY`),
-`collision` (the spellings as printed). `uniqueItems` has none: the API server rejects the CRD.
-The script reads the file from the working directory, prints those findings as `EXCEPTED`,
-reports an entry that matches nothing for REVIEW, and can then serve as a gate. To read a
-frozen API's state without gating, pass `--report-only` (exit 0 despite findings). A skeleton
-XRD has too few fields to count as an extraction, so pass `--min-corpus` until the API has grown.
+Write `field` as the FAIL prints it, `<file>[<version>].<path>`, so the exception covers that XRD
+and version and nothing else. Either part can be `*`: `[*]` is every version of one XRD, `*[v1]`
+is v1 of every XRD, and `*[*].<path>` is a deliberate project-wide waiver. Classes keyed by field
+path: `enumCasing`, `description`, `listType`, `maxItems`, `lowerCamel`, `fieldCasing`. By name:
+`printerColumn` takes `<file>[<version>].READY`, `kindAcronym` takes `<file>[*].<Kind>` (a Kind
+spans every version), and `collision` takes the spellings as printed with no file, since a
+collision spans the corpus. `uniqueItems` has none: the API server rejects the CRD. A bare path
+with no `<file>[<version>].` still works and applies everywhere, but when it excepts findings in
+more than one XRD or version the script lists those places for REVIEW: an exception for a frozen
+v1alpha1 would otherwise hide the same defect in the v1beta1 you can still fix.
+
+The script reads the file from the working directory and prints those findings as `EXCEPTED`.
+When several entries match one finding, the most specific gives the reason. An entry that
+matches nothing, or only findings a more specific entry already covers, is reported for REVIEW,
+and the script can then serve as a gate. To read a frozen API's state without gating, pass
+`--report-only` (exit 0 despite findings). A skeleton XRD has too few fields to count as an
+extraction, so pass `--min-corpus` until the API has grown.
 
 ## Phase 4: Add dependencies
 
@@ -256,7 +268,8 @@ package name.
   when nothing changed. Comments are stripped, keys are sorted, sequences are un-indented, and
   legacy `function:`/`provider:` entries become `apiVersion/kind/package` (up v0.55.0). Put the
   reason for a constraint in the README, not in a comment. Expect `upbound.yaml` in `git diff`
-  after a build or a test run, and attribute that diff to the CLI.
+  after a build or a test run, but before attributing that diff to the CLI, confirm it is
+  formatting only: no `dependsOn` or `apiDependencies` entry and no version constraint changed.
 - **External pipeline functions must be declared dependencies.** Embedded functions (built from
   `functions/`) are wired automatically. An external `functionRef`
   (`crossplane-contrib-function-auto-ready`, `function-patch-and-transform`) missing from
@@ -319,9 +332,11 @@ list.
 
 A `.uppkg` is a tar of gzipped layers (`manifest.json` lists them). The configuration's
 `package.yaml` (meta, XRDs, compositions, an MRAP) is in one layer, and the examples are in
-another as `.up/examples.yaml` (up v0.55.0). To check that a file ships:
-`mkdir -p /tmp/pkg && tar -xf _output/<name>.uppkg -C /tmp/pkg`, then `tar -xzOf` each layer and
-grep. That proves it ships, not that a control plane accepts it.
+another as `.up/examples.yaml` (up v0.55.0). To check that a file ships, extract into a fresh
+directory, so an older extraction cannot make the grep pass:
+`pkg=$(mktemp -d) && tar -xf _output/<name>.uppkg -C "$pkg"`, then `tar -xzOf` each layer in
+`"$pkg"` and grep, and `rm -rf "$pkg"` after. That proves it ships, not that a control plane
+accepts it.
 
 Then report what ran and what it printed, not a checklist (`control-plane-project-charter` §4):
 the commands and exit codes, the layer reached (package build), and what you assumed. Template:

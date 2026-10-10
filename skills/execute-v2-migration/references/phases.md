@@ -11,8 +11,19 @@ test -f .agents/plans/CROSSPLANE_V2_MIGRATION.md || echo "no plan: run plan-v2-m
 grep -n '^apiVersion:' upbound.yaml
 grep -rl 'kind: CompositeResourceDefinition' apis/ | xargs grep -l 'apiextensions.crossplane.io/v1$'
 git status --porcelain
-git branch --list migrate-to-v2
+git branch --list migrate-to-v2                 # local
+git ls-remote --heads origin migrate-to-v2      # remote; another remote name: `git remote`
 ```
+
+After the go-ahead, and before any stage runs, whichever stages were asked for:
+
+```bash
+git checkout migrate-to-v2                      # it is local
+git fetch origin migrate-to-v2 && git checkout --track origin/migrate-to-v2   # only on the remote
+git checkout -b migrate-to-v2                   # neither
+```
+
+Run the one line that matches, then tick the plan's stage 1 branch item.
 
 From the plan, take: the project name, the counts, each function's language and the test
 language, the decisions and assumptions, the dependency targets, and which tests cover which
@@ -23,7 +34,7 @@ stage 5.
 ## Stage 1: Prepare
 
 ```bash
-git checkout -b migrate-to-v2      # or check out the existing branch: see "When a step fails"
+# on migrate-to-v2, checked out in stage 0
 # edit upbound.yaml: apiVersion, each dependency version from the plan, apiDependencies if listed
 up dep update-cache
 up project build
@@ -39,8 +50,9 @@ Then confirm the models carry the `.m.` groups the functions will import:
 
 ## Stages 2–4: XRDs, compositions, examples
 
-Edit each file with the items the plan lists for it, then `yq '.' <file> > /dev/null`. Edit the
-YAML structure; don't string-replace whole blocks: whitespace differs between projects.
+Edit each file with the items the plan lists for it, then `yq '.' <file> > /dev/null`; if it
+does not parse, stop and report the file. Edit the YAML structure; don't string-replace whole
+blocks: whitespace differs between projects.
 If an item is already in its v2 form, tick it and move on.
 
 ## Stage 5: Tests, then functions
@@ -58,7 +70,7 @@ For each function, in the plan's order:
 
    | Language | Compile check, in `functions/<name>/` |
    |---|---|
-   | KCL | `kcl main.k` |
+   | KCL | `kcl lint main.k` — not `kcl main.k`, which runs the module and fails on `option("params")` |
    | Python | `python3 -c "import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]" $(find . -name '*.py')` |
    | Go | `go vet ./...` — not plain `go build ./...`, which writes a binary into the function directory |
    | other | the compile or fast-tier row of its `languages/` file |
@@ -184,8 +196,9 @@ Add `with --public` only when the user chose it; without a target the E2E skill 
 | What | Do |
 |---|---|
 | No plan | Stop: run `plan-v2-migration` first. |
-| Branch `migrate-to-v2` exists | A previous run. Check it out and resume with `continue` (interactive: ask first). Never delete it without the user's say-so. |
+| Branch `migrate-to-v2` exists, locally or on the remote | A previous run. Stage 0 checks it out, tracking the remote one, and resumes with `continue` (interactive: ask first). Never delete it without the user's say-so. |
 | `up project build` fails in stage 1 | Check the models for the `.m.` groups (stage 1 table), run `up dep update-cache` again and rebuild. Still no `.m.` models: remove the generated `.up/` (gitignored, the build regenerates it) and rebuild. Still failing: stop and report the dependency versions. |
+| `up project build` fails in stage 6 | A rename missed a reference: check that `functionRef.name` and `step` in every composition match the new directory. Still failing: stop and report. |
 | An edit's target is not where the plan says | Re-read the file. Already v2: tick it. Otherwise stop and report the file and item. |
 | A test sub-agent cannot get RED for the right reason | The test or the plan item is wrong: report it; do not migrate the function against it. |
 | A sub-agent reports FAILURE | One retry, with the failure in the brief (interactive: offer it). Fails again: stop and report; interactive options are retry, skip (fix later by hand), abort. |

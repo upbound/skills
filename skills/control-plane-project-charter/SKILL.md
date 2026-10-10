@@ -199,10 +199,10 @@ Before writing any summary:
 ## 5. Crossplane v2: what a composed resource actually needs
 
 **When the project's API exposes these fields** — an XRD with `managementPolicies` or a
-`providerConfigName` parameter, as many platform configurations do — pass them to every composed
-resource from the first one you write, have the E2E test create the ProviderConfig the reference
-names (author-tests' `e2e.md`), and say so in your report. How a review judges these fields:
-[`charter/review.md`](references/charter/review.md).
+`providerConfigName` parameter, as many platform configurations do — pass them to every managed
+resource (MR) from the first one you write, have the E2E test create the ProviderConfig the
+reference names (author-tests' `e2e.md`), and say so in your report. How a review judges these
+fields: [`charter/review.md`](references/charter/review.md).
 
 **These rules are for a v2 project.** The XRDs' `apiVersion` says which one you have, not the
 template a project came from: `up project init`'s cloud templates are v1 and its k8s-webapp

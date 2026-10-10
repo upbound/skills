@@ -147,8 +147,8 @@ One idiom on both targets; only the target flags differ:
   have, and treat a timeout the same way.
 - **Never write a verdict from a poll.** A partial log is a progress view: resources routinely reach `Ready`
   after your last look. The run is over only when `EXIT=` is in the log.
-- If you stop a run early (wrong target, stuck), say it was **terminated** and why. A killed run has no
-  outcome, and may have skipped teardown: clean up as
+- If you stop a run early (wrong target, stuck with a terminal cause), say it was **terminated** and why. A
+  killed run has no outcome, and may have skipped teardown: clean up as
   `control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers) says before you
   report.
 
@@ -180,6 +180,7 @@ to pass: before you call an error terminal, read
 (`crossplane beta trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
 brief in [troubleshooting.md](references/troubleshooting.md): hand it to a sub-agent to keep your context
 small, or follow it yourself. The target's reference says how to reach the control plane while it exists.
+Stop the run only if the investigation finds a terminal cause; otherwise let `timeoutSeconds` end it.
 `up: error: context deadline exceeded` is not a diagnosis; report the underlying Configuration or Provider
 condition instead.
 
@@ -235,7 +236,7 @@ Shape (templates in [report-templates.md](references/report-templates.md)):
 - Local: connect to, apply to or delete a kind cluster or container this run did not create. Names
   such as `<project>-uptest-<test>` repeat across runs, and a cluster you find may hold live cloud
   resources; how to tell yours: [local.md](references/local.md#preconditions).
-- Space: **add `--public` on your own initiative. It permanently publishes the user's package**; only the
-  caller chooses it.
-- Space: **create a group, space or control plane** as a side effect (charter §9).
+- Space: **never add `--public` on your own initiative: it permanently publishes the user's package.** Only
+  the user chooses it; an orchestrating agent may relay the user's explicit choice in its brief, never make it.
+- Space: **never create a group, space or control plane** as a side effect (charter §9).
 - Space: pass a `--kubeconfig` path you did not write and check in this run.

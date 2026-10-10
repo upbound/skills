@@ -16,6 +16,7 @@ be wrong in ways that look exactly like compliance:
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import os
 import shutil
@@ -545,6 +546,199 @@ class CheckXrdSchemaTest(unittest.TestCase):
             report_only = c.main(["--report-only", str(FIXTURES / "bad.yaml")])
         assert plain == c.EXIT_FINDINGS
         assert report_only == c.EXIT_CLEAN
+
+    # ---------------------------------------------------------------------------
+    # Scoped exceptions: one frozen XRD version must not waive the same finding
+    # in every other XRD and version, where it can still be fixed
+    # ---------------------------------------------------------------------------
+
+    TLS = "spec.tlsConfig.minVersion"
+
+    def project(self):
+        """Two XRDs, each with v1alpha1 and v1beta1, each version carrying the
+        same lowercase enum: one finding key, four places. The working directory
+        is the project root, so findings print `apis/<x>/definition.yaml[...]`."""
+        root = self.tmp()
+        for name, group, kind in (("a", "alpha", "Repository"), ("b", "bravo", "Mirror")):
+            doc = yaml.safe_load((FIXTURES / "good.yaml").read_text())
+            doc["metadata"]["name"] = f"{kind.lower()}s.{group}.example.com"
+            doc["spec"]["group"] = f"{group}.example.com"
+            doc["spec"]["names"] = {"kind": kind, "plural": f"{kind.lower()}s"}
+            v1 = doc["spec"]["versions"][0]
+            spec = v1["schema"]["openAPIV3Schema"]["properties"]["spec"]["properties"]
+            spec["tlsConfig"]["properties"]["minVersion"]["enum"] = ["tls12", "tls13"]
+            v2 = copy.deepcopy(v1)
+            v2["name"] = "v1beta1"
+            doc["spec"]["versions"].append(v2)
+            xrd = root / "apis" / name / "definition.yaml"
+            xrd.parent.mkdir(parents=True)
+            xrd.write_text(yaml.safe_dump(doc))
+        cwd = os.getcwd()
+        os.chdir(root)
+        self.addCleanup(os.chdir, cwd)
+        return ["apis/*/definition.yaml"]
+
+    def scoped(self, *fields):
+        return self.exceptions_file(
+            "enumCasing:\n"
+            + "".join(f"  - {{field: '{f}', reason: frozen {i}}}\n" for i, f in enumerate(fields))
+        )
+
+    @staticmethod
+    def places(output, prefix):
+        """The `<file>[<version>]` of every line starting with `prefix`."""
+        return {
+            ln[len(prefix):].split(".spec.", 1)[0]
+            for ln in output.splitlines() if ln.startswith(prefix)
+        }
+
+    ALL = {
+        "apis/a/definition.yaml[v1alpha1]", "apis/a/definition.yaml[v1beta1]",
+        "apis/b/definition.yaml[v1alpha1]", "apis/b/definition.yaml[v1beta1]",
+    }
+
+    def test_qualified_exception_applies_to_its_file_and_version_only(self):
+        paths = self.project()
+        exc = self.scoped(f"apis/a/definition.yaml[v1alpha1].{self.TLS}")
+        code, output = run(paths, exceptions=exc)
+        assert code == c.EXIT_FINDINGS, output
+        assert self.places(output, "EXCEPTED: ") == {"apis/a/definition.yaml[v1alpha1]"}
+        assert self.places(output, "FAIL:   ") == self.ALL - {"apis/a/definition.yaml[v1alpha1]"}
+        assert "matches no finding" not in output and "has no file or version" not in output
+
+    def test_qualified_file_matches_however_the_path_was_spelt(self):
+        """`./apis/a/...` in the entry and `apis/a/...` on the command line are one file."""
+        paths = self.project()
+        exc = self.scoped(f"./apis/a/definition.yaml[v1alpha1].{self.TLS}")
+        _code, output = run(paths, exceptions=exc)
+        assert self.places(output, "EXCEPTED: ") == {"apis/a/definition.yaml[v1alpha1]"}
+
+    def test_wildcard_version_covers_every_version_of_one_file(self):
+        paths = self.project()
+        _code, output = run(paths, exceptions=self.scoped(f"apis/a/definition.yaml[*].{self.TLS}"))
+        assert self.places(output, "EXCEPTED: ") == {
+            "apis/a/definition.yaml[v1alpha1]", "apis/a/definition.yaml[v1beta1]",
+        }
+        assert all(p.startswith("apis/b/") for p in self.places(output, "FAIL:   "))
+
+    def test_wildcard_file_covers_one_version_of_every_file(self):
+        paths = self.project()
+        _code, output = run(paths, exceptions=self.scoped(f"*[v1beta1].{self.TLS}"))
+        assert self.places(output, "EXCEPTED: ") == {
+            "apis/a/definition.yaml[v1beta1]", "apis/b/definition.yaml[v1beta1]",
+        }
+
+    def test_explicit_project_wide_exception_is_clean_and_not_reviewed(self):
+        """`*[*].` says on purpose what a bare path says by accident."""
+        paths = self.project()
+        code, output = run(paths, exceptions=self.scoped(f"*[*].{self.TLS}"))
+        assert code == c.EXIT_CLEAN, output
+        assert self.places(output, "EXCEPTED: ") == self.ALL
+        assert "REVIEW:" not in output
+
+    def test_bare_exception_still_applies_everywhere_but_names_the_places(self):
+        """Existing files keep working; the reach of a bare entry is surfaced."""
+        paths = self.project()
+        code, output = run(paths, exceptions=self.scoped(self.TLS))
+        assert code == c.EXIT_CLEAN, output
+        assert self.places(output, "EXCEPTED: ") == self.ALL
+        review = [ln for ln in output.splitlines()
+                  if ln.startswith("REVIEW:") and "has no file or version" in ln]
+        assert len(review) == 1, output
+        assert "excepts 4 places" in review[0]
+        for place in self.ALL:
+            assert place in review[0], place
+        assert f"*[*].{self.TLS}" in review[0]
+
+    def test_bare_exception_in_one_place_is_not_reviewed(self):
+        exc = self.exceptions_file(
+            "enumCasing:\n  - {field: spec.packageType, reason: registry spellings}\n"
+        )
+        _code, output = run([FIXTURES / "bad.yaml"], exceptions=exc)
+        assert "EXCEPTED: " in output
+        assert "has no file or version" not in output
+
+    def test_stale_qualified_exception_is_reported(self):
+        paths = self.project()
+        exc = self.scoped(f"apis/a/definition.yaml[v9].{self.TLS}")
+        code, output = run(paths, exceptions=exc)
+        assert code == c.EXIT_FINDINGS
+        assert self.places(output, "FAIL:   ") == self.ALL
+        assert any(
+            ln.startswith("REVIEW:")
+            and f"'apis/a/definition.yaml[v9].{self.TLS}' matches no finding" in ln
+            for ln in output.splitlines()
+        ), output
+
+    def test_most_specific_entry_gives_the_reason(self):
+        paths = self.project()
+        exc = self.scoped(f"*[*].{self.TLS}", f"apis/a/definition.yaml[v1alpha1].{self.TLS}")
+        code, output = run(paths, exceptions=exc)
+        assert code == c.EXIT_CLEAN, output
+        for ln in output.splitlines():
+            if ln.startswith("EXCEPTED: "):
+                specific = ln.startswith("EXCEPTED: apis/a/definition.yaml[v1alpha1]")
+                assert ln.endswith("-- frozen 1" if specific else "-- frozen 0"), ln
+        assert "REVIEW:" not in output
+
+    def test_entry_wholly_covered_by_a_more_specific_one_is_reported(self):
+        paths = self.project()
+        exc = self.scoped(
+            f"apis/a/definition.yaml[*].{self.TLS}",
+            f"apis/a/definition.yaml[v1alpha1].{self.TLS}",
+            f"apis/a/definition.yaml[v1beta1].{self.TLS}",
+        )
+        _code, output = run(paths, exceptions=exc)
+        assert any(
+            ln.startswith("REVIEW:") and f"'apis/a/definition.yaml[*].{self.TLS}' is shadowed"
+            in ln for ln in output.splitlines()
+        ), output
+
+    def test_bare_path_through_a_list_is_not_mistaken_for_a_scope(self):
+        """`spec.rules[].port` has `[]`, not `[<version>]`: it stays a bare path."""
+        e = c.parse_entry("x", "maxItems", 0, "spec.rules[].ports", "r")
+        assert (e.file, e.version, e.key) == (None, None, "spec.rules[].ports")
+        e = c.parse_entry("x", "maxItems", 0, "apis/x.yaml[v1].spec.rules[].ports", "r")
+        assert (e.file, e.version, e.key) == ("apis/x.yaml", "v1", "spec.rules[].ports")
+
+    def test_printer_column_is_scoped_to_file_and_version(self):
+        bad = str(FIXTURES / "bad.yaml")
+        exc = self.exceptions_file(
+            f"printerColumn:\n  - {{field: '{bad}[v1alpha1].READY', reason: frozen}}\n"
+        )
+        _code, output = run([FIXTURES / "bad.yaml"], exceptions=exc)
+        assert any(ln.startswith("EXCEPTED: ") and "printer column READY" in ln
+                   for ln in output.splitlines()), output
+        exc = self.exceptions_file(
+            f"printerColumn:\n  - {{field: '{bad}[v2].READY', reason: frozen}}\n"
+        )
+        _code, output = run([FIXTURES / "bad.yaml"], exceptions=exc)
+        assert any(ln.startswith("FAIL:   ") and "printer column READY" in ln
+                   for ln in output.splitlines()), output
+
+    def test_kind_acronym_is_scoped_to_a_file_and_rejects_a_version(self):
+        """A Kind spans every version, so naming one is a mistake worth stopping on."""
+        kind = str(FIXTURES / "kind.yaml")
+        exc = self.exceptions_file(
+            f"kindAcronym:\n  - {{field: '{kind}[*].HttpLoadbalancer', reason: frozen}}\n"
+        )
+        _code, output = run([FIXTURES / "kind.yaml"], exceptions=exc)
+        assert any(ln.startswith("EXCEPTED: ") and "Kind 'HttpLoadbalancer'" in ln
+                   for ln in output.splitlines()), output
+        exc = self.exceptions_file(
+            f"kindAcronym:\n  - {{field: '{kind}[v1alpha1].HttpLoadbalancer', reason: frozen}}\n"
+        )
+        code, output = run([FIXTURES / "kind.yaml"], exceptions=exc)
+        assert code == c.EXIT_NO_CORPUS
+        assert "a Kind spans every version" in output
+
+    def test_collision_rejects_a_file_scope(self):
+        exc = self.exceptions_file(
+            "collision:\n  - {field: 'apis/x.yaml[*].ProjectId / projectID', reason: frozen}\n"
+        )
+        code, output = run([FIXTURES / "bad.yaml"], exceptions=exc)
+        assert code == c.EXIT_NO_CORPUS
+        assert "a collision spans the whole corpus" in output
 
 
 def run_without_yaml(*args: str) -> subprocess.CompletedProcess:

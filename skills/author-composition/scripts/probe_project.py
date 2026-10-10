@@ -309,7 +309,7 @@ def main() -> int:
             else:
                 print(f"{kind}: NOT FOUND in the model tree, and no XRD in apis/ defines "
                       f"it. If it belongs to a provider, add it (`up dep add <xpkg ref>` "
-                      f"then `up dep update-cache`). If it is meant to be this project's "
+                      f"then `up project build`). If it is meant to be this project's "
                       f"own XR, its XRD is missing.")
             exit_code = 2  # requested Kind not found
             continue

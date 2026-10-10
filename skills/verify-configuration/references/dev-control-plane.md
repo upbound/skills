@@ -1,10 +1,11 @@
 # Running the project on a dev control plane
 
 `up project run`, step by step: the Space pre-flight, the choice you hand back when a Space
-cannot pull, confirming the run reconciled, and what to do when a run hangs on
-`Waiting for package to be ready`. The skill's Phase 5 holds the never-rules. Where a run lands,
-the non-interactive `up ctx` forms, what `--public` does, and why a private repository wedges
-the run are in `control-plane-project-charter/references/charter/targets.md`: read it with this.
+cannot pull, applying credentials and an example XR, confirming the run reconciled, and what to
+do when a run hangs on `Waiting for package to be ready`. The skill's Phase 5 holds the
+never-rules. Where a run lands, the non-interactive `up ctx` forms, what `--public` does, and why
+a private repository wedges the run are in
+`control-plane-project-charter/references/charter/targets.md`: read it with this.
 
 ---
 
@@ -52,7 +53,26 @@ caller and stop.
 **6. If it wedges anyway**, follow the next section. Another blind attempt costs another ~10
 minutes and usually fails the same way.
 
-**7. Confirm it reconciled**; don't trust the exit code:
+**7. Give it something to reconcile.** The run builds, pushes and installs the Configuration,
+then stops: no credentials, no ProviderConfig, no XR. Once it has exited 0, apply all three to
+the control plane it created (the run made it the current context):
+
+```bash
+kubectl get configuration.pkg.crossplane.io           # INSTALLED and HEALTHY both True first
+kubectl -n <secret-namespace> create secret generic <secret-name> \
+  --from-file=<key>=<credentials-file>                # namespace, name and key: the ProviderConfig's secretRef
+kubectl apply -f examples/providerconfig.yaml         # or whatever the project ships instead
+kubectl apply -f examples/<kind-lowercase>/<xr-name>.yaml
+```
+
+The credentials come from the user or the environment (a file outside the repository, an
+exported variable); never write them into a tracked file or a manifest. The ProviderConfig and
+the example XR can instead go on the run itself, `--extra-resources=<file>` ("applied after
+installing the project"); the Secret stays a `kubectl` command. No ProviderConfig in the project
+is a finding to report (author-configuration-package's `providerconfig.md` reference), not
+something to invent.
+
+**8. Confirm it reconciled**; don't trust the exit code:
 
 ```bash
 kubectl get <xr-kind> -A
@@ -70,7 +90,7 @@ kubectl get pods -n crossplane-system                 # provider pod running? th
 kubectl get crd <plural>.<group>                      # the MR's CRD established?
 ```
 
-**8. Read the effect back from the provider, not from your own input.** `Ready=True` says
+**9. Read the effect back from the provider, not from your own input.** `Ready=True` says
 Crossplane finished reconciling, not that the provider holds what you meant: drift, ignored
 fields and normalised values all survive it. Before teardown, run the provider's own read for
 at least the field the change was about, and quote it:

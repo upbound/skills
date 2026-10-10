@@ -47,14 +47,15 @@ design or gate script wins over these: say where you departed.
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
-   is the right one. One whose connection details the function reads also needs
+   exists and is the right one. One whose connection details the function reads also needs
    `writeConnectionSecretToRef`, and a missing detail never falls back to a value. A v1 project
    stays v1 (§5).
 5. **Claim only what ran:** the command's own exit code, not `tail`'s: redirect, then read
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
-   zsh `$pipestatus[1]`. `No test files found` means nothing ran; the layer you reached; for
-   each new test, the change that turns it red, or call it unproven. Comments and docs claim
-   no more (§4, §8).
+   zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
+   render, composition test, local control plane, cloud — and never claim one you did not
+   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   docs claim no more (§4, §8).
 
 ## Phase 1: Detect the language and the Crossplane generation — do not ask
 

@@ -1,6 +1,6 @@
 ---
 name: plan-v2-migration
-description: Use this skill when user requests to migrate, upgrade, or plan migration to Crossplane v2. Analyzes an existing v1 configuration package and writes a migration plan covering XRD updates, provider API groups, function code changes, test updates, examples and dependencies, with the decisions a migration needs recorded. Use immediately when user mentions "migrate to v2", "upgrade to crossplane v2", "plan v2 migration", or "crossplane 2 migration". Use this skill instead of manually analyzing migration requirements; it also holds the language-neutral reference of every v1 to v2 breaking change. Executing the plan is execute-v2-migration.
+description: Use this skill when user requests to migrate, upgrade, or plan migration to Crossplane v2. Analyzes an existing v1 configuration package and writes a migration plan covering XRD updates, provider API groups, function code changes, test updates, examples and dependencies, with the decisions a migration needs recorded. Use immediately when user mentions "migrate to v2", "upgrade to crossplane v2", "plan v2 migration", or "crossplane 2 migration". Use this skill instead of manually analyzing migration requirements; it also holds the language-neutral reference of every v1 to v2 breaking change. Not for executing an existing plan - use execute-v2-migration.
 license: Apache-2.0
 references:
   - references/breaking-changes.md
@@ -15,8 +15,8 @@ carries out: `.agents/plans/CROSSPLANE_V2_MIGRATION.md`.
 ## Before you start
 
 Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory; this skill does not load it. The only questions are Phase 5's decisions, asked only
-when interactive (charter §1).
+directory; this skill does not load it. The only questions are whether to replace an existing
+plan (Phase 1) and Phase 5's decisions, asked only when interactive (charter §1).
 
 - Analysis only: write the plan file and nothing else — no code changes, builds, tests or
   commits.
@@ -30,14 +30,20 @@ when interactive (charter §1).
 
 ## Phase 1: Confirm a v1 project
 
+First, if `.agents/plans/CROSSPLANE_V2_MIGRATION.md` exists, a migration may be under way, and
+its ticks are where `execute-v2-migration continue` resumes. Interactive: ask whether to keep it
+or replace it; to keep it, stop and point to `execute-v2-migration continue`. Unattended: do not
+overwrite it; stop and report that it exists.
+
 ```bash
 grep -n '^apiVersion:' upbound.yaml                         # meta.dev.upbound.io/v1alpha1
 grep -rl 'kind: CompositeResourceDefinition' apis/ | xargs grep -l 'apiextensions.crossplane.io/v1$'
 ```
 
 The second command lists the XRDs still on v1, filtering on the kind because Compositions are
-`apiextensions.crossplane.io/v1` in both versions. If nothing is v1, report that and stop. If
-the project is partly migrated, plan only what is left and say so.
+`apiextensions.crossplane.io/v1` in both versions. Functions can lag behind both: run Phase 4's
+first grep over `functions/` too. If nothing is v1 — `upbound.yaml`, XRDs or functions — report
+that and stop. If the project is partly migrated, plan only what is left and say so.
 
 ## Phase 2: Map the project
 
@@ -117,7 +123,8 @@ take the default and record it in the plan as an assumption.
 
 ## Phase 6: Write the plan
 
-Write `.agents/plans/CROSSPLANE_V2_MIGRATION.md` from
+Write `.agents/plans/CROSSPLANE_V2_MIGRATION.md` (overwrite an existing one only if the user
+chose to replace it in Phase 1) from
 [checklist-template.md](references/checklist-template.md): real file paths, the target version
 for every dependency, and, for stage 5, which tests cover each function and what each test
 should fail on before its function is migrated. A stage that does not apply keeps its heading with

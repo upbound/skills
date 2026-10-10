@@ -77,8 +77,8 @@ across repeated runs, and the composed names are identical too (`example-2a20761
 every run).
 
 Renaming the XR or a composition resource changes every generated name. That is correct:
-renaming a composition resource orphans resources on a live platform (§5), and you want a test
-that says so.
+renaming a composition resource orphans resources on a live platform (author-composition's
+`patterns.md`, "The composition key is an API"), and you want a test that says so.
 
 A failure to match reads as `no actual resource found: <group>/<version>/<Kind>/<name>`; a
 trailing slash means the expectation named no name. Observed with up v0.55.0, an expectation

@@ -8,7 +8,8 @@ language-agnostic rules are in [`control-plane-project-charter`](../../SKILL.md)
 |---|---|
 | Scaffold a function | `up function generate <n> --language kcl` (always pass `--language`: the default is go-templating; KCL is the default only for `up test generate`) |
 | Scaffold a test | `up test generate <n> --language kcl` (add `--e2e`) |
-| Type-check a module | `kcl functions/<n>/main.k` |
+| Type-check a module | `kcl lint functions/<n>/` (exits 1 on a type error such as `x: int = "s"`) |
+| Run a module | `kcl functions/<n>/main.k -D params='{"oxr": {...}}'`: without `-D params` it stops at `option("params").oxr` (`EvaluationError … invalid value 'NoneType' to load attribute 'oxr'`) |
 
 ## Where everything is
 
