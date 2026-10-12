@@ -77,14 +77,18 @@ across repeated runs, and the composed names are identical too (`example-2a20761
 every run).
 
 Renaming the XR or a composition resource changes every generated name. That is correct:
-renaming a composition resource orphans resources on a live platform (§5), and you want a test
-that says so.
+renaming a composition resource orphans resources on a live platform (author-composition's
+`patterns.md`, "The composition key is an API"), and you want a test that says so. The converse
+holds too: the same XR (apiVersion, kind, namespace, name) and composition resource name render
+the same generated name in every suite, since the name is derived from nothing else (Crossplane
+v2.3.1 source).
 
 A failure to match reads as `no actual resource found: <group>/<version>/<Kind>/<name>`; a
 trailing slash means the expectation named no name. Observed with up v0.55.0, an expectation
-whose name matches but whose annotations differ (one missing, or another value) fails the same
-way, with no field diff: the annotations take part in the match. Labels and every other field are
-compared only after the match, and a mismatch there prints `* <path>: Invalid value`.
+that names an annotation the resource lacks, or gives it another value, fails the same way, with
+no field diff. Annotations the expectation doesn't name are ignored: an extra annotation never
+breaks a match (Out of scope, below). Labels and every other field are compared only after the
+match, and a mismatch there prints `* <path>: Invalid value`.
 
 `assertResources` ignores what it does not list, so a *surplus* resource is invisible: a
 function that composes a resource it should have skipped leaves the suite green. To close that,
@@ -135,16 +139,20 @@ instead of `*Path`), `extraResources`, `context`, and `functionCredentialsPath`.
 **never executes** when `observedResources` is empty — it is unexercised, not merely
 unasserted. Supply the observed state explicitly:
 
-- Every observed resource needs the `crossplane.io/composition-resource-name` annotation: the
-  renderer rejects the whole test without it (`encountered composed resource without required
-  "crossplane.io/composition-resource-name" annotation`). Required, but **not** what matches a
-  mock to the XR's composed resource.
-- **For a namespaced XR, every `observedResources` entry also needs `metadata.namespace` set to
-  the XR's namespace, and `metadata.name` set to the name the render gave that resource.** Copy
-  the names from `render.log` (run with `--function-logs`, above); they are stable in a render.
-  A mock without the XR's namespace is silently not observed: no error, the function sees no
-  observed resources, and the test fails only on its own assertions, as if the function were
-  wrong (observed with up v0.55.0).
+- **Every observed resource needs the `crossplane.io/composition-resource-name` annotation.** It
+  is the key that matches a mock to the composed resource the function stores under that name;
+  without it the renderer rejects the whole test (`encountered composed resource without required
+  "crossplane.io/composition-resource-name" annotation`).
+- **For a namespaced XR, every mock also needs `metadata.namespace` set to the XR's namespace.**
+  The renderer looks mocks up in the XR's namespace, so one without it is silently not observed:
+  no error, the function sees no observed resources, and the test fails only on its own
+  assertions, as if the function were wrong (observed with up v0.55.0).
+- **The mock's `metadata.name` becomes the composed resource's name.** Any valid name is
+  observed, and the render keeps it instead of generating one, in the resource and in the
+  composite's `resourceRefs`; an invalid name fails the render. So in a mocked case, assert the
+  mock's names. To keep them equal to an unmocked case's generated names, copy those from that
+  case's `render.log` (above). Checking that the mock names appear in the render proves nothing:
+  they always do (Crossplane v2.3.1 source, the renderer up v0.55.0 runs; observed).
 - **Prove the mocks are used** with a case that fails when they are ignored: assert a value only
   an observed resource can supply, such as a status field copied from a mock. A case that
   expects empty or default status passes whether the mocks are observed or not.

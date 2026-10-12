@@ -1,6 +1,6 @@
 ---
 name: author-tests
-description: Use this skill when user requests to implement a feature, write, create, author, modify, refactor or plan refactoring of Crossplane configuration tests (composition tests or E2E tests) in a control-plane project - in any language (KCL, Python, YAML, Go, go-templating). Use this rather than a generic planning mode when the user asks for a plan to refactor composition tests or e2e tests in a crossplane configuration package. Specialized skill focused only on test authoring and modification (not running tests). Detects the test language and applies the right templates and patterns. Always load this skill before writing or changing composition or E2E test files, instead of writing them directly - also when you get there partway through another skill's workflow, such as scaffolding a new package. Covers writing an E2ETest - defaultConditions, extraResources, E2E credentials (static Secret or web identity) and what an E2ETest can assert.
+description: Use this skill when user requests to write, create, author, modify, refactor or plan refactoring of Crossplane configuration tests (composition tests or E2E tests) in a control-plane project - in any language (KCL, Python, YAML, Go, go-templating). Use this rather than a generic planning mode when the user asks for a plan to refactor composition tests or e2e tests in a crossplane configuration package. Specialized skill focused only on test authoring and modification (not running tests). Detects the test language and applies the right templates and patterns. Always load this skill before writing or changing composition or E2E test files, instead of writing them directly - also when you get there partway through another skill's workflow, such as scaffolding a new package. Covers writing an E2ETest - defaultConditions, extraResources, E2E credentials (static Secret or web identity) and what an E2ETest can assert.
 license: Apache-2.0
 references:
   - references/test-model.md
@@ -48,14 +48,15 @@ design or gate script wins over these: say where you departed.
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
-   is the right one. One whose connection details the function reads also needs
+   exists and is the right one. One whose connection details the function reads also needs
    `writeConnectionSecretToRef`, and a missing detail never falls back to a value. A v1 project
    stays v1 (§5).
 5. **Claim only what ran:** the command's own exit code, not `tail`'s: redirect, then read
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
-   zsh `$pipestatus[1]`. `No test files found` means nothing ran; the layer you reached; for
-   each new test, the change that turns it red, or call it unproven. Comments and docs claim
-   no more (§4, §8).
+   zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
+   render, composition test, local control plane, cloud — and never claim one you did not
+   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   docs claim no more (§4, §8).
 
 ## Phase 1: Detect the test language — do this first
 
@@ -143,8 +144,8 @@ for one.
 
 | Must be absent | How |
 |---|---|
-| A composed **resource** | Assert the composite's `spec.crossplane.resourceRefs` as the exact list from the render, once per input shape, not in every case. Lists match exactly, so a surplus resource fails it. The "Composition test template" sections of `control-plane-project-charter/references/languages/go/tests.md` and `control-plane-project-charter/references/languages/go-templating.md` show this guard; detail in `control-plane-project-charter/references/charter/evidence.md`, "How `assertResources` matches" |
-| A **field** | Not expressible in a composition test. Use a unit test on the function's desired state, in the function's own language (Go: `go test ./...` in `functions/<n>/`), or confirm it once in the render and report it as not asserted |
+| A composed **resource** | Assert the composite's `spec.crossplane.resourceRefs` as the exact list from the render (`up test run "tests/<t>" --function-logs`; a plain run writes no `render.log`, so a directory already under `_output/composition_test/` is another run's), once per input shape, not in every case. Lists match exactly, so a surplus resource fails it. The "Composition test template" sections of `control-plane-project-charter/references/languages/go/tests.md` and `control-plane-project-charter/references/languages/go-templating.md` show this guard; detail in `control-plane-project-charter/references/charter/evidence.md`, "How `assertResources` matches" |
+| A **field** | Not expressible in a composition test. Use a unit test on the function's desired state, in the function's own language (Go: `go test ./...` in `functions/<n>/`; Python: `control-plane-project-charter/references/languages/python/tests.md`, "Function unit tests"), or confirm it once in the render and report it as not asserted |
 
 ### A Fatal result
 
@@ -154,8 +155,11 @@ stops at the Fatal before any assertion: the test fails with
 field for an expected error, so not even a `resourceRefs: []` guard runs. A Fatal case under
 `tests/test-*` fails the gate. Test each fatal path in a function unit test (the message, nothing
 composed; Go: `control-plane-project-charter/references/languages/go/functions.md`, "A path that
-must return Fatal"), keep composition tests on inputs the function accepts, and don't search the
-CLI, its binaries or the web for another way.
+must return Fatal"; Python: `control-plane-project-charter/references/languages/python/tests.md`,
+"Function unit tests"; go-templating has no unit tier:
+`control-plane-project-charter/references/languages/go-templating.md`, "Testing a Fatal"), keep
+composition tests on inputs the function accepts, and don't search the CLI, its binaries or the
+web for another way.
 
 ### Asserting a property of every composed resource
 

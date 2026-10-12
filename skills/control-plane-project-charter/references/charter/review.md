@@ -53,12 +53,15 @@ printed; one already under `_output/composition_test/` is another run's
 
 Every resource the change produces is in the render and asserted. A resource in the render that
 no test names is untested, though the suite is green; only an exact
-`spec.crossplane.resourceRefs` assertion fails on a surplus one
-([`evidence.md`](evidence.md#reading-the-render)).
+`spec.crossplane.resourceRefs` assertion fails on a surplus one ([`evidence.md`](evidence.md),
+"How `assertResources` matches" and "Coverage": named annotations only, stray fields never
+flagged, what a mock needs).
 
 ## Function code
 
-- The language's required bootstrap is present (the language file says which).
+- The language's required bootstrap is present where the language file names one (Python:
+  `python/patterns.md`, "Function bootstrap"; TypeScript: `src/main.ts`; go-templating: the
+  scaffold's `00-prelude.yaml.gotmpl`).
 - Imports resolve against the generated models, never a hand-derived path, and use the `.m.`
   groups in a v2 project. A v1 project stays v1 (§5).
 - Flexible maps (tags, labels) are converted to the language's plain map type.
@@ -68,8 +71,8 @@ no test names is untested, though the suite is green; only an exact
 
 ## The v2 fields
 
-Run the two greps in [`v2-resources.md`](v2-resources.md#grep-your-own-function-before-you-report)
-and judge each hit; "no output" is not the pass condition.
+Run the two greps under "Grep your own function before you report" in
+[`v2-resources.md`](v2-resources.md) and judge each hit; "no output" is not the pass condition.
 
 - Flag `providerConfigRef`, `managementPolicies` or an MR's `metadata.namespace` as removable
   **unless the project's spec or API sets them**. Flag `deletionPolicy` on a namespaced MR: the
@@ -87,7 +90,8 @@ and judge each hit; "no output" is not the pass condition.
 ## Provider constraints and dependencies
 
 - The report says which Kinds were checked against the provider schema and the cloud API's own
-  rules, and what could not be confirmed. Silently skipping is a finding (§6).
+  rules, and what could not be confirmed. Silently skipping is a finding (§6; the CRD's
+  `x-kubernetes-validations`: [`provider-schema.md`](provider-schema.md)).
 - Flag an unbounded dependency: a `dependsOn` `version` with no cap on the major, such as the
   `'>=v0.0.0'` a bare `up dep add <ref>` or `up composition generate` writes
   (author-configuration-package).
@@ -98,5 +102,5 @@ and judge each hit; "no output" is not the pass condition.
 ## What the report claims
 
 - The report names the layer reached — render, composition test, local control plane, cloud —
-  and claims nothing beyond it. A local kind run is not a Space result (§4, §8).
+  and claims nothing beyond it. A local kind run is not a Space result (§4, §8, §9).
 - Comments, docs and READMEs claim no more than a named test or run (§4).

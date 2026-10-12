@@ -23,7 +23,7 @@ Tick each item (`[x]`) when it is done. `execute-v2-migration` resumes at the fi
 
 ## Stage 1: Prepare
 
-- [ ] Branch: `git checkout -b migrate-to-v2`
+- [ ] Branch: `migrate-to-v2` checked out (`execute-v2-migration` pre-flight creates it if missing)
 - [ ] `upbound.yaml`: `apiVersion: meta.dev.upbound.io/v2alpha1`
 - [ ] Dependencies: [package: current → target version, from the dependency report]
 - [ ] [If a function builds a Secret from typed models] `apiDependencies`: k8s `v1.33.0`

@@ -60,27 +60,49 @@ version. Record each such finding in an exceptions file, under its rule class,
 with a reason:
 
     enumCasing:
-      - field: spec.parameters.engine
+      - field: apis/db/definition.yaml[*].spec.parameters.engine
         reason: AWS RDS engine names, passed through to the provider verbatim
     maxItems:
-      - field: status.subnetIds
+      - field: apis/network/definition.yaml[v1alpha1].status.subnetIds
         reason: frozen API, shipped without a bound
 
 The rule classes and what `field` names for each:
 
     enumCasing, description, listType, maxItems, lowerCamel, fieldCasing
-        the field path the finding prints, without the file and version
-    kindAcronym     the Kind
-    printerColumn   the column name (READY)
-    collision       the spellings as printed (ProjectId / projectID)
+        the field path, scoped as the finding prints it:
+        apis/db/definition.yaml[v1alpha1].spec.parameters.engine
+    printerColumn   the column, scoped the same way: <file>[v1alpha1].READY
+    kindAcronym     the Kind, scoped to its file only: <file>[*].HttpLoadbalancer
+    collision       the spellings as printed (ProjectId / projectID). A
+                    collision spans the corpus, so naming a file or version
+                    is an input error.
+
+The file is the path the finding prints, relative to the working directory,
+written out in full: it is compared as a path, not matched as a glob. Either
+part may instead be a bare `*`, meaning any: `<file>[*].` is every version of
+one XRD, `*[v1].` is v1 of every XRD, and `*[*].` says on purpose that the
+entry is project-wide. Quote an entry that starts with `*`, or YAML reads it
+as an alias and the file does not parse:
+
+    description:
+      - field: '*[v1].spec.parameters.region'
+        reason: v1 is frozen in every XRD; v2 carries the descriptions
+
+When several entries match a finding, the most specific one gives the reason.
+
+A bare entry (spec.parameters.engine, with no `<file>[<version>].`) applies
+everywhere. When it excepts findings in more than one XRD or version it is
+reported for REVIEW with the places it reached: an exception written for one
+frozen version should not hide the same defect where it can still be fixed.
 
 `uniqueItems` has no exception: the API server rejects the whole CRD.
 
 The file is read from --exceptions, or from ./xrd-schema-exceptions.yaml when it
 exists. Excepted findings print as EXCEPTED with their reason and do not fail
-the run. An entry without a reason, or under an unknown rule class, is an input
-error (exit 2), and an entry that no longer matches a finding is reported for
-REVIEW, so stale exceptions surface.
+the run. An entry without a reason, under an unknown rule class, or with a scope
+its rule cannot take is an input error (exit 2). An entry that no longer
+matches a finding, or only matches findings a more specific entry already
+covers, is reported for REVIEW, so stale exceptions surface.
 
 --report-only prints the same report and exits 0 even with findings: use it to
 read a frozen API's state, not as a gate. Extraction and input errors still
@@ -100,8 +122,10 @@ Those stay review judgements. See `charter/xrd-design.md`.
 from __future__ import annotations
 
 import argparse
+import collections
 import glob
 import os
+import re
 import sys
 
 EXIT_CLEAN = 0
@@ -196,13 +220,80 @@ def _yaml():
     return yaml
 
 
-def field_key(where):
-    """`<file>[<version>].spec.x` -> `spec.x`: the path an exception names."""
-    return where.split("].", 1)[1] if "]." in where else where
+# `<file>[<version>].<key>`, the form a finding prints, parsed only from what
+# the user wrote in the exceptions file. The version is a non-empty DNS label
+# or `*`, which is what tells a qualified entry from a bare field path that
+# goes through a list: `spec.rules[].port` has `[]`, never `[v1]`. The file
+# part is greedy, so a path with brackets of its own (`apis/[legacy]/x.yaml`)
+# still splits at the version.
+QUALIFIED = re.compile(r"^(?P<file>.+)\[(?P<version>[A-Za-z0-9*-]+)\]\.(?P<key>.+)$")
+
+
+class Entry(collections.namedtuple("Entry", "field file version key reason")):
+    """One exception. `file` and `version` are None for a bare entry, which
+    applies everywhere, and `*` where the entry says any."""
+
+    @property
+    def specificity(self):
+        """Higher wins when several entries match one finding."""
+        if self.file is None:
+            return 0
+        return 1 + 2 * (self.file != "*") + (self.version != "*")
+
+
+def format_where(place, key):
+    """`(file, version)` and `spec.x` -> `<file>[<version>].spec.x`, as printed."""
+    file, version = place
+    return f"{file}[{version}].{key}"
+
+
+def same_file(a, b):
+    """`./apis/x.yaml`, `apis/x.yaml` and its absolute path are one file."""
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+def format_place(place):
+    file, version = place
+    if file is None:
+        return "the whole corpus"
+    return file if version is None else f"{file}[{version}]"
+
+
+def parse_entry(path, rule, i, field, reason):
+    """Split `field` into its scope and key, rejecting scopes the rule cannot take."""
+    m = QUALIFIED.match(field)
+    if not m:
+        return Entry(field, None, None, field, reason)
+    file, version, key = m.group("file"), m.group("version"), m.group("key")
+    if rule == "kindAcronym" and version != "*":
+        raise ExceptionsError(
+            f"{path}: {rule}[{i}] ({field}) names a version, but a Kind spans every "
+            f"version -- write {file}[*].{key}"
+        )
+    if rule == "collision" and (file, version) != ("*", "*"):
+        raise ExceptionsError(
+            f"{path}: {rule}[{i}] ({field}) names a file or version, but a collision "
+            f"spans the whole corpus -- write the spellings alone: {key}"
+        )
+    return Entry(field, file, version, key, reason)
+
+
+def entry_matches(entry, place, key):
+    """Whether `entry` covers a finding keyed `key` at `place` (file, version)."""
+    if entry.key != key:
+        return False
+    if entry.file is None:
+        return True
+    file, version = place
+    if entry.file != "*" and (file is None or not same_file(entry.file, file)):
+        return False
+    if entry.version != "*" and entry.version != version:
+        return False
+    return True
 
 
 def load_exceptions(path):
-    """Return {rule: {field: reason}} for the exceptions in `path`."""
+    """Return {rule: [Entry]} for the exceptions in `path`."""
     with open(path, encoding="utf-8") as fh:
         doc = _yaml().safe_load(fh) or {}
     if not isinstance(doc, dict):
@@ -223,7 +314,7 @@ def load_exceptions(path):
         entries = entries or []
         if not isinstance(entries, list):
             raise ExceptionsError(f"{path}: {rule} must be a list")
-        rule_out = out.setdefault(rule, {})
+        rule_out = {}
         for i, e in enumerate(entries):
             field = e.get("field") if isinstance(e, dict) else None
             reason = e.get("reason") if isinstance(e, dict) else None
@@ -234,7 +325,10 @@ def load_exceptions(path):
                     f"{path}: {rule}[{i}] ({field}) has no reason -- an exception "
                     "nobody can explain is a defect nobody fixed"
                 )
-            rule_out[field.strip()] = reason.strip()
+            field = field.strip()
+            # A repeated field keeps its last reason.
+            rule_out[field] = parse_entry(path, rule, i, field, reason.strip())
+        out[rule] = list(rule_out.values())
     return out
 
 
@@ -314,21 +408,26 @@ def field_casing_violations(name):
     return out
 
 
-def walk(node, path, names, findings, review, in_status):
-    """Collect every property name and check each node's own schema."""
+def walk(node, place, path, names, findings, review, in_status):
+    """Collect every property name and check each node's own schema.
+
+    `place` is the (file, version) being walked and `path` the field path
+    inside it (`spec.x`), kept apart so an exception can be matched on each
+    without parsing the printed location back.
+    """
     if not isinstance(node, dict):
         return
 
     props = node.get("properties")
     if isinstance(props, dict):
         for k, v in props.items():
-            child = f"{path}.{k}"
-            names.append((k, child))
+            key = f"{path}.{k}"
+            child = format_where(place, key)
+            names.append((k, place, key))
 
             if isinstance(v, dict):
-                key = field_key(child)
                 if not v.get("description"):
-                    findings.append(("description", key, f"{child}: no description"))
+                    findings.append(("description", place, key, f"{child}: no description"))
 
                 t = v.get("type")
                 if t == "string" and not any(
@@ -345,6 +444,7 @@ def walk(node, path, names, findings, review, in_status):
                     if "x-kubernetes-list-type" not in v:
                         findings.append((
                             "listType",
+                            place,
                             key,
                             f"{child}: array with no x-kubernetes-list-type (atomic by default: "
                             "duplicates accepted, server-side apply clobbers)",
@@ -352,6 +452,7 @@ def walk(node, path, names, findings, review, in_status):
                     if "maxItems" not in v:
                         findings.append((
                             "maxItems",
+                            place,
                             key,
                             f"{child}: array with no maxItems (CEL cost is budgeted against "
                             "the declared maximum)",
@@ -364,6 +465,7 @@ def walk(node, path, names, findings, review, in_status):
                 if v.get("uniqueItems") is True:
                     findings.append((
                         "uniqueItems",
+                        place,
                         key,
                         f"{child}: uniqueItems: true is forbidden in a CRD schema -- the API "
                         "server rejects the whole CRD (\"runtime complexity becomes "
@@ -375,22 +477,24 @@ def walk(node, path, names, findings, review, in_status):
                     if not ev[:1].isupper():
                         findings.append((
                             "enumCasing",
+                            place,
                             key,
                             f"{child}: enum value {ev!r} is not CamelCase with an initial capital",
                         ))
 
-            walk(v, child, names, findings, review, in_status)
+            walk(v, place, key, names, findings, review, in_status)
 
     items = node.get("items")
     if isinstance(items, dict):
-        walk(items, f"{path}[]", names, findings, review, in_status)
+        walk(items, place, f"{path}[]", names, findings, review, in_status)
 
 
 def check(path):
     """Return (names, findings, review, kind_count) for one YAML file.
 
-    Each finding is a (rule, key, text) tuple: the rule class and key an
-    exception names, and the line the report prints.
+    Each finding is a (rule, place, key, text) tuple: the rule class, the
+    (file, version) it was found in, the key an exception names, and the line
+    the report prints. A Kind's place has version None: it spans every version.
     """
     with open(path, encoding="utf-8") as fh:
         docs = [d for d in _yaml().safe_load_all(fh) if isinstance(d, dict)]
@@ -418,6 +522,7 @@ def check(path):
             for w, want in kind_acronym_violations(kind):
                 findings.append((
                     "kindAcronym",
+                    (path, None),
                     kind,
                     f"{path}: Kind {kind!r} carries mis-cased acronym {w!r} (want {want!r}). "
                     "A Kind is the GVK and spec.names.kind -- renaming it stops the CRD "
@@ -433,7 +538,8 @@ def check(path):
                 if section in root:
                     walk(
                         root[section],
-                        f"{path}[{vn}].{section}",
+                        (path, vn),
+                        section,
                         doc_names,
                         findings,
                         review,
@@ -447,6 +553,7 @@ def check(path):
             for dup in sorted(cols & CROSSPLANE_COLUMNS):
                 findings.append((
                     "printerColumn",
+                    (path, vn),
                     dup,
                     f"{path}[{vn}]: printer column {dup} is already appended by Crossplane "
                     "-- it will print twice",
@@ -468,10 +575,10 @@ def check(path):
         # The difference is semantic, which is the same reason kind stutter is
         # left to review. Both shapes were produced by an agent on one API.
         stem = group.split(".")[0].lower()
-        for n, where in doc_names:
+        for n, place, key in doc_names:
             if stem and n.lower() != stem and n.lower().startswith(stem):
                 review.append(
-                    f"{where}: field name {n!r} starts with the group {stem!r} -- "
+                    f"{format_where(place, key)}: field name {n!r} starts with the group {stem!r} -- "
                     f"it reads as {stem}.{kind}.{n}. Stutter if it restates this "
                     f"object's own identity; fine if it names a different object"
                 )
@@ -540,21 +647,25 @@ def run(patterns, min_corpus=DEFAULT_MIN_CORPUS, out=None, exceptions=None,
     #    Registry-free, so no false positive from an ordinary English word.
     #    Blind to an acronym spelled two ways across names that never collide.
     seen = {}
-    for n, _ in all_names:
+    for n, _, _ in all_names:
         seen.setdefault(n.lower(), set()).add(n)
     for _, spellings in sorted(seen.items()):
         if len(spellings) > 1:
             both = " / ".join(sorted(spellings))
-            all_findings.append(("collision", both, f"one concept, two spellings: {both}"))
+            all_findings.append((
+                "collision", (None, None), both, f"one concept, two spellings: {both}"
+            ))
 
     # 2. Field casing: an all-caps initialism, which the field surface never
     #    uses. Registry-free, and invisible to (1) when the two spellings live
     #    on different sides of the composition rather than in one schema.
-    for n, where in all_names:
+    for n, place, key in all_names:
+        where = format_where(place, key)
         if n[:1].isupper():
             all_findings.append((
                 "lowerCamel",
-                field_key(where),
+                place,
+                key,
                 f"{where}: field name {n!r} is not lowerCamel -- it must start lowercase",
             ))
         for w, want in field_casing_violations(n):
@@ -575,25 +686,61 @@ def run(patterns, min_corpus=DEFAULT_MIN_CORPUS, out=None, exceptions=None,
                 )
             all_findings.append((
                 "fieldCasing",
-                field_key(where),
+                place,
+                key,
                 f"{where}: field name {n!r} canonicalises {w!r} -- {fix}",
             ))
 
-    excepted, used, kept = [], set(), []
-    for rule, key, text in all_findings:
-        reason = excepted_rules.get(rule, {}).get(key)
-        if reason is None:
+    # Each finding takes the most specific entry that matches it, so a scoped
+    # entry beside a bare one carries its own reason. Per entry we record where
+    # it was applied, and whether it matched at all, so stale and shadowed
+    # entries surface one by one.
+    excepted, kept = [], []
+    applied = {}   # (rule, field) -> set of places the entry excepted
+    matched = set()  # (rule, field) of every entry that matched some finding
+    for rule, place, key, text in all_findings:
+        hits = [e for e in excepted_rules.get(rule, []) if entry_matches(e, place, key)]
+        if not hits:
             kept.append(text)
-        else:
-            used.add((rule, key))
-            excepted.append(f"{text} -- {reason}")
+            continue
+        matched.update((rule, e.field) for e in hits)
+        best = max(hits, key=lambda e: e.specificity)
+        applied.setdefault((rule, best.field), set()).add(place)
+        excepted.append(f"{text} -- {best.reason}")
     all_findings = kept
     for rule in EXCEPTABLE_RULES:
-        for key in sorted(set(excepted_rules.get(rule, {}))):
-            if (rule, key) not in used:
+        for e in sorted(excepted_rules.get(rule, []), key=lambda e: e.field):
+            places = applied.get((rule, e.field))
+            if (rule, e.field) not in matched:
                 all_review.append(
-                    f"{exceptions}: {rule} exception for {key!r} matches no finding -- "
-                    "remove it, or fix the field path"
+                    f"{exceptions}: {rule} exception for {e.field!r} matches no finding -- "
+                    + ("remove it, or fix the field path" if e.file is None
+                       else "remove it, or fix the file, version or field path")
+                )
+            elif not places:
+                all_review.append(
+                    f"{exceptions}: {rule} exception for {e.field!r} is shadowed -- every "
+                    "finding it matches is excepted by a more specific entry. Remove it"
+                )
+            elif e.file is None and len(places) > 1:
+                # A bare entry applies everywhere, so a waiver written for one
+                # frozen version also hides the same finding where it should be
+                # fixed. Name the places, and the scoped and project-wide forms.
+                where = ", ".join(
+                    format_place(p)
+                    for p in sorted(places, key=lambda p: (p[0] or "", p[1] or ""))
+                )
+                # Quoted: unquoted, YAML reads a leading `*` as an alias and
+                # the file no longer parses.
+                if rule == "kindAcronym":
+                    scoped, wide = f"'<file>[*].{e.key}'", f"'*[*].{e.key}'"
+                else:
+                    scoped, wide = f"'<file>[<version>].{e.key}'", f"'*[*].{e.key}'"
+                all_review.append(
+                    f"{exceptions}: {rule} exception for {e.field!r} has no file or "
+                    f"version, so it excepts {len(places)} places: {where} -- scope it as "
+                    f"field: {scoped}, or write field: {wide} if it is meant for the "
+                    "whole project (quoted: YAML reads an unquoted leading * as an alias)"
                 )
 
     for f in sorted(set(all_findings)):
@@ -618,6 +765,19 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         description="Mechanical checks for a hand-written XRD schema.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "exceptions file, one list per rule class:\n"
+            "  enumCasing:\n"
+            "    - field: apis/db/definition.yaml[v1alpha1].spec.engine\n"
+            "      reason: AWS RDS engine names, passed through verbatim\n"
+            "\n"
+            "A field is scoped as the finding prints it, <file>[<version>].<path>, and\n"
+            "either part may be a bare * (the file is a path, not a glob). printerColumn\n"
+            "takes <file>[<version>].<COLUMN>, kindAcronym <file>[*].<Kind>, collision\n"
+            "the spellings alone. A bare path applies to every XRD and version, and is\n"
+            "reported for REVIEW when it excepts findings in more than one; write\n"
+            "'*[*].<path>' to mean that, quoted, as YAML reads a leading * as an alias."
+        ),
     )
     ap.add_argument(
         "paths",
@@ -641,7 +801,7 @@ def main(argv=None):
         metavar="FILE",
         help=(
             f"exceptions by rule class, each with a reason (default: ./{DEFAULT_EXCEPTIONS} "
-            "when it exists)"
+            "when it exists); format below"
         ),
     )
     ap.add_argument(

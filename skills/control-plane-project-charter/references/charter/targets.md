@@ -90,6 +90,9 @@ kubectl --kubeconfig "$KCFG" config current-context || echo "not a kubeconfig: $
 echo "kubeconfig: $KCFG"   # pass this path as a value: the variable is gone by your next command
 ```
 
+Once the run has exited and you are done reading through it, `rm -f <kubeconfig>`: it is this run's
+leftover too ([§9](../../SKILL.md#9-never-create-infrastructure-as-a-side-effect)).
+
 `up project run` also **rewrites** the current kubeconfig context to the dev control plane it
 created, unless `--no-update-kubeconfig`. After a failed run it can point at a different control
 plane than the one you are diagnosing (*observed*): run `up ctx .` before believing `kubectl`.

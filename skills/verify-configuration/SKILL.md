@@ -108,9 +108,9 @@ Then E2E, unless the project rules it out:
 
 **Read [dev-control-plane.md](references/dev-control-plane.md) before any
 `up project run`** and work through its steps: where the context sends the run, the Space
-pre-flight, the choice you hand back when a Space cannot pull, confirming the run reconciled,
-reading the effect back from the provider, and a run that hangs on
-`Waiting for package to be ready`.
+pre-flight, the choice you hand back when a Space cannot pull, applying credentials, a
+ProviderConfig and an example XR, confirming the run reconciled, reading the effect back from
+the provider, and a run that hangs on `Waiting for package to be ready`.
 
 **Wait for the run inside your turn.** `up project run` takes several minutes. Run it in the
 background only if your harness tells you when it exits, and then wait for that; otherwise run

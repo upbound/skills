@@ -1,8 +1,8 @@
 # Python: composition function patterns
 
 The function bootstrap, building a managed resource, and the Python-specific data-shape traps:
-tag maps, `resource.update()` semantics, optional XRD objects, namespaces, and XRD schemas that
-generate clean models. The Python index is [`../python.md`](../python.md).
+tag maps, `resource.update()` semantics, a Fatal result, optional XRD objects, namespaces, and
+XRD schemas that generate clean models. The Python index is [`../python.md`](../python.md).
 
 ## Function bootstrap
 
@@ -133,6 +133,27 @@ resource.update(rsp.desired.composite, {"status": {
 
 Nothing crashes and the suite stays green; the XR reports three outputs as absent. Assert
 every status field on the composite ([`tests.md`](tests.md)).
+
+The same holds for `metadata`: `resource.update(r, {"metadata": {"annotations": {...}}})` on a
+resource already written drops the labels the model set. Put annotations on the model's
+`ObjectMeta` before the first `update`, or mutate in place:
+`r.resource.get_or_create_struct("metadata").get_or_create_struct("annotations")[key] = value`
+(a `Struct` has no `setdefault`).
+
+## A Fatal result
+
+```python
+if unknown:
+    response.fatal(rsp, f"unknown externalNames key(s): {', '.join(unknown)}")
+    return rsp
+```
+
+`response.fatal` only appends a result with `SEVERITY_FATAL`; it neither stops the function nor
+clears `rsp.desired` (function-sdk-python 0.11.0). Return right after it. Crossplane applies nothing
+from a Fatal response, but a unit test reads `rsp` as built, so validate before the first
+`resource.update` if the test asserts that nothing was composed. `response.to(req)` copies the
+request's tag, desired state and context into `rsp`. The test is in
+[`tests.md`](tests.md#function-unit-tests).
 
 ## An optional XRD object is a `dict` when absent and a model when present
 

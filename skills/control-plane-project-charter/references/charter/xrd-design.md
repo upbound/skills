@@ -10,14 +10,16 @@ A schema that parses can still be one nobody can consume: no `description` means
 
 Two XRD versions are two views of the same stored object, so any change must round-trip losslessly. That makes most of a schema permanent from the first version that ships.
 
-| Across versions you can | You can never |
+| Across versions you can, only with a conversion webhook you write and run | You can never |
 |---|---|
 | Rename a field (`spec.widgets` → `spec.widgetCount`) | Drop a field an older version requires |
 | Move a field (`spec.shape` → `spec.properties.shape`) | Add a required field an older version lacks |
 
+Without that webhook a rename or a move silently loses data. Crossplane copies the XRD's `spec.conversion` to the CRD unchanged, and Kubernetes defaults it to `strategy: None`, which rewrites only `apiVersion`. On conversion the API server prunes every field the target version's schema lacks, with no error: `spec.widgets` written through a version that is not the storage version is dropped before it is stored, and is gone from every version. A rename takes `conversion.strategy: Webhook` on the XRD and a webhook you build, deploy and keep running for as long as both versions are served.
+
 A new version buys you almost nothing, so do not plan to fix the schema in `v1beta1`: `v1alpha1`, before anything depends on it, is the only cheap moment (§5).
 
-A field can be renamed across versions. **The Kind cannot**: it is the GVK and the CRD's `spec.names.kind`, so a new Kind is a new API, and existing objects are not converted to it. That is why migrating a v1 API keeps its Kind, `X` prefix included, and why a new API should get its Kind right — no `X` prefix, initialisms in full — before `v1alpha1` ships.
+A field can be renamed across versions, at the price of that webhook. **The Kind cannot** at any price: it is the GVK and the CRD's `spec.names.kind`, so a new Kind is a new API, and existing objects are not converted to it. That is why migrating a v1 API keeps its Kind, `X` prefix included, and why a new API should get its Kind right — no `X` prefix, initialisms in full — before `v1alpha1` ships.
 
 If you script a casing fix, match on **word boundaries**: end of string, or followed by an uppercase letter. A bare `ReplaceAll(s, "Api", "API")` reaches inside longer words and rewrites `apiep` (from `api_ep`) to `APIep`.
 
@@ -65,7 +67,7 @@ Comparing names case-insensitively catches `projectID` beside `ProjectId`, but n
 
 ## Constrain every string, and say what it is
 
-A field with only `type: string` and no `description` accepts anything and documents nothing (§5). Descriptions are what `kubectl explain` and the console render; without them, consuming the schema means reading the composition.
+A field with only `type: string` and no `description` accepts anything and documents nothing. Descriptions are what `kubectl explain` and the console render; without them, consuming the schema means reading the composition.
 
 | Add | When |
 |---|---|

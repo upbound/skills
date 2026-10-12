@@ -107,7 +107,8 @@ Build `UP_AWS_CREDENTIALS` in memory from the session's `AWS_*` variables, in th
 for long-lived keys). In e2e-test-configuration's run block, put the `export` first:
 
 ```bash
-# For up test run only. To read or diff a program's output: UP_AWS_CREDENTIALS=x go run .
+# For up test run only. To read or diff a program's output, from the test directory, with a dummy value:
+# Go: UP_AWS_CREDENTIALS=x go run .   Python SDK: UP_AWS_CREDENTIALS=x ../../.venv/bin/python -m test
 export UP_AWS_CREDENTIALS="$(printf '[default]\naws_access_key_id = %s\naws_secret_access_key = %s\naws_session_token = %s\n' \
   "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" "$AWS_SESSION_TOKEN")"
 up test run "tests/e2etest-<n>" --e2e <target flags>
@@ -117,8 +118,9 @@ A `--local` run started under `umask 077`, a common way to protect a credentials
 ready (e2e-test-configuration's `local.md` reference). If you must write a file, `chmod 600` that file instead.
 
 **The program's output carries the credential.** The Secret in `extraResources` holds the variable's value, so
-whatever prints the generated `E2ETest` prints the credential. Check the program with a dummy value
-(`UP_AWS_CREDENTIALS=x go run .`), or select `.items[].spec.manifests`; never print its output, or any Secret,
+whatever prints the generated `E2ETest` prints the credential. Check the program with a dummy value (Go
+`UP_AWS_CREDENTIALS=x go run .`; Python SDK `UP_AWS_CREDENTIALS=x ../../.venv/bin/python -m test`, from the
+test directory), or select `.items[].spec.manifests`; never print its output, or any Secret,
 with real values, and never write it to a file. To compare output across commits, diff two dummy runs: the
 Secret's value is the only difference real values make. The template below says so in its header comment and
 its fail message: keep both in every copy, since later runs read the program, not this page.
@@ -240,11 +242,10 @@ full control-plane run to every gate. To check a status field or condition, use:
    which proves status derivation;
 2. a function unit test;
 3. a read-back during the run, if you took one, quoted as "read-back, not asserted" (e2e-test-configuration's
-   `local.md` reference).
+   `local.md`, "Reading a status during the run").
 
 **A read-back is report evidence, not an assertion:** no `E2ETest` field can gate on it, and re-running a green
-e2e only to read it costs a full control-plane run. When a provider read works: `local.md`, "A status field or
-condition".
+e2e only to read it costs a full control-plane run. When a provider read works: `local.md`, "A provider read".
 
 uptest's `uptest.upbound.io/pre-assert-hook` and `post-assert-hook` annotations exist in the uptest `up` bundles,
 but they are not a supported way to assert status (upbound/up#1720): `up` writes each manifest to a temporary

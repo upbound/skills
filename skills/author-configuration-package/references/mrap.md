@@ -1,8 +1,8 @@
 # Activating managed resources: ManagedResourceActivationPolicy (MRAP)
 
 What an MRAP manifest looks like, where it must sit, what `up project build` does and does not
-check, how to see its effect, and the `up dep add --api` tag. The skill's MRAP line states the
-rule.
+check, how to see its effect, and what `up dep add --api` writes and which tag it takes. The
+skill's MRAP line states the rule.
 
 ---
 
@@ -22,11 +22,15 @@ a wildcard prefix (`*.aws.m.upbound.io`), not a regular expression. Observed wit
   `up project run --local --helm-values <file>`; charter §9 decides whether you may) and check
   that exactly the MRDs you listed are Active. So an E2E run, or any control plane started with
   the default, proves the MRAP installs, not that it activates what you listed.
-- **`up dep add --api crossplane:<tag>` only adds MRAP models** for Go/Python/KCL; the build
-  does not need it. The tag must be a UXP version in both `upbound/crossplane` and
-  `upbound/controller-manager`: `v2.1.4-up.1` worked; `v2.1.0`, `v2.1.3` and `v2.1.3-up.1`
-  returned 404 (`v2.1.3-up.1` exists in `upbound/crossplane` only). Look the tag up; don't
-  guess. A bare `tags/list` request is refused (401), but the registry hands out an anonymous
+- **`up dep add --api crossplane:<tag>` writes `spec.apiDependencies`** (`- type: crossplane`
+  with `crossplane: {version: <tag>}`), a list separate from `dependsOn`. It adds the MRAP models
+  for Go/Python/KCL; the build does not need it, and nothing in `apiDependencies` ships in the
+  package. `upbound/crossplane` and `upbound/controller-manager` are container images, not
+  packages: a `dependsOn` entry for either fails `up project build` with `failed to extract
+  package layer: blob : not found` (up v0.55.0). The tag must be a UXP version in both
+  `upbound/crossplane` and `upbound/controller-manager`: `v2.1.4-up.1` worked; `v2.1.0`,
+  `v2.1.3` and `v2.1.3-up.1` returned 404 (`v2.1.3-up.1` exists in `upbound/crossplane` only).
+  Look the tag up; don't guess. A bare `tags/list` request is refused (401), but the registry hands out an anonymous
   pull token (checked 2026-10); a configured Upbound Marketplace MCP (the skill's Phase 4) lists
   versions too:
 

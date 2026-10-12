@@ -1,6 +1,6 @@
 ---
 name: control-plane-project-charter
-description: Shared rules and per-language references for the Upbound control-plane-project skills - agent behaviour, the test-first loop, what a v2 composed resource needs, the container boundary, what a green run proves, how to report, and the KCL, Python, TypeScript, Go and YAML references. To review a change to a control-plane project ("review this change", "review the PR", "check this work"), load it on its own and open its references/charter/review.md, where the review checks are. To do the work, load it alongside the task skill (a task skill does not load it) - author-composition for composition function code, author-tests for composition or E2E tests, author-configuration-package for scaffolding, XRDs and dependencies, verify-configuration to build, verify or run the project, e2e-test-configuration to run E2E tests, and plan-v2-migration or execute-v2-migration for a Crossplane v2 migration.
+description: Shared rules and per-language references for the Upbound control-plane-project skills - agent behaviour, the test-first loop, what a v2 composed resource needs, the container boundary, what a green run proves, how to report, and the KCL, Python, TypeScript, Go, go-templating and YAML references. To review a change to a control-plane project ("review this change", "review the PR", "check this work"), load it on its own and open its references/charter/review.md, where the review checks are. To do the work, load it alongside the task skill (a task skill does not load it) - author-composition for composition function code, author-tests for composition or E2E tests, author-configuration-package for scaffolding, XRDs and dependencies, verify-configuration to build, verify or run the project, e2e-test-configuration to run E2E tests, and plan-v2-migration or execute-v2-migration for a Crossplane v2 migration.
 license: Apache-2.0
 references:
   - references/charter/agent-context.md
@@ -44,10 +44,10 @@ names:
 
 | Work | Load | And read |
 |---|---|---|
-| reviewing | no task skill | open [`references/charter/review.md`](references/charter/review.md) now: the review checks are there, not in this file. Then the language file's failure modes for what changed |
+| reviewing | no task skill | open [`references/charter/review.md`](references/charter/review.md) now: the review checks are there, not in this file. Then the language file's failure modes for what changed (Python: `references/languages/python/pitfalls.md`; go-templating: `references/languages/go-templating.md`, "Failure modes") |
 | XRD, `upbound.yaml`, dependencies, examples, ProviderConfig, MRAP | author-configuration-package | `author-configuration-package/references/mrap.md` for an MRAP |
 | function code | author-composition | the language file (§10), e.g. `references/languages/go.md` (models, imports) and `references/languages/go/functions.md` |
-| anything under `tests/` | author-tests | the test language's file, e.g. `references/languages/go/tests.md`; an `E2ETest`: `author-tests/references/e2e.md` |
+| anything under `tests/` | author-tests | the test language's file, e.g. `references/languages/go/tests.md`, and its index beside it (`go.md`, `python.md`); an `E2ETest`: `author-tests/references/e2e.md` |
 | running E2E tests, re-runs included | e2e-test-configuration | `e2e-test-configuration/references/local.md` or `space.md` beside it |
 
 A path starting `references/` is in this skill's directory; one starting with a skill's name is
@@ -113,9 +113,9 @@ detail.
 
 **Test-first is for behaviour:** the function, the composition, how status is derived.
 Scaffolding, `upbound.yaml` metadata, dependencies, the XRD, an MRAP and the examples are
-declarative: `up project build`, author-configuration-package's `check_xrd_schema.py` and the
-composition tests that use them check those. Write no test program for them, and don't copy a
-skill's script into the project.
+declarative: `up project build`, `author-configuration-package/scripts/check_xrd_schema.py` (in
+that skill's directory, not a project path) and the composition tests that use them check
+those. Write no test program for them, and don't copy a skill's script into the project.
 
 **Why:** watching a test fail first makes a coverage claim checkable.
 
@@ -199,10 +199,10 @@ Before writing any summary:
 ## 5. Crossplane v2: what a composed resource actually needs
 
 **When the project's API exposes these fields** — an XRD with `managementPolicies` or a
-`providerConfigName` parameter, as many platform configurations do — pass them to every composed
-resource from the first one you write, have the E2E test create the ProviderConfig the reference
-names (author-tests' `e2e.md`), and say so in your report. How a review judges these fields:
-[`charter/review.md`](references/charter/review.md).
+`providerConfigName` parameter, as many platform configurations do — pass them to every managed
+resource (MR) from the first one you write, have the E2E test create the ProviderConfig the
+reference names (author-tests' `e2e.md`), and say so in your report. How a review judges these
+fields: [`charter/review.md`](references/charter/review.md).
 
 **These rules are for a v2 project.** The XRDs' `apiVersion` says which one you have, not the
 template a project came from: `up project init`'s cloud templates are v1 and its k8s-webapp
@@ -324,8 +324,9 @@ fields.
 **Observed-state branches are reachable, and you are expected to reach them.** A render starts
 with no observed resources *unless the test supplies `spec.observedResources`*. So code gated
 on observed-and-ready is dead in a test that omits that field and live in one that sets it —
-write the second test rather than declaring the branch untestable. For a namespaced XR, give
-each mock the XR's namespace and the render's name: without the namespace it is silently ignored
+write the second test rather than declaring the branch untestable. A mock is matched by its
+composition-resource-name annotation, and for a namespaced XR needs the XR's namespace: without
+it the mock is silently ignored. Its own name replaces the generated one
 ([`charter/evidence.md`](references/charter/evidence.md), Coverage). Such a test proves your
 branch logic given the status you wrote, not that a provider ever reports that status. For
 that, `--e2e` or a live apply — or say it is unverified.

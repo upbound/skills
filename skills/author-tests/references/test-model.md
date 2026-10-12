@@ -70,7 +70,7 @@ Test resource **dependencies** and **status-driven branches** without a cloud, b
 - Mock only the status fields the composition reads (e.g. `status.atProvider.state: deployed`, a
   condition `type: Ready, status: "True"`, or a provider-specific contract like
   `status.eks.clusterArn`). What a mock needs to be observed at all (the annotation, and for a
-  namespaced XR its namespace and the render's name) and the condition rules:
+  namespaced XR the XR's namespace), what its name does, and the condition rules:
   `control-plane-project-charter/references/charter/evidence.md`, "Coverage".
 
 This verifies "resource B only renders once resource A is Ready" and "the XR surfaces field X once

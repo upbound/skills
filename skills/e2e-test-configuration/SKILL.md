@@ -72,7 +72,8 @@ at the first failure:
 
    ```bash
    grep -rhoE 'UP_[A-Z0-9_]+' tests/e2etest-*/ | sort -u
-   # then, for each:
+   # then, for each - test presence with -n only, inside [ ]: an echo of $VAR, ${VAR:-x} or
+   # ${VAR:+set}${VAR:-unset} prints the value whenever it is set
    [ -n "${UP_AWS_CREDENTIALS:-}" ] || echo "MISSING: UP_AWS_CREDENTIALS"
    ```
 
@@ -109,9 +110,10 @@ grep -rniE 'timeoutseconds|skipdelete' tests/e2etest-<n>/
   (default 600). Scaffolds write `timeoutSeconds` 300 (Go) or 4500 (YAML, KCL, Python, go-templating).
   Typical durations differ by target: see its reference.
 - **`skipDelete: true`** leaves the control plane and the cloud resources running. Say so before you run.
-- **Stuck threshold: `min(15 min, timeoutSeconds / 3)` with no new log output.** A fixed 15 minutes never
-  fires on a 300 s test, which fails at 5 minutes. Crossing it starts an investigation (Phase 5); it is not a
-  verdict.
+- **Stuck threshold: `min(15 min, timeoutSeconds / 3)` with no new log output, counted from the line that
+  ends control-plane creation** (on kind, `✓ Creating local development control plane`). Before it, setup is
+  bounded by `setupTimeoutSeconds` and prints nothing. A fixed 15 minutes never fires on a 300 s test, which
+  fails at 5 minutes. Crossing it starts an investigation (Phase 5); it is not a verdict.
 
 ## Phase 4: Run it
 
@@ -147,8 +149,8 @@ One idiom on both targets; only the target flags differ:
   have, and treat a timeout the same way.
 - **Never write a verdict from a poll.** A partial log is a progress view: resources routinely reach `Ready`
   after your last look. The run is over only when `EXIT=` is in the log.
-- If you stop a run early (wrong target, stuck), say it was **terminated** and why. A killed run has no
-  outcome, and may have skipped teardown: clean up as
+- If you stop a run early (wrong target, stuck with a terminal cause), say it was **terminated** and why. A
+  killed run has no outcome, and may have skipped teardown: clean up as
   `control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers) says before you
   report.
 
@@ -180,6 +182,7 @@ to pass: before you call an error terminal, read
 (`crossplane beta trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
 brief in [troubleshooting.md](references/troubleshooting.md): hand it to a sub-agent to keep your context
 small, or follow it yourself. The target's reference says how to reach the control plane while it exists.
+Stop the run only if the investigation finds a terminal cause; otherwise let `timeoutSeconds` end it.
 `up: error: context deadline exceeded` is not a diagnosis; report the underlying Configuration or Provider
 condition instead.
 
@@ -206,11 +209,12 @@ Then:
   estimate: an unrelated file's timestamp once turned a 6-minute run into "~95 min".
 - **Readiness is what you read.** The assert step passing in the log is the evidence. A resource read must be
   taken while the control plane exists: both targets tear it down after every test. Quote a status value read
-  during the run as "read-back, not asserted" (how, on kind: [local.md](references/local.md)).
+  during the run as "read-back, not asserted" (how, on kind: [local.md](references/local.md), "Reading a
+  status during the run").
 - **A claim about the provider comes from the provider:** its own read (CLI or SDK, whichever is installed),
-  taken before teardown (when: [local.md](references/local.md#reaching-the-cluster-while-it-runs)), and
-  quoted. Reading back the XR or your manifest proves only that your input round-tripped. Without that
-  read, say "not verified at the provider".
+  taken before teardown (when: [local.md](references/local.md), "A provider read"), and quoted. Reading
+  back the XR or your manifest proves only that your input round-tripped. Without that read, say "not
+  verified at the provider".
 - **Cleanup:** the target's reference says what proves it.
 - **Re-read your evidence before the verdict.** Grep what you are about to paste for `False`, `Creating`,
   `Failed`, `FAIL`. If any appears, explain it or correct the verdict.
@@ -229,13 +233,15 @@ Shape (templates in [report-templates.md](references/report-templates.md)):
 - Write a verdict from a poll, or report an outcome for a run that was terminated or cut off.
 - Derive a duration from file timestamps, or estimate one.
 - Report readiness or provider state you did not read.
-- Re-run a green e2e only to read a status value: read it during the run, or report "not read back".
+- Re-run a green e2e for the sole purpose of reading a status value: read it during the run, or report
+  "not read back". Re-running one for any other reason, to reproduce or verify it, is fine: each run gets
+  a fresh control plane.
 - Run an e2e test program by hand with real credentials, or print or save its output: it carries the
   credential Secret. Check or diff it with a dummy `UP_*` value (author-tests' `e2e.md` reference).
 - Local: connect to, apply to or delete a kind cluster or container this run did not create. Names
   such as `<project>-uptest-<test>` repeat across runs, and a cluster you find may hold live cloud
   resources; how to tell yours: [local.md](references/local.md#preconditions).
-- Space: **add `--public` on your own initiative. It permanently publishes the user's package**; only the
-  caller chooses it.
-- Space: **create a group, space or control plane** as a side effect (charter §9).
+- Space: **never add `--public` on your own initiative: it permanently publishes the user's package.** Only
+  the user chooses it; an orchestrating agent may relay the user's explicit choice in its brief, never make it.
+- Space: **never create a group, space or control plane** as a side effect (charter §9).
 - Space: pass a `--kubeconfig` path you did not write and check in this run.

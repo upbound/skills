@@ -303,7 +303,8 @@ for name, r := range rsp.GetDesired().GetResources() {
 `GetDesired().GetResources()` is a `map[string]*fnv1.Resource`: index it with a `string`, not a
 `resource.Name`. A status branch needs observed composed state, which the template does not feed. In a
 unit test, key `Observed.Resources` by composition resource name; the SDK uses that map key, not the
-annotation inside (a CompositionTest's mocks match differently: `charter/evidence.md`, Coverage):
+annotation inside (in a CompositionTest the renderer builds that key from each mock's
+composition-resource-name annotation: `charter/evidence.md`, Coverage):
 
 ```go
 req := &fnv1.RunFunctionRequest{Observed: &fnv1.State{

@@ -100,10 +100,10 @@ More questions it handles:
 <!-- BEGIN skills-table -->
 | Skill | What it is for |
 |---|---|
-| [`author-composition`](skills/author-composition/SKILL.md) | Use this skill when the user asks to create, extend, modify, or debug a Crossplane composition function in a control-plane project — in any language (KCL, Python, TypeScript, Go). |
+| [`author-composition`](skills/author-composition/SKILL.md) | Use this skill when the user asks to create, extend, modify, or debug a Crossplane composition function in a control-plane project — in any language (KCL, Python, TypeScript, Go, go-templating). |
 | [`author-configuration-package`](skills/author-configuration-package/SKILL.md) | Use this skill when user requests to create, scaffold, modify, or extend a Crossplane configuration package. |
-| [`author-tests`](skills/author-tests/SKILL.md) | Use this skill when user requests to implement a feature, write, create, author, modify, refactor or plan refactoring of Crossplane configuration tests (composition tests or E2E tests) in a control-plane project - in any language (KCL, Python, YAML, Go, go-templating). |
-| [`control-plane-project-charter`](skills/control-plane-project-charter/SKILL.md) | Shared rules and per-language references for the Upbound control-plane-project skills - agent behaviour, the test-first loop, what a v2 composed resource needs, the container boundary, what a green run proves, how to report, and the KCL, Python, TypeScript, Go and YAML references. |
+| [`author-tests`](skills/author-tests/SKILL.md) | Use this skill when user requests to write, create, author, modify, refactor or plan refactoring of Crossplane configuration tests (composition tests or E2E tests) in a control-plane project - in any language (KCL, Python, YAML, Go, go-templating). |
+| [`control-plane-project-charter`](skills/control-plane-project-charter/SKILL.md) | Shared rules and per-language references for the Upbound control-plane-project skills - agent behaviour, the test-first loop, what a v2 composed resource needs, the container boundary, what a green run proves, how to report, and the KCL, Python, TypeScript, Go, go-templating and YAML references. |
 | [`e2e-test-configuration`](skills/e2e-test-configuration/SKILL.md) | Run Crossplane E2E tests (`up test run --e2e`) for a control-plane project, locally on kind (`--local`) or on an Upbound Space (Upbound Cloud). |
 | [`execute-v2-migration`](skills/execute-v2-migration/SKILL.md) | Use this skill when user requests to execute or implement a Crossplane v2 migration plan. |
 | [`plan-v2-migration`](skills/plan-v2-migration/SKILL.md) | Use this skill when user requests to migrate, upgrade, or plan migration to Crossplane v2. |
