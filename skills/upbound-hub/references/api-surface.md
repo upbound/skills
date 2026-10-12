@@ -7,7 +7,7 @@ the server does not serve. Check any deployment you are on:
 
 ```bash
 scripts/hub-curl /apis | jq '.groups[] | {name, versions: [.versions[].version]}'
-scripts/hub-curl "/apis/$GROUP/$VERSION" | jq '.resources[] | {name, namespaced, verbs}'
+scripts/hub-curl "/apis/<group>/<version>" | jq '.resources[] | {name, namespaced, verbs}'
 ```
 
 ### Hub 1.0.x
