@@ -44,12 +44,21 @@ endpoints and field names that have since been corrected.
 
 ### Other agents
 
-Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
-`skills/upbound-hub/` into another agent's skills directory should load. Nothing here is
-tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
+**Codex.** Run Codex from the repository root. Codex scans `.agents/skills` from the working
+directory up to the repository root, and it follows symlinked skill folders, so this repository
+ships [`.agents/skills/upbound-hub`](.agents/skills/upbound-hub) — a relative symlink into
+`skills/upbound-hub/` — and no file is moved. The skill carries no vendor-specific frontmatter,
+so nothing in it needs adapting for Codex. Verified against Codex CLI 0.154.0: it detects the
+repository, the symlink resolves to `skills/upbound-hub/SKILL.md`, and `hack/validate.py all`
+still passes. A live `hub-setup` run needs a Codex login and a Hub endpoint, which are the same
+prerequisites as for any other agent.
 
-Adding an agent means a manifest alongside `.claude-plugin/`; the layout is arranged so it
-moves no files.
+Other agents: the skills carry no vendor-specific frontmatter, so copying
+`skills/upbound-hub/` into an agent's skills directory should load. Not tested yet, and the
+scripts assume `bash`, `curl`, and `jq`.
+
+Adding an agent means a symlink or manifest alongside `.claude-plugin/`; the layout is arranged
+so it moves no files.
 
 ## Prerequisites
 
