@@ -136,11 +136,12 @@ One idiom on both targets; only the target flags differ:
   with bounded waits only:
 
   ```bash
-  for _ in $(seq 1 30); do grep -q '^EXIT=' /tmp/e2e-<n>.log && break; sleep 20; done
+  for _ in $(seq 1 <tries>); do grep -q '^EXIT=' /tmp/e2e-<n>.log && break; sleep 20; done
   tail -5 /tmp/e2e-<n>.log
   ```
 
-  Repeat it until `EXIT=` is in the log. Never an unbounded `until grep …`: if the marker never arrives, it
+  Size `<tries>` × 20 s to fit one command's timeout (5 for a 2-minute limit), and repeat it until `EXIT=` is
+  in the log. Never an unbounded `until grep …`: if the marker never arrives, it
   waits until the harness kills it. If the process is gone (`pgrep -f '[u]p test run'` prints nothing) and
   there is no `EXIT=` line, the run was cut off: report what it reached, not an outcome. With no background
   facility, run in the foreground with the longest timeout you have, and treat a timeout the same way.

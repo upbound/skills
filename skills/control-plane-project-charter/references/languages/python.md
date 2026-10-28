@@ -20,7 +20,7 @@ gone by the next.
 | Set up the venv, first | `python3 <author-composition>/scripts/setup_venv.py --project <root>`, right after `up function generate` ([below](#set-up-the-venv-first)) |
 | Probe the project | `python3 <author-composition>/scripts/probe_project.py --project <root> [<Kind>…]`: layout, import prefix, import lines, class names. Standard library only |
 | A Kind's fields | `python3 <author-composition>/scripts/probe_project.py --project <root> --fields <Kind>`: every `forProvider` field, list fields with misleadingly singular Upjet names (`attribute`, `globalSecondaryIndex`) flagged, and the cross-resource `*Ref`/`*Selector` fields. Its first line reports the project's generation |
-| Function unit tests (the fast tier) | `.venv/bin/python -m unittest discover -s functions/<n>/tests -t functions/<n>`; layout and template in [`python/tests.md`](python/tests.md#function-unit-tests) |
+| Function unit tests (the fast tier) | `(cd functions/<n> && ../../.venv/bin/python -m unittest discover -s tests -t .)`; layout and template in [`python/tests.md`](python/tests.md#function-unit-tests) |
 
 ## Where everything is
 

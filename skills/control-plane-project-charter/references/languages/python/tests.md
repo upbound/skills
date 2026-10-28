@@ -145,7 +145,7 @@ generate` pins):
 | Framework | stdlib `unittest`: the venv has no pytest, and installing one adds a dependency the project doesn't pin |
 | Layout | `functions/<n>/tests/__init__.py` plus `test_*.py`. Without `__init__.py`, discovery fails with `Start directory is not importable` or prints `NO TESTS RAN` (exit 5). The wheel packages only `function/`, so the tests do not ship |
 | Imports | `from function import fn`; models as in the function (`from models.io…`) |
-| Run | `.venv/bin/python -m unittest discover -s functions/<n>/tests -t functions/<n>` from the project root. `-t` puts `functions/<n>` first on `sys.path`, so `function` is this function even when several functions share the venv (each scaffold names its package `function`). A system `python3` has neither `models` nor the SDK |
+| Run | `(cd functions/<n> && ../../.venv/bin/python -m unittest discover -s tests -t .)` from the project root. Under `-m` the current directory comes first on `sys.path`, ahead of the editable installs of every function in the shared venv, so `function` is this function (each scaffold names its package `function`). From the root, `-t functions/<n>` does not do that once two functions are installed: the second one fails with `ImportError: 'test_…' module incorrectly imported`. A system `python3` has neither `models` nor the SDK |
 
 A unit test calls `RunFunction` the way Crossplane does, with observed state only. Nothing applies
 the XRD: pass every field the XRD requires, defaulted ones included, or the XR model raises
@@ -196,6 +196,7 @@ class TestRunFunction(unittest.TestCase):
         }})
         status = resource.struct_to_dict(rsp.desired.composite.resource).get("status")
         self.assertEqual(status, {"bucketArn": "arn:aws:s3:::example"})
+        self.assertIn("bucket", rsp.desired.resources)  # first: indexing a missing key creates it
         self.assertEqual(rsp.desired.resources["bucket"].ready, fnv1.READY_UNSPECIFIED)
 
     def test_missing_region_is_fatal(self):
@@ -211,8 +212,10 @@ which this request does not have. Numbers come back from a `Struct` as floats (`
 `test_missing_region_is_fatal` fails. `self.log` lines (`[info] Running function`) in the output are
 the scaffold's logger, not failures.
 
-Keep the template's two checks when you adapt it: the whole-`forProvider` `assertEqual` and
-`ready == fnv1.READY_UNSPECIFIED`. A composition test sees a surplus key only through an expression key
+Keep the template's checks when you adapt it: the whole-`forProvider` `assertEqual`, and
+`ready == fnv1.READY_UNSPECIFIED` after `assertIn`. Indexing `rsp.desired.resources` with a missing key
+inserts an empty entry whose `ready` is `READY_UNSPECIFIED`, so the readiness check alone passes when
+nothing was composed. A composition test sees a surplus key only through an expression key
 ([`evidence.md`](../../charter/evidence.md#how-assertresources-matches-and-how-to-make-a-suite-exhaustive)),
 so compare whole maps (`forProvider`, `tags`, `labels`) once per variant the function
 distinguishes; a key-by-key `assertEqual` or `assertNotIn` lets one through. Readiness is each

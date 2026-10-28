@@ -356,8 +356,10 @@ pkg=$(mktemp -d) && tar -xf _output/<name>.uppkg -C "$pkg" && echo "extracted: $
 for l in "$pkg"/*.tar.gz; do
   if tar -xzOf "$l" package.yaml 2>/dev/null | grep -qx 'kind: Configuration'; then tar -xzOf "$l" package.yaml; fi
 done > "$pkg/configuration.yaml"   # then grep this file
+[ -s "$pkg/configuration.yaml" ] || echo "extraction failed: no Configuration package.yaml in $pkg"
 ```
 
+If it prints `extraction failed`, report that: an empty file says nothing about the MRAP or XRD.
 The variable is gone by your next command, so reuse the printed path: grep
 `<dir>/configuration.yaml`, then `rm -rf <dir>`. That proves it ships, not that a control plane
 accepts it.

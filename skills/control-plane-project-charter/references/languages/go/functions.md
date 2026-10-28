@@ -321,7 +321,11 @@ st, _ := rsp.GetDesired().GetComposite().GetResource().AsMap()["status"].(map[st
 if st["bucketArn"] != "arn:aws:s3:::example" {
 	t.Errorf("status.bucketArn: got %v", st["bucketArn"])
 }
-if rsp.GetDesired().GetResources()["bucket"].GetReady() != fnv1.Ready_READY_UNSPECIFIED {
+bucket, ok := rsp.GetDesired().GetResources()["bucket"] // a missing key gives nil, and GetReady on nil is UNSPECIFIED
+if !ok {
+	t.Fatal("bucket: not composed")
+}
+if bucket.GetReady() != fnv1.Ready_READY_UNSPECIFIED {
 	t.Error("bucket: Ready set, want unset")
 }
 ```

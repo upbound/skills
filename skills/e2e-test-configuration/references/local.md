@@ -81,13 +81,14 @@ in your list from before the run. The registry container is `<cluster>-registry`
 
 ```bash
 kind get clusters                                   # the new entry starting <project>-uptest-
-KCFG=$(mktemp -t kubeconfig-e2e.XXXXXX)
+KCFG=$(mktemp -t kubeconfig-e2e.XXXXXX); ok=
 for _ in $(seq 1 30); do                            # the file can be empty early on: retry
   kind get kubeconfig --name <cluster> > "$KCFG" && kubectl --kubeconfig "$KCFG" --request-timeout=5s get ns &&
-    break
+    { ok=1; break; }
   sleep 5
 done
-echo "kubeconfig: $KCFG"   # reuse the path as a value: the variable is gone by your next command
+[ -n "$ok" ] && echo "kubeconfig: $KCFG" ||   # reuse the path as a value: the variable is gone by your next command
+  echo "no working kubeconfig for <cluster> after 30 tries"
 ```
 
 `get managed` needs a provider installed: wait for `✓ Waiting for package to be ready`.
