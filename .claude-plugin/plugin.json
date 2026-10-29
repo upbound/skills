@@ -1,7 +1,7 @@
 {
   "name": "upbound",
   "description": "Skills for working with the Upbound Platform: fleet-wide queries through Upbound Hub, and the control-plane-project suite for authoring, testing, verifying, and migrating Crossplane configuration packages.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "author": {
     "name": "Upbound",
     "url": "https://upbound.io"
