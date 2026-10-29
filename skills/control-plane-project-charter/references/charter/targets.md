@@ -198,13 +198,16 @@ With a kubeconfig for the control plane this run created (local: `kind get kubec
    deleted the external resource and removed its finalizer:
 
    ```bash
-   for _ in $(seq 1 60); do
+   for _ in $(seq 1 <tries>); do                    # <tries> x ~20 s
      out=$(kubectl --kubeconfig <kubeconfig> --request-timeout=10s get managed -A --no-headers) &&
        [ -z "$out" ] && break
      sleep 10
    done
    kubectl --kubeconfig <kubeconfig> get managed -A    # expect: No resources found
    ```
+
+   Size `<tries>` to fit one command's timeout (5 for a 2-minute limit), and repeat it until nothing is
+   left or about 10 minutes have passed.
 
    `the server doesn't have a resource type "managed"` means no provider was ever installed, so
    nothing reached the cloud.

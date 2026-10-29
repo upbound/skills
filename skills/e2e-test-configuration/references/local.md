@@ -88,7 +88,7 @@ for _ in $(seq 1 10); do                            # the file can be empty earl
   sleep 5
 done
 if [ -n "$ok" ]; then
-  echo "kubeconfig: $KCFG"                          # reuse the path as a value: the variable is gone by your next command
+  echo "kubeconfig: $KCFG"                          # reuse the path: the variable is gone by your next command
 else
   echo "no working kubeconfig for <cluster> after 10 tries (left in $KCFG)"
 fi
@@ -118,23 +118,24 @@ status is complete. Wait, bounded, until the XR exists, then watch that one obje
 `managed` is a category), bounded too:
 
 ```bash
-for _ in $(seq 1 60); do                            # until the XR exists, or the run ends
+for _ in $(seq 1 <tries>); do                       # until the XR exists, or the run ends: <tries> x ~10 s
   grep -q '^EXIT=' /tmp/e2e-<n>.log && break
   kind get kubeconfig --name <cluster> > <kubeconfig> 2>/dev/null &&
     kubectl --kubeconfig <kubeconfig> --request-timeout=5s get <xr-kind> <xr-name> -n <namespace> >/dev/null 2>&1 &&
     break
   sleep 5
 done
-kubectl --kubeconfig <kubeconfig> --request-timeout=600s get <xr-kind> <xr-name> -n <namespace> -w \
+kubectl --kubeconfig <kubeconfig> --request-timeout=<seconds>s get <xr-kind> <xr-name> -n <namespace> -w \
   -o jsonpath='{.status.conditions[?(@.type=="Ready")].status} {.status}{"\n"}' >> /tmp/e2e-<n>-status.txt 2>&1
 grep '^True ' /tmp/e2e-<n>-status.txt | tail -1      # the last read taken while Ready
 ```
 
-The watch prints one line per change and ends with the cluster or after 600 s: on a watch, kubectl applies
-`--request-timeout` to the whole response, so it is the time limit (stock macOS has no `timeout`). Size it as a
-wait (charter §1), and if it ends before `EXIT=` is in the log, start it again (it prints the current state
-first). Give every other `kubectl` call `--request-timeout`: one without it hung for 150 s once the cluster was
-gone. A composed resource is read the same way, one watch per object.
+Size `<tries>` (about 10 s each) and `<seconds>` to fit one command's timeout: 10 tries and 100 s for a
+2-minute limit. The watch prints one line per change and ends with the cluster or after `<seconds>`: on a watch,
+kubectl applies `--request-timeout` to the whole response, so it is the time limit (stock macOS has no
+`timeout`). If it ends before `EXIT=` is in the log, start it again (it prints the current state first). Give
+every other `kubectl` call `--request-timeout`: one without it hung for 150 s once the cluster was gone. A
+composed resource is read the same way, one watch per object.
 
 Quote it as **"read-back, not asserted"**, with its `Ready` condition: a read while `Ready` is `False` can be
 partial. It is not a provider read. If the window was missed, report "not read back" rather than re-running a
@@ -153,7 +154,7 @@ run the loop above with `get <kind>.<group> -n <namespace>` as the run starts, t
 resource when its own external name appears:
 
 ```bash
-kubectl --kubeconfig <kubeconfig> --request-timeout=600s get <kind>.<group> -n <namespace> -w \
+kubectl --kubeconfig <kubeconfig> --request-timeout=<seconds>s get <kind>.<group> -n <namespace> -w \
   -o jsonpath='{.metadata.name} {.metadata.annotations.crossplane\.io/external-name}{"\n"}' |
 while read -r name id; do              # reads run in parallel; failed reads retry on the next change
   [ -n "$id" ] && ! grep -qs "^$name " /tmp/e2e-<n>-provider.txt &&
