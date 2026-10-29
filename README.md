@@ -44,12 +44,24 @@ endpoints and field names that have since been corrected.
 
 ### Other agents
 
-Not supported yet, though the skills carry no vendor-specific frontmatter, so copying
-`skills/upbound-hub/` into another agent's skills directory should load. Nothing here is
-tested against another agent, and the scripts assume `bash`, `curl`, and `jq`.
+The skills carry no vendor-specific frontmatter, so they load in any agent that reads the
+Agent Skills format. Nothing here is tested against another agent, and the scripts assume
+`bash`, `curl`, and `jq`.
 
-Adding an agent means a manifest alongside `.claude-plugin/`; the layout is arranged so it
-moves no files.
+**Gemini CLI.** Run Gemini CLI from the repository root. Gemini CLI treats `.agents/skills/`
+as the cross-agent alias for its workspace skills
+(<https://geminicli.com/docs/cli/skills/>), so this repository ships
+[`.agents/skills/upbound-hub`](.agents/skills/upbound-hub) — a relative symlink into
+`skills/upbound-hub/` — and no file is moved. The skill carries no vendor-specific
+frontmatter, so nothing in it needs adapting for Gemini CLI; its progressive disclosure
+intact: discovery injects only `name` and `description`, and the body plus `references/`
+load on activation. Verified against Gemini CLI 0.60.0 with `gemini skills list --all`:
+the skill is discovered from `.agents/skills/`, `SKILL.md` parses, and
+`hack/validate.py all` still passes. A live `hub-setup` run needs a Gemini login and a Hub
+endpoint, which are the same prerequisites as for any other agent.
+
+Adding another agent means a symlink or manifest alongside `.claude-plugin/`; the layout is
+arranged so it moves no files.
 
 ## Prerequisites
 
