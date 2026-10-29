@@ -141,10 +141,10 @@ One idiom on both targets; only the target flags differ:
   ```
 
   Size `<tries>` × 20 s to fit one command's timeout (5 for a 2-minute limit), and repeat it until `EXIT=` is
-  in the log. Never an unbounded `until grep …`: if the marker never arrives, it
-  waits until the harness kills it. If the process is gone (`pgrep -f '[u]p test run'` prints nothing) and
-  there is no `EXIT=` line, the run was cut off: report what it reached, not an outcome. With no background
-  facility, run in the foreground with the longest timeout you have, and treat a timeout the same way.
+  in the log. Never an unbounded `until grep …`: if the marker never arrives, it waits until the harness kills
+  it. If the process is gone (`pgrep -f '[u]p test run'` prints nothing) and there is no `EXIT=` line, the run
+  was cut off: report what it reached, not an outcome. With no background facility, run in the foreground with
+  the longest timeout you have, and treat a timeout the same way.
 - **Never write a verdict from a poll.** A partial log is a progress view: resources routinely reach `Ready`
   after your last look. The run is over only when `EXIT=` is in the log.
 - If you stop a run early (wrong target, stuck with a terminal cause), say it was **terminated** and why. A

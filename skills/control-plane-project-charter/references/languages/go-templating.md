@@ -43,8 +43,8 @@ something is observed, `.observed.resources` is nil.
 
 **Functions available:** Sprig without `env` and `expandenv` (removed, unlike the test side), plus
 `getCompositeResource`, `getComposedResource`, `getResourceCondition "Ready" (index .observed.resources
-"<name>")` (the entry, not the manifest; inside `{{ if .observed.resources }}`, see above), `setResourceNameAnnotation`, `toYaml`, `fromYaml`,
-`include`, `randomChoice`. No `required`. `getExtraResources` (v0.11.0) and
+"<name>")` (the entry, not the manifest; inside `{{ if .observed.resources }}`, see above),
+`setResourceNameAnnotation`, `toYaml`, `fromYaml`, `include`, `randomChoice`. No `required`. `getExtraResources` (v0.11.0) and
 `getComposedConnectionDetails` (v0.13.0) are newer than the base. Sprig's `replace "old" "new" $s`
 replaces every occurrence; there is no `replaceAll` (`function "replaceAll" not defined`).
 
