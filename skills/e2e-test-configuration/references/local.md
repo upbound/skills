@@ -115,7 +115,8 @@ An `E2ETest` can't assert a status field or condition (author-tests' `e2e.md` re
 it inside the one run you need anyway, and **watch rather than poll**: the delete starts about a second after
 the assert sees `Ready` (observed with up v0.55.0), so a read every few seconds misses the one moment the
 status is complete. Wait, bounded, until the XR exists, then watch that one object (`get managed -w` fails:
-`managed` is a category), bounded too:
+`managed` is a category), bounded too. Run the wait and the watch as two separate commands: each is sized to a
+whole command's timeout, so together they would overrun it.
 
 ```bash
 for _ in $(seq 1 <tries>); do                       # until the XR exists, or the run ends: <tries> x ~10 s
@@ -125,17 +126,21 @@ for _ in $(seq 1 <tries>); do                       # until the XR exists, or th
     break
   sleep 5
 done
+```
+
+```bash
 kubectl --kubeconfig <kubeconfig> --request-timeout=<seconds>s get <xr-kind> <xr-name> -n <namespace> -w \
   -o jsonpath='{.status.conditions[?(@.type=="Ready")].status} {.status}{"\n"}' >> /tmp/e2e-<n>-status.txt 2>&1
 grep '^True ' /tmp/e2e-<n>-status.txt | tail -1      # the last read taken while Ready
 ```
 
-Size `<tries>` (about 10 s each) and `<seconds>` to fit one command's timeout: 10 tries and 100 s for a
-2-minute limit. The watch prints one line per change and ends with the cluster or after `<seconds>`: on a watch,
-kubectl applies `--request-timeout` to the whole response, so it is the time limit (stock macOS has no
-`timeout`). If it ends before `EXIT=` is in the log, start it again (it prints the current state first). Give
-every other `kubectl` call `--request-timeout`: one without it hung for 150 s once the cluster was gone. A
-composed resource is read the same way, one watch per object.
+Size `<tries>` (about 10 s each) and `<seconds>` each to fit one command's timeout: 10 tries and 100 s for a
+2-minute limit. If the wait ends without the XR and before `EXIT=` is in the log, run it again. The watch prints
+one line per change and ends with the cluster or after `<seconds>`: on a watch, kubectl applies
+`--request-timeout` to the whole response, so it is the time limit (stock macOS has no `timeout`). If it ends
+before `EXIT=` is in the log, start it again (it prints the current state first). Give every other `kubectl` call
+`--request-timeout`: one without it hung for 150 s once the cluster was gone. A composed resource is read the same
+way, one watch per object.
 
 Quote it as **"read-back, not asserted"**, with its `Ready` condition: a read while `Ready` is `False` can be
 partial. It is not a provider read. If the window was missed, report "not read back" rather than re-running a
