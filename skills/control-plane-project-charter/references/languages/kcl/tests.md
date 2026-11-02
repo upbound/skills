@@ -1,7 +1,6 @@
 # KCL: tests
 
-Composition and E2E test templates in KCL, and ways to keep several tests in one directory. What a
-suite must contain is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
+What a suite must contain is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
 the KCL index is [`../kcl.md`](../kcl.md).
 
 A KCL test module ends with `items = [...]`: that list is what `up` reads. Defining `_items` and

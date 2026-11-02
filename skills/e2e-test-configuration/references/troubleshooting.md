@@ -1,9 +1,5 @@
 # E2E troubleshooting
 
-Read when a run is stuck or has failed, or before you call an error terminal. [SKILL.md](../SKILL.md) has
-the workflow and the report shapes; how to reach the control plane while it exists is in
-[local.md](local.md) or [space.md](space.md).
-
 ## Transient or terminal?
 
 1. **A threshold is when to start asking, not a verdict.**
@@ -67,8 +63,7 @@ A resource whose trace shows `Creating` is not stuck: VPN gateways, NAT gateways
 
 ## Stuck investigation brief
 
-Hand this to a sub-agent when a run crosses the stuck threshold with nothing `Creating`, or follow it yourself
-if your harness has no sub-agents (charter §1). Fill in the kubeconfig from the target's reference.
+Fill in the kubeconfig from the target's reference.
 
 ```text
 You are troubleshooting a stuck Crossplane E2E test.

@@ -1,7 +1,6 @@
 # KCL: function structure
 
-Module layout, the entry point, a domain module, and the helpers every resource uses. The KCL
-index is [`../kcl.md`](../kcl.md); conditionals, comprehensions and references are in
+The KCL index is [`../kcl.md`](../kcl.md); conditionals, comprehensions and references are in
 [`patterns-logic.md`](patterns-logic.md).
 
 ## Module layout

@@ -74,9 +74,7 @@ apis/*/definition.yaml: apiextensions.crossplane.io/v2  → v2: binding rule 4 a
 ```
 
 A v1 project uses the non-`.m.` models and a cluster-scoped `ProviderConfig`, and its shipped
-function breaks every v2 rule. Read the generation from the XRD, never from the template a
-project started as: the templates differ
-(`control-plane-project-charter/references/charter/generators.md`). Match what the project is; migrating it is `plan-v2-migration`'s work, not cleanup in passing.
+function breaks every v2 rule.
 
 ## Phase 2: Discover — do not ask
 

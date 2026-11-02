@@ -43,14 +43,11 @@ verification. Run `up project build`. If it fails, report the error and stop.
 ## Phase 2: Composition tests, and the render
 
 Run `up test run "tests/test-*"`. If any fail, report the failures and stop. If it prints
-`No test files found`, no test ran, though it exits 0: report that, never a pass (charter §8).
+`No test files found`, report that, never a pass (charter §8).
 Each run pays a full project build (timings:
 `control-plane-project-charter/references/charter/tdd.md`).
 
-Keep the `test-*` glob: `tests/*` also runs the e2e test programs, even without `--e2e`, and
-fails at `✗ Parsing tests` whenever an e2e input is unset. `no valid CompositionTests found`
-means the matched dirs produced no `CompositionTest` (e.g. only `e2etest-*` dirs): a wrong glob,
-not a failing test (charter §7).
+Keep the `test-*` glob (charter §7).
 
 **Read the render, not just the exit code.** `up test run` checks only the resources a test
 asserts: an extra managed resource added to a function left a 2-test suite at 2/2 PASS. When the

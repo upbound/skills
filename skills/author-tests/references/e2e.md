@@ -213,21 +213,15 @@ func fail(format string, args ...any) {
 }
 ```
 
-The E2E run is `up test run "tests/e2etest-<n>" --e2e …`; the composition gate stays `"tests/test-*"`
-(`control-plane-project-charter/references/charter/container.md`).
-
 ## E2E RED
 
-An e2e RED is optional; when to take one: charter §3.
-
-A valid e2e RED is an **implementation mutation** the control plane rejects or never readies: drop a composed
-resource the others depend on, or break a selector. Not the only composed resource: an XR that composes
+An e2e RED is optional; what counts and when to take one: charter §3 (a mutation the control plane rejects
+counts too). Never drop the only composed resource: an XR that composes
 nothing is Ready at once (Crossplane v2.3.1). Set `timeoutSeconds` just above the green run's measured
 `chainsaw/apply` time: a shorter one fails whatever you mutated. Check the failure is the Ready assertion: the
 error line names `((conditions[?type == 'Ready'])[0])`. The diff's `status: {}` is not the real status. Make
 sure the failure isn't a credential error, then restore the mutated file from its copy, not from git
-(`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout. Editing
-`defaultConditions` or an expected value is not RED, and an unparsable condition is a broken test.
+(`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout.
 
 ## What an E2ETest cannot assert
 

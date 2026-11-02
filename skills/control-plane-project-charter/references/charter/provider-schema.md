@@ -1,6 +1,6 @@
 # What the provider schema does and does not tell you
 
-Examples, how sparse the recorded constraints are, and the classes of rule that live only in the cloud API. [`control-plane-project-charter` §6](../../SKILL.md#6-the-provider-schema-is-a-lower-bound-not-the-constraint-set) states the rule.
+[`control-plane-project-charter` §6](../../SKILL.md#6-the-provider-schema-is-a-lower-bound-not-the-constraint-set) states the rule.
 
 ---
 

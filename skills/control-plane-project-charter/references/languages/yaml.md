@@ -184,8 +184,3 @@ spec:
           location: arn:aws:s3:::upbound-e2e-test-cp-backup
   skipDelete: false
 ```
-
-An `E2ETest` cannot assert a status field or a status condition beyond the `defaultConditions`
-types (`Ready`), and those are condition types, not expressions: author-tests' `e2e.md` reference.
-The Go and go-templating test references are [`go/tests.md`](go/tests.md) and
-[`go-templating.md`](go-templating.md).

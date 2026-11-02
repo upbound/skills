@@ -1,8 +1,5 @@
 # TypeScript
 
-TypeScript composition functions: the layout, a function template, the project files, and how
-to build and test one when the `up` CLI cannot.
-
 > ### `up` v0.55.0 has no TypeScript support
 >
 > ```

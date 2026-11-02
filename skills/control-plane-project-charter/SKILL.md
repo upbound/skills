@@ -34,8 +34,7 @@ references:
 ---
 # Development Charter
 
-**Every control-plane-project skill follows this charter:** how to behave as an agent, how to
-develop, what Crossplane v2 requires, and how to report what you did.
+**Every control-plane-project skill follows this charter.**
 
 **It does not replace the task skill.** Before you write or review, load what your row
 names:
@@ -179,9 +178,6 @@ killing test now, not a gap in the report. Only what no render or unit test reac
 
 ## 4. Report the effect, not the intent
 
-An overstated report asserts what the change was *meant* to do instead of reading back what it
-*did*.
-
 Before writing any summary:
 
 1. **Name what you ran**, and its exit code — the command's own. After
@@ -201,9 +197,9 @@ Before writing any summary:
 6. **Drop the checkmark register.** `✅ Complete`, `PASS`, and a tidy summary table read as
    verification whatever is behind them, which is what makes an overstated report
    persuasive. Write what ran, what it printed, and what remains unknown. If the honest
-   summary is "tests pass; provider validity unchecked; not deployed", that is the summary:
-   more useful to the caller than a confident one that is wrong. A skill's success criteria
-   are checks for you, not a report format: do not tick them off in a report.
+   summary is "tests pass; provider validity unchecked; not deployed", that is the summary.
+   A skill's success criteria are checks for you, not a report format: do not tick them off in
+   a report.
 7. **Comments, docs and READMEs claim no more than a named test or run.** They are read as
    reports.
 

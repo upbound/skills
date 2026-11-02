@@ -88,9 +88,8 @@ is broken rather than only that it is.
 
 ## Pagination
 
-`?page=N&pageSize=S`, one-indexed. Not Kubernetes `limit`/`continue` — there is
-no continue token, so **`hub-kubectl get` on a large collection silently reports
-one page as the whole list**. Use `hub-list` or `hub-curl` for reads.
+`?page=N&pageSize=S`, one-indexed, with no continue token: read with `hub-list` or
+`hub-curl`, never `hub-kubectl get` (SKILL.md, "Reading through kubectl").
 
 `pageSize` is capped at 100.
 
@@ -156,24 +155,11 @@ Three things that will skew a count if you ignore them:
 ## What Hub does not tell you
 
 - **Realm and package health.** Neither has a status surface. Say so.
-- **Freshness, unless you check.** Hub is an aggregator and its view is
-  eventually consistent. A resource created or deleted seconds ago may not be
-  reflected. `hub.lastSyncTime` and `hub.syncLagSeconds` are on `resources`
-  records only; read `lastSyncTime` before making a freshness claim.
-
-  Compare it against the current time. Derive freshness that way rather than
-  from `syncLagSeconds`, which across a 100-record sample of a live deployment
-  read 0 on every single record, including records whose `lastSyncTime` was
-  three months old. That is a reported server-side defect rather than a
-  meaning, so a 0 there tells you nothing; comparing `lastSyncTime` against the
-  clock is correct whether or not it is fixed.
-
-  Freshness is per record, not per deployment. In that same sample 70 records
-  had synced that day while 30 trailed back over the previous three months, so
-  one record's timestamp says nothing about the fleet's, and a stale record
-  beside a fresh one is normal.
-
-  `controlplanes`, `spaces`, `realms`, `typedefinitions` and
-  `crossplanepackages` carry no `hub` block at all, so there is nothing to
-  check. For those, say the view may be stale rather than implying it is
-  current.
+- **Freshness, unless you check:** the rule is SKILL.md, "Assuming the view is
+  current". Behind it: across a 100-record sample of a live deployment
+  `syncLagSeconds` read 0 on every record, including records whose
+  `lastSyncTime` was three months old, and 70 records had synced that day while
+  30 trailed back over the previous three months, so a stale record beside a
+  fresh one is normal. `controlplanes`, `spaces`, `realms`,
+  `typedefinitions` and `crossplanepackages` carry no `hub` block at all; for
+  all five, say the view may be stale.

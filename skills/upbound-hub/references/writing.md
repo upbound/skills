@@ -10,9 +10,7 @@ scripts/hub-kubectl replace -f controlplane.yaml -n <realm>
 
 ## Check first, do not probe by writing
 
-Hub serves `selfsubjectaccessreviews`, so ask before acting. Do **not** discover
-permissions by attempting the operation — an earlier version of this skill said
-to, and for `delete` that is destructive.
+Hub serves `selfsubjectaccessreviews`, so ask before acting (SKILL.md, Anti-patterns).
 
 It is in `authorization.hub.upbound.io` on Hub 1.0.x and `iam.hub.upbound.io` on
 1.1.0, and in neither case `authorization.k8s.io`, so
@@ -69,8 +67,6 @@ permission, only ask about a specific one.
 
 ## Before you write
 
-- **`apply` works once.** There is no `patch` verb, so on an existing object
-  kubectl's merge PATCH gets a 405. Use `replace`.
 - **The namespace must be in the manifest.** Hub does not default it from the
   URL, so `-n foo` and `metadata.namespace` must both be set and agree.
 - **A ControlPlane's namespace is its realm name.**

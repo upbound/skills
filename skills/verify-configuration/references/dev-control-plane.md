@@ -1,8 +1,6 @@
 # Running the project on a dev control plane
 
-`up project run`, step by step: the Space pre-flight, the choice you hand back when a Space
-cannot pull, applying credentials and an example XR, confirming the run reconciled, and what to
-do when a run hangs on `Waiting for package to be ready`. The skill's Phase 5 holds the
+The skill's Phase 5 holds the
 never-rules. Where a run lands, the non-interactive `up ctx` forms, what `--public` does, and why
 a private repository wedges the run are in
 `control-plane-project-charter/references/charter/targets.md`: read it with this.
@@ -39,10 +37,8 @@ kubectl -n crossplane-system get secrets | grep -i pull
 
 If the control plane can pull, run it on the Space: that is the environment they chose.
 
-**4. If the pre-flight says it will wedge, hand the decision back.** Do not fall back to
-`--local` and do not pick an option: they connected to that Space on purpose. Interactive, put
-the choice to the user; unattended, report these three options and their consequences to your
-caller and stop.
+**4. If the pre-flight says it will wedge, hand the decision back** (SKILL.md Phase 5, Never),
+with what each option costs:
 
 | Option | Command | What it costs them |
 |---|---|---|

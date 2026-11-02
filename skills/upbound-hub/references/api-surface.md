@@ -43,10 +43,6 @@ did not appear on the deployment tested, which had the `Catalog`, `Registry` and
 `AgentSessions` feature gates **off**. Absence here is not evidence of removal.
 Check `/apis` on a deployment with those gates enabled before concluding either way.
 
-**Do not pin a group.** `scripts/hub-list` and `scripts/hub-stats` resolve group
-and version from `/apis`. Within a group, target v1beta1; the v1alpha1 `Resource`
-and `ResourceStats` types are deprecated.
-
 ## Core resources
 
 On 1.0.x these are all under `hub.upbound.io/v1beta1`. On 1.1.0 they are split
@@ -71,15 +67,12 @@ verbs are unchanged.
 ### There is no `patch` and no `watch`
 
 The handler serves `get`, `list`, `create`, `update`, `delete` and 405s
-everything else. Three consequences:
+everything else. Two consequences:
 
 - **`kubectl apply` works once.** On an object that already exists it sends a
   merge PATCH and gets a 405. Use `kubectl replace`. Same for `kubectl edit`,
   `label`, and `annotate`.
 - **`kubectl get -w` 405s.** "Wait until ready" has to be a polling loop.
-- **kubectl paginates with `limit`/`continue`**, which Hub does not implement,
-  so `hub-kubectl get` on a collection silently returns one page. Read with
-  `hub-list`.
 
 ### Object shapes
 

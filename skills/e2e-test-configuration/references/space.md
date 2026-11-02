@@ -1,8 +1,7 @@
 # Running E2E on an Upbound Space (Upbound Cloud)
 
-Read before running `up test run --e2e` against a Space. [SKILL.md](../SKILL.md) has what both targets share:
-preconditions, the run idiom, stuck detection and the report. Facts come from the up v0.55.0 source and earlier
-runs of this skill, and may change between versions.
+Read before running `up test run --e2e` against a Space. [SKILL.md](../SKILL.md) has what both targets share.
+Facts come from the up v0.55.0 source and earlier runs of this skill, and may change between versions.
 
 ## Preconditions
 
@@ -37,9 +36,8 @@ is not yours: `--public` only makes a repository it *creates* public, so it fixe
 yet" and changes nothing for an existing private one
 (`control-plane-project-charter/references/charter/targets.md`).
 
-- If the user already chose `--public` (earlier in the conversation, or relayed in the brief by an
-  orchestrating agent as the user's explicit choice), use it; don't ask again. An orchestrator never decides
-  it itself.
+- If the user already chose `--public` (in the conversation, or relayed in a brief: SKILL.md Never), use it;
+  don't ask again.
 - Otherwise, before burning a run, name the options: publish publicly, change the existing repository's
   visibility (the user's call, outside this skill), push to a repository the control plane can already pull
   from (`--repository`), or have the caller choose the local target instead. Interactive, ask; unattended,

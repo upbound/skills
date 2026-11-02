@@ -1,8 +1,5 @@
 # Crossplane v2 resources: the detail
 
-What `.m.` means, the verified behaviour behind §5's field table, authoring the XRD, what the
-CRD defaults do to a render, what the function returns for the XR, how connection details reach
-a function, choosing a ProviderConfig, and what a missing one looks like.
 [`control-plane-project-charter` §5](../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs) states the rules.
 
 ---
@@ -30,9 +27,7 @@ the "namespaced" reading cannot be right.
 
 ## Authoring the XRD
 
-§5 says to write the XRD rather than infer it with `up xrd generate`;
-[`generators.md`](generators.md) lists what inference drops. The difference carries into the
-model `up project build` generates from it — the same API, inferred versus written:
+The same API, inferred versus written, in the model `up project build` generates:
 
 | | inferred from an example | written directly |
 |---|---|---|
@@ -138,9 +133,7 @@ returns with server-side apply (`composition_functions.go`, v2.4.3):
 
 ## Connection details reach a function only through `writeConnectionSecretToRef`
 
-§5 says to set `writeConnectionSecretToRef` on a resource whose connection details the function
-reads, and never to fall back to a value. The behaviour behind it, from the Crossplane v2.2
-source:
+The behaviour behind §5's rule, from the Crossplane v2.2 source:
 
 - **Crossplane reads them from the Secret the composed resource names, and from nowhere else.**
   For each observed composed resource it calls `SecretConnectionDetailsFetcher.FetchConnection`
@@ -148,8 +141,7 @@ source:
   returns nothing, and a Secret the provider has not written yet is ignored (`NotFound`). Both
   reach the function as an empty map, with no error and no event.
 - **A lookup in that map then yields nothing, silently:** KCL `?.ConnectionDetails?.password`
-  is `None` (kcl 0.10.4), Python `connection_details.get(…)` is `None`, a Go map read is `nil`. A
-  fallback such as `or ""` turns that into a Secret with an empty password.
+  is `None` (kcl 0.10.4), Python `connection_details.get(…)` is `None`, a Go map read is `nil`.
 - **On a namespaced MR the reference has only `name`.** The provider writes the Secret into the
   MR's namespace, which is the XR's, so name it per XR (`<xr-name>-<composition-key>`): a fixed
   name collides between two XRs in one namespace.

@@ -6,9 +6,8 @@
 scripts/hub-health | jq '.resources'
 ```
 
-Answer with three numbers, because the API can only produce three: how many are
-assessable, how many are explicitly failing, and how many are Unknown or never reported. Do not
-turn it into one percentage of the total — see [querying.md](querying.md).
+Answer with the three numbers of SKILL.md "Reporting health against the wrong denominator",
+never one percentage of the total (why: [querying.md](querying.md#what-health-actually-means)).
 
 By kind:
 
@@ -86,10 +85,7 @@ scripts/hub-list resources 100 \
 scripts/hub-types aws.upbound.io
 ```
 
-`summary.resourceCount > 0` means the type is in use somewhere. Do not sum that
-column for a fleet total — it disagrees with `resourcestats`, partly because
-composition fans one logical resource out into several records. Report both
-numbers rather than picking a winner.
+`summary.resourceCount > 0` means the type is in use somewhere.
 
 ## "Where did this resource come from?"
 
