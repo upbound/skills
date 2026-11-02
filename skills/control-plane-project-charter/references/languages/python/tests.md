@@ -1,5 +1,11 @@
 # Python: tests
 
+- [The coverage shapes in Python](#the-coverage-shapes-in-python)
+- [The two dump modes](#the-two-dump-modes)
+- [Assertion rules](#assertion-rules)
+- [Python-specific mistakes](#python-specific-mistakes)
+- [Function unit tests](#function-unit-tests)
+
 What a suite must contain, and why, is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
 this file is the Python syntax for it. Templates are in [`test-templates.md`](test-templates.md);
 the Python index is [`../python.md`](../python.md).

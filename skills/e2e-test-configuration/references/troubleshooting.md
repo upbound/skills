@@ -1,5 +1,10 @@
 # E2E troubleshooting
 
+- [Transient or terminal?](#transient-or-terminal)
+- [Resources under test](#resources-under-test)
+- [Stuck investigation brief](#stuck-investigation-brief)
+- [Failure patterns](#failure-patterns)
+
 ## Transient or terminal?
 
 1. **A threshold is when to start asking, not a verdict.**

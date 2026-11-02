@@ -1,5 +1,16 @@
 # Running the stages
 
+- [Stage 0: Pre-flight](#stage-0-pre-flight)
+- [Stage 1: Prepare](#stage-1-prepare)
+- [Stages 2–4: XRDs, compositions, examples](#stages-24-xrds-compositions-examples)
+- [Stage 5: Tests, then functions](#stage-5-tests-then-functions)
+- [Stage 6: Renames](#stage-6-renames)
+- [Stage 7: Verification](#stage-7-verification)
+- [Stage 8: Documentation](#stage-8-documentation)
+- [Sub-agent briefs](#sub-agent-briefs)
+- [When a step fails](#when-a-step-fails)
+- [Final summary template](#final-summary-template)
+
 ## Stage 0: Pre-flight
 
 ```bash

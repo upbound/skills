@@ -1,5 +1,19 @@
 # Composition patterns — what they mean
 
+- [The object model every language builds](#the-object-model-every-language-builds)
+- [Pattern: module organisation](#pattern-module-organisation)
+- [Pattern: the configuration object](#pattern-the-configuration-object)
+- [Pattern: the guard-clause chain — the failure composition tests cannot see](#pattern-the-guard-clause-chain--the-failure-composition-tests-cannot-see)
+- [Pattern: conditional creation, and the `ready OR exists` rule](#pattern-conditional-creation-and-the-ready-or-exists-rule)
+- [Pattern: references beat status plumbing](#pattern-references-beat-status-plumbing)
+- [Pattern: list fields — one resource per element is a decision](#pattern-list-fields--one-resource-per-element-is-a-decision)
+- [Namespaces, connection details, ProviderConfig readiness](#namespaces-connection-details-providerconfig-readiness)
+- [Pattern: flexible maps](#pattern-flexible-maps)
+- [Pattern: merging](#pattern-merging)
+- [Naming](#naming)
+- [A green test with a misbehaving resource](#a-green-test-with-a-misbehaving-resource)
+- [Migrating a function to v2](#migrating-a-function-to-v2)
+
 The syntax is in the charter's language files, indexed by
 `control-plane-project-charter/references/languages/README.md`, under the same pattern names.
 

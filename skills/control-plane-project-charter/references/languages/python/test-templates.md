@@ -1,5 +1,9 @@
 # Python: test templates
 
+- [Composition test, SDK layout (`tests/test-<n>/test/__main__.py`)](#composition-test-sdk-layout-teststest-ntest__main__py)
+- [Composition test, embedded layout (`tests/test-<n>/main.py`)](#composition-test-embedded-layout-teststest-nmainpy)
+- [E2E test (`tests/e2etest-<n>/test/__main__.py`)](#e2e-test-testse2etest-ntest__main__py)
+
 What a suite must contain is in [`tests.md`](tests.md) and [`charter/evidence.md`](../../charter/evidence.md); the Python index
 is [`../python.md`](../python.md).
 

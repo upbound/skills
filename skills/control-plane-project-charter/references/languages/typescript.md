@@ -1,5 +1,11 @@
 # TypeScript
 
+- [Layout](#layout)
+- [Function template (`src/function.ts`)](#function-template-srcfunctionts)
+- [`src/main.ts`](#srcmaints)
+- [`package.json` and `tsconfig.json`](#packagejson-and-tsconfigjson)
+- [Build and test](#build-and-test)
+
 > ### `up` v0.55.0 has no TypeScript support
 >
 > ```

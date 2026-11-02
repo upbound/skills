@@ -1,5 +1,10 @@
 # Reading a render, and making a suite exhaustive
 
+- [What a clean `up project build` checks](#what-a-clean-up-project-build-checks)
+- [Reading the render](#reading-the-render)
+- [How `assertResources` matches, and how to make a suite exhaustive](#how-assertresources-matches-and-how-to-make-a-suite-exhaustive)
+- [Coverage: what the suite must contain](#coverage-what-the-suite-must-contain)
+
 [`control-plane-project-charter` §8](../../SKILL.md#8-a-green-run-is-not-evidence) states the rule.
 
 ## What a clean `up project build` checks

@@ -1,5 +1,12 @@
 # Python: observed resources, readiness and connection Secrets
 
+- [Observed resources are keyed by composition resource name](#observed-resources-are-keyed-by-composition-resource-name)
+- [Connection Secrets](#connection-secrets)
+- [Mark a composed ProviderConfig ready](#mark-a-composed-providerconfig-ready)
+- [Create on "ready or already exists", not on "ready"](#create-on-ready-or-already-exists-not-on-ready)
+- [The early-return chain](#the-early-return-chain)
+- [Reading the render](#reading-the-render)
+
 The Python index is [`../python.md`](../python.md).
 
 ## Observed resources are keyed by composition resource name

@@ -1,5 +1,13 @@
 # Where a run lands: local KIND or a Space
 
+- [Which control plane a run uses](#which-control-plane-a-run-uses)
+- [Reading the context (`up ctx`)](#reading-the-context-up-ctx)
+- [The group (`--control-plane-group`)](#the-group---control-plane-group)
+- [`--kubeconfig` is an input](#--kubeconfig-is-an-input)
+- [Repository visibility and `--public`](#repository-visibility-and---public)
+- [A run stuck on `Waiting for package to be ready`](#a-run-stuck-on-waiting-for-package-to-be-ready)
+- [Teardown and leftovers](#teardown-and-leftovers)
+
 Facts shared by every command that creates a control plane: `up project run`, `up test run --e2e`, and
 `up project stop` finding one again. The procedures stay in the skills that run them
 (verify-configuration, e2e-test-configuration); [`control-plane-project-charter` §9](../../SKILL.md#9-never-create-infrastructure-as-a-side-effect)

@@ -25,6 +25,7 @@ spec:
         properties:
           spec:
             type: object
+            required: [repositoryClass]
             properties:
               projectKey:
                 type: string

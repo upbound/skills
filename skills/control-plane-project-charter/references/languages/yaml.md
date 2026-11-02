@@ -1,5 +1,9 @@
 # YAML
 
+- [Composition test](#composition-test)
+- [Observed state (real example)](#observed-state-real-example)
+- [E2E test (real example)](#e2e-test-real-example)
+
 Raw-YAML tests, with real examples. YAML is a test language only: there are no YAML composition
 functions. It shows the test object model with no language in the way, so the other language
 references point here for it. When to write tests in YAML rather than the composition language:

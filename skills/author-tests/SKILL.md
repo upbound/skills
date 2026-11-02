@@ -18,7 +18,7 @@ and write the assertion that has to fail first.
 A test's *meaning* is language-agnostic; only its *syntax* differs. Every test compiles to a
 `CompositionTest` or an `E2ETest` (`meta.dev.upbound.io/v1alpha1`). The rules are in this file;
 the object model, structuring patterns and common mistakes in
-[test-model.md](references/test-model.md) (read it before your first test in a project); the
+[test-model.md](references/test-model.md) (Phase 1 says when); the
 syntax in the charter's file for the test language (Phase 1).
 
 - Writing or changing an `E2ETest`: Phase 4.
@@ -62,8 +62,10 @@ design or gate script wins over these: say where you departed.
 ## Phase 1: Detect the test language — do this first
 
 Pick the language as charter §10 says (existing tests, else the composition language, else
-YAML; functions in more than one language and no tests yet: ask), then read its file before
-writing a test: it carries the templates and the silent failure modes.
+YAML; functions in more than one language and no tests yet: ask). Before writing a test, open
+its index and tests file in `control-plane-project-charter/references/languages/` now (Go:
+`go.md`, `go/tests.md`): they carry the templates and the silent failure modes. Before your
+first test in a project, also open [test-model.md](references/test-model.md) now.
 
 ## Phase 2: Decide what to test, and scaffold
 

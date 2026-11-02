@@ -1,5 +1,8 @@
 # Running the project on a dev control plane
 
+- [The steps](#the-steps)
+- [When a run hangs on "Waiting for package to be ready"](#when-a-run-hangs-on-waiting-for-package-to-be-ready)
+
 The skill's Phase 5 holds the
 never-rules. Where a run lands, the non-interactive `up ctx` forms, what `--public` does, and why
 a private repository wedges the run are in
