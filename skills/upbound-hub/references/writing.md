@@ -1,5 +1,12 @@
 # Writing
 
+- [Check first, do not probe by writing](#check-first-do-not-probe-by-writing)
+- [Before you write](#before-you-write)
+- [Minimum viable manifests](#minimum-viable-manifests)
+- [Deleting a realm](#deleting-a-realm)
+- [Registration tokens](#registration-tokens)
+- [Do not write here](#do-not-write-here)
+
 Use `scripts/hub-kubectl`, which points kubectl at Hub through a temporary
 kubeconfig.
 

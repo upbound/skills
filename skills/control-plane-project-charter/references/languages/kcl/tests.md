@@ -1,5 +1,10 @@
 # KCL: tests
 
+- [Composition test](#composition-test)
+- [E2E test](#e2e-test)
+- [Several tests in one file](#several-tests-in-one-file)
+- [Observed state across files](#observed-state-across-files)
+
 What a suite must contain is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
 the KCL index is [`../kcl.md`](../kcl.md).
 

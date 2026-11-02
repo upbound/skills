@@ -123,9 +123,10 @@ anything else (`control-plane-project-charter/references/charter/generators.md`)
 
 ## Phase 3: Write the XRD, and check its design
 
-**Write the XRD yourself** (charter §5 has the reason,
-`control-plane-project-charter/references/charter/v2-resources.md` the v2 skeleton). For a
-**new** XRD:
+**Write the XRD yourself** (charter §5 has the reason). Open
+`control-plane-project-charter/references/charter/xrd-design.md` (the design rules) and
+`control-plane-project-charter/references/charter/v2-resources.md#authoring-the-xrd` (the v2
+skeleton) now. For a **new** XRD:
 
 | Field | Value |
 |---|---|
@@ -206,7 +207,7 @@ python3 <author-configuration-package>/scripts/check_xrd_schema.py \
 ```
 
 Exit `0` is clean, `10` is at least one finding, and `2` is an error (nothing extracted, an
-unusable exceptions file, no PyYAML), not a pass. `FAIL` lines are defects; `REVIEW` lines (booleans, bare strings) are calls
+unusable exceptions file, no PyYAML), not a pass. `FAIL` lines are defects, CEL rules the API server refuses among them; `REVIEW` lines (booleans, bare strings, transition rules that freeze `spec` or never run) are calls
 for you to make. The `ACRONYMS` table applies to the **Kind** only; trim it to the acronyms this
 API uses.
 

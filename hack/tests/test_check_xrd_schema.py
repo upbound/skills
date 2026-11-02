@@ -376,6 +376,107 @@ class CheckXrdSchemaTest(unittest.TestCase):
         assert not any("gatewayName" in ln or "gatewayTimeoutSeconds" in ln for ln in fails)
 
     # ---------------------------------------------------------------------------
+    # CEL rules: the API server refuses the CRD, or the rule does not do what it
+    # says. Each test plants the mistake and then writes the correct form.
+    # ---------------------------------------------------------------------------
+
+    ANCHOR = "xrd-design.md#make-destructive-edits-impossible"
+    PARENT_FORM = ("has(self.projectKey) == has(oldSelf.projectKey) && "
+                   "(!has(self.projectKey) || self.projectKey == oldSelf.projectKey)")
+
+    def with_rules(self, edit):
+        """good.yaml with `edit(spec)` applied to its spec schema: (code, output)."""
+        doc = yaml.safe_load((FIXTURES / "good.yaml").read_text())
+        edit(doc["spec"]["versions"][0]["schema"]["openAPIV3Schema"]["properties"]["spec"])
+        xrd = self.tmp() / "definition.yaml"
+        xrd.write_text(yaml.safe_dump(doc))
+        return run([xrd])
+
+    @staticmethod
+    def rule(node, rule):
+        node.setdefault("x-kubernetes-validations", []).append(
+            {"rule": rule, "message": "is immutable"}
+        )
+
+    @staticmethod
+    def lines(output, prefix, *parts):
+        return [ln for ln in output.splitlines()
+                if ln.startswith(prefix) and all(p in ln for p in parts)]
+
+    def test_has_on_a_bare_variable_fails(self):
+        """has() takes a field selection; the API server refuses has(self)."""
+        for bad in ("!has(oldSelf) || self.projectKey == oldSelf.projectKey",
+                    "has(self) && self.projectKey != ''"):
+            code, output = self.with_rules(lambda s, bad=bad: self.rule(s, bad))
+            assert code == c.EXIT_FINDINGS, output
+            assert self.lines(output, "FAIL:   ", f"[v1alpha1].spec: rule {bad!r}",
+                              "has() takes a field", self.ANCHOR), output
+        code, output = self.with_rules(lambda s: self.rule(s, self.PARENT_FORM))
+        assert code == c.EXIT_CLEAN, output
+        assert "REVIEW:" not in output
+
+    def test_self_equals_old_self_on_spec_is_review(self):
+        """It freezes every field in spec, the optional ones too: a warning."""
+        for bad in ("self == oldSelf", "oldSelf == self"):
+            code, output = self.with_rules(lambda s, bad=bad: self.rule(s, bad))
+            assert code == c.EXIT_CLEAN, output
+            assert self.lines(output, "REVIEW: ", f"[v1alpha1].spec: rule {bad!r}",
+                              "freezes the whole spec", self.ANCHOR), output
+
+        def on_required_object(s):
+            s["required"] = ["repositoryClass", "tlsConfig"]
+            s["properties"]["tlsConfig"]["required"] = ["minVersion"]
+            self.rule(s["properties"]["tlsConfig"], "self == oldSelf")
+        code, output = self.with_rules(on_required_object)
+        assert code == c.EXIT_CLEAN, output
+        assert "REVIEW:" not in output
+
+    def test_transition_rule_on_an_optional_field_is_review(self):
+        """It never runs when the field is added or removed; the parent's does."""
+        code, output = self.with_rules(
+            lambda s: self.rule(s["properties"]["projectKey"], "self == oldSelf"))
+        assert code == c.EXIT_CLEAN, output
+        assert self.lines(output, "REVIEW: ", "[v1alpha1].spec.projectKey: rule 'self == oldSelf'",
+                          "never runs when the field is added or removed",
+                          self.PARENT_FORM, self.ANCHOR), output
+
+        def required(s):
+            s["required"] = ["repositoryClass", "projectKey"]
+            self.rule(s["properties"]["projectKey"], "self == oldSelf")
+
+        def defaulted(s):  # a default fills the field in, so it is never absent
+            self.rule(s["properties"]["xray"]["properties"]["indexing"], "self == oldSelf")
+        for correct in (required, defaulted, lambda s: self.rule(s, self.PARENT_FORM)):
+            code, output = self.with_rules(correct)
+            assert code == c.EXIT_CLEAN, output
+            assert "REVIEW:" not in output
+
+    def test_old_self_in_the_items_of_a_non_map_list_fails(self):
+        """Old and new items cannot be paired, so the API server refuses the CRD."""
+        code, output = self.with_rules(
+            lambda s: self.rule(s["properties"]["adminGroups"]["items"], "self == oldSelf"))
+        assert code == c.EXIT_FINDINGS, output
+        assert self.lines(output, "FAIL:   ", "[v1alpha1].spec.adminGroups[]: rule 'self == oldSelf'",
+                          "x-kubernetes-list-type: map", self.ANCHOR), output
+
+        def map_list(s):
+            s["properties"]["members"] = {
+                "type": "array", "description": "Users granted access", "maxItems": 32,
+                "x-kubernetes-list-type": "map", "x-kubernetes-list-map-keys": ["name"],
+                "items": {
+                    "type": "object", "required": ["name", "role"],
+                    "x-kubernetes-validations": [{"rule": "self.role == oldSelf.role"}],
+                    "properties": {
+                        "name": {"type": "string", "description": "User name", "maxLength": 64},
+                        "role": {"type": "string", "description": "Role", "enum": ["Read", "Write"]},
+                    },
+                },
+            }
+        code, output = self.with_rules(map_list)
+        assert code == c.EXIT_CLEAN, output
+        assert "REVIEW:" not in output
+
+    # ---------------------------------------------------------------------------
     # Enum-casing exceptions: values that mirror an upstream API verbatim
     # ---------------------------------------------------------------------------
 

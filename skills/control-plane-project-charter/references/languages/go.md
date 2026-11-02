@@ -1,5 +1,10 @@
 # Go
 
+- [Where everything is](#where-everything-is)
+- [Layout](#layout)
+- [Imports and models](#imports-and-models)
+- [Where Go runs](#where-go-runs)
+
 Go tests produce the same `CompositionTest` and `E2ETest` objects as every other language. Which
 language new tests use: [charter §10](../../SKILL.md#10-language-dispatch). go-templating tests
 (`*.gotmpl`) are a different language: [`go-templating.md`](go-templating.md).

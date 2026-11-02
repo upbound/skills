@@ -1,5 +1,12 @@
 # go-templating
 
+- [Functions](#functions)
+- [Tests](#tests)
+  - [How `up` runs a go-templating test](#how-up-runs-a-go-templating-test)
+  - [Composition test template (`tests/test-<n>/test.yaml.gotmpl`)](#composition-test-template-teststest-ntestyamlgotmpl)
+  - [Failure modes (reproduced)](#failure-modes-reproduced)
+  - [E2E tests](#e2e-tests)
+
 Go templates with Sprig, used two ways in an `up` project: as **composition functions**
 (`function-go-templating`) and as **tests**. They share a syntax and nothing else — different inputs, different
 function sets — so do not carry idioms from one to the other unexamined.

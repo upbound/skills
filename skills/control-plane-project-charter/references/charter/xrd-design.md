@@ -1,5 +1,19 @@
 # Designing the XRD schema
 
+- [Everything here is driven by one constraint](#everything-here-is-driven-by-one-constraint)
+- [Name fields for your API, not for the backend](#name-fields-for-your-api-not-for-the-backend)
+- [Constrain every string, and say what it is](#constrain-every-string-and-say-what-it-is)
+- [One field, one axis](#one-field-one-axis)
+- [Booleans do not grow; enums do](#booleans-do-not-grow-enums-do)
+- [Required is permanent; a default is not](#required-is-permanent-a-default-is-not)
+- [Make destructive edits impossible](#make-destructive-edits-impossible)
+- [Lists need a type and a bound](#lists-need-a-type-and-a-bound)
+- [`status` is the half of the API people forget](#status-is-the-half-of-the-api-people-forget)
+- [Printer columns: add the ones Crossplane does not](#printer-columns-add-the-ones-crossplane-does-not)
+- [Namespace or spec field](#namespace-or-spec-field)
+- [Check the names mechanically](#check-the-names-mechanically)
+- [Prove the schema on a control plane](#prove-the-schema-on-a-control-plane)
+
 [`control-plane-project-charter` §5](../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs) covers what a *composed resource* needs and why you write the XRD by hand; this covers what to put in it.
 
 Without an `enum` or `pattern`, bad input fails in the provider rather than at `kubectl apply`.

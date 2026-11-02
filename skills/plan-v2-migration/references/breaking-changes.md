@@ -1,5 +1,20 @@
 # Crossplane v1 → v2: the breaking changes
 
+- [Summary](#summary)
+- [Project file](#project-file)
+- [XRD](#xrd)
+- [Kind and the X prefix](#kind-and-the-x-prefix)
+- [Provider API groups](#provider-api-groups)
+- [deletionPolicy](#deletionpolicy)
+- [providerConfigRef](#providerconfigref)
+- [Secret references](#secret-references)
+- [Connection secrets](#connection-secrets)
+- [Composition](#composition)
+- [Examples](#examples)
+- [Tests](#tests)
+- [Directory and function names](#directory-and-function-names)
+- [Installed v1 APIs](#installed-v1-apis)
+
 What changes when a v1 control-plane project moves to Crossplane v2, in language-neutral YAML.
 How a function or test spells it (import paths, model types, the XR bootstrap) is in the
 project's language file in the charter —

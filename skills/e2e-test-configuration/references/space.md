@@ -1,5 +1,11 @@
 # Running E2E on an Upbound Space (Upbound Cloud)
 
+- [Preconditions](#preconditions)
+- [Target flags](#target-flags)
+- [What the run does](#what-the-run-does)
+- [Stuck on a Space](#stuck-on-a-space)
+- [Evidence and cleanup](#evidence-and-cleanup)
+
 Read before running `up test run --e2e` against a Space. [SKILL.md](../SKILL.md) has what both targets share.
 Facts come from the up v0.55.0 source and earlier runs of this skill, and may change between versions.
 

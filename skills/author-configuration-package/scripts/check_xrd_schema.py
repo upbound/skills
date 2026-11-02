@@ -14,6 +14,10 @@ out of the YAML, before any cluster is involved. Everything this reports is
 cheap to fix before the first version ships and impossible to fix afterwards,
 because two XRD versions are two views of one stored object.
 
+It also reads every x-kubernetes-validations rule: has() on a bare variable
+and oldSelf in the items of a list that is not list-type map FAIL, because the
+API server refuses the whole CRD.
+
 One trap sits underneath all of it: a check whose corpus is empty reports every
 schema clean. The corpus is asserted before the verdict is trusted, and
 extraction failure exits with a different code than a finding.
@@ -51,6 +55,9 @@ What this reports as REVIEW rather than FAIL, because the call is semantic:
     object that carries the group's word, and renaming it to `name` is worse.
     Both shapes are prefix-anchored matches on the group.
   * Booleans, and strings with no enum, pattern, maxLength or format.
+  * `self == oldSelf` on an object with optional fields, which freezes all of
+    them (on `spec`, the whole spec), and a transition rule on an optional
+    field, which never runs when the field is added or removed.
 
 Some findings are not yours to fix. Enum values that mirror an upstream API
 verbatim (`aurora-postgresql`, `udp`) are not yours to rename when consumers
@@ -95,7 +102,8 @@ everywhere. When it excepts findings in more than one XRD or version it is
 reported for REVIEW with the places it reached: an exception written for one
 frozen version should not hide the same defect where it can still be fixed.
 
-`uniqueItems` has no exception: the API server rejects the whole CRD.
+`uniqueItems`, `hasMacro` and `oldSelfInList` have no exception: the API
+server rejects the whole CRD.
 
 The file is read from --exceptions, or from ./xrd-schema-exceptions.yaml when it
 exists. Excepted findings print as EXCEPTED with their reason and do not fail
@@ -115,6 +123,8 @@ What it does not look at all, and why it does not try:
     break the good one.
   * Which fields are identity fields needing an immutability rule.
   * Whether a `pattern` matches what the backend actually enforces.
+  * Whether a CEL rule compiles. Rules are read as strings, so only the shapes
+    above are caught; the API server is the verdict.
 
 Those stay review judgements. See `control-plane-project-charter/references/charter/xrd-design.md`.
 """
@@ -192,8 +202,8 @@ XRD_KINDS = ("CompositeResourceDefinition", "CustomResourceDefinition")
 DEFAULT_EXCEPTIONS = "xrd-schema-exceptions.yaml"
 
 # Rule classes a finding can be excepted under, keyed as in the exceptions
-# file. Every FAIL carries one of these or "uniqueItems", which is never
-# excepted: the API server rejects the whole CRD, so no reason makes it work.
+# file. Every FAIL carries one of these or a NEVER_EXCEPTED class: the API
+# server rejects the whole CRD, so no reason makes it work.
 EXCEPTABLE_RULES = (
     "enumCasing",
     "description",
@@ -207,7 +217,27 @@ EXCEPTABLE_RULES = (
 )
 NEVER_EXCEPTED = {
     "uniqueItems": "the API server rejects the whole CRD; use x-kubernetes-list-type: set",
+    "hasMacro": "the API server rejects the whole CRD; has() takes a field, has(self.x)",
+    "oldSelfInList": "the API server rejects the whole CRD; read oldSelf on the list itself",
 }
+
+# CEL rules are read as strings, not compiled: a CEL parser is a dependency
+# this script does not take. What that leaves out:
+#   * has() over anything but a bare name (has(self['x'])) is not caught,
+#     though the API server refuses it too;
+#   * `has(self)` or `oldSelf` inside a string literal is a false alarm;
+#   * `self == oldSelf` is recognised written whole (either order, outer
+#     parentheses), not as part of a larger expression;
+#   * rules on the schema root or under additionalProperties are not read,
+#     nor a rule that stops running because an optional ANCESTOR is added or
+#     removed.
+# cel-go parser/macro.go MakeHas: has() accepts a select expression only,
+# anything else is "invalid argument to has() macro".
+HAS_BARE = re.compile(r"(?<![\w.])has\(\s*[A-Za-z_]\w*\s*\)")
+OLD_SELF = re.compile(r"\boldSelf\b")
+WHOLE_EQUAL = re.compile(r"^\(?\s*(self\s*==\s*oldSelf|oldSelf\s*==\s*self)\s*\)?$")
+XRD_DESIGN = ("control-plane-project-charter/references/charter/xrd-design.md"
+              "#make-destructive-edits-impossible")
 
 
 class ExceptionsError(Exception):
@@ -408,7 +438,64 @@ def field_casing_violations(name):
     return out
 
 
-def walk(node, place, path, names, findings, review, in_status):
+def check_rules(node, place, path, optional, list_path, findings, review):
+    """The CEL rules on one schema node (see the limits above HAS_BARE).
+
+    `optional` says the node is a property its parent does not require and
+    that has no default; `list_path` names the nearest enclosing list that is
+    not list-type map, or is None.
+    """
+    for r in node.get("x-kubernetes-validations") or []:
+        rule = r.get("rule") if isinstance(r, dict) else None
+        if not isinstance(rule, str):
+            continue
+        rule = rule.strip()
+        shown = f"{format_where(place, path)}: rule {rule!r}"
+        if HAS_BARE.search(rule):
+            findings.append((
+                "hasMacro", place, path,
+                f"{shown} calls has() on a bare variable -- has() takes a field, has(self.x), "
+                f"so the API server rejects the whole CRD. See {XRD_DESIGN}",
+            ))
+            continue
+        if not OLD_SELF.search(rule):
+            continue
+        # apiextensions-apiserver: below the items of a list that is not
+        # list-type map, old and new items cannot be paired, and a rule
+        # reading oldSelf there is refused ("oldSelf cannot be used on the
+        # uncorrelatable portion of the schema").
+        if list_path:
+            findings.append((
+                "oldSelfInList", place, path,
+                f"{shown} reads oldSelf inside the items of {list_path}, which is not "
+                f"x-kubernetes-list-type: map -- old and new items cannot be paired, so the "
+                f"API server rejects the whole CRD. Put the rule on {list_path} itself, or "
+                f"make it a map list. See {XRD_DESIGN}",
+            ))
+            continue
+        props = node.get("properties")
+        if (WHOLE_EQUAL.match(rule) and isinstance(props, dict)
+                and set(props) - set(node.get("required") or [])):
+            frozen = "the whole spec" if path == "spec" else f"every field in {path}"
+            review.append(
+                f"{shown} freezes {frozen}, the optional fields too -- put the rule on "
+                f"each field that must not change. See {XRD_DESIGN}"
+            )
+        # Rules run only on a value that is set, and a transition rule only
+        # when there is an old value too (unless optionalOldSelf).
+        if optional:
+            parent, _, f = path.rpartition(".")
+            when = "removed" if r.get("optionalOldSelf") is True else "added or removed"
+            review.append(
+                f"{shown} is a transition rule on an optional field, so it never runs when "
+                f"the field is {when} -- make the field required, or write the rule on "
+                f"{parent}; for immutability: has(self.{f}) == has(oldSelf.{f}) && "
+                f"(!has(self.{f}) || self.{f} == oldSelf.{f}). See {XRD_DESIGN}"
+            )
+
+
+def walk(node, place, path, names, findings, review, in_status,
+         optional=False, list_path=None):
     """Collect every property name and check each node's own schema.
 
     `place` is the (file, version) being walked and `path` the field path
@@ -418,7 +505,10 @@ def walk(node, place, path, names, findings, review, in_status):
     if not isinstance(node, dict):
         return
 
+    check_rules(node, place, path, optional, list_path, findings, review)
+
     props = node.get("properties")
+    required = node.get("required") or []
     if isinstance(props, dict):
         for k, v in props.items():
             key = f"{path}.{k}"
@@ -482,11 +572,18 @@ def walk(node, place, path, names, findings, review, in_status):
                             f"{child}: enum value {ev!r} is not CamelCase with an initial capital",
                         ))
 
-            walk(v, place, key, names, findings, review, in_status)
+            # A default fills an absent field before rules run, so a
+            # defaulted field is never absent.
+            walk(v, place, key, names, findings, review, in_status,
+                 optional=k not in required and not (isinstance(v, dict) and "default" in v),
+                 list_path=list_path)
 
     items = node.get("items")
     if isinstance(items, dict):
-        walk(items, place, f"{path}[]", names, findings, review, in_status)
+        if not list_path and node.get("x-kubernetes-list-type") != "map":
+            list_path = path
+        walk(items, place, f"{path}[]", names, findings, review, in_status,
+             list_path=list_path)
 
 
 def check(path):
@@ -763,7 +860,7 @@ def run(patterns, min_corpus=DEFAULT_MIN_CORPUS, out=None, exceptions=None,
 
 def main(argv=None):
     ap = argparse.ArgumentParser(
-        description="Mechanical checks for a hand-written XRD schema.",
+        description="Mechanical checks for a hand-written XRD schema and its CEL rules.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "exceptions file, one list per rule class:\n"

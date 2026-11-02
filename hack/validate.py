@@ -48,6 +48,7 @@ NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 NAME_MAX = 64
 DESC_MIN, DESC_MAX = 40, 1024
 SKILL_MAX_LINES = 500
+REFERENCE_TOC_LINES = 100
 
 BEGIN_MARKER = "<!-- BEGIN skills-table -->"
 END_MARKER = "<!-- END skills-table -->"
@@ -64,6 +65,9 @@ FENCE_RE = re.compile(r"^(```+|~~~+).*?^\1", re.MULTILINE | re.DOTALL)
 # that fences exist to exempt.
 FENCED_PATH_RE = re.compile(r"(?<![\w(/.-])((?:\.\./)+[\w.-]+(?:/[\w.-]+)*\.md)\b")
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+HEADING_RE = re.compile(r"^(#{2,6})\s+(.+?)\s*$")
+# A contents-list entry: a list item that is nothing but a link to a heading in the file.
+TOC_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+\.)\s+\[[^\]]*\]\(#([^)\s]+)\)\s*$")
 
 BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".gz", ".zip"}
 
@@ -488,6 +492,43 @@ def check_shared() -> Iterator[Finding]:
                                   f"must stay identical", line=line)
 
 
+def anchor(heading: str) -> str:
+    """The id GitHub gives a heading: link text kept, punctuation dropped, spaces hyphenated."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading).lower()
+    return re.sub(r"[^\w\- ]", "", text).replace(" ", "-")
+
+
+def check_contents() -> Iterator[Finding]:
+    """A reference over 100 lines opens with a list of its ## headings."""
+    for skill in skill_dirs():
+        for doc in sorted((skill / "references").rglob("*.md")):
+            text = read(doc)
+            if len(text.splitlines()) <= REFERENCE_TOC_LINES:
+                continue
+            lines = prose(text).splitlines()
+            headings = [m.groups() for line in lines if (m := HEADING_RE.match(line))]
+            sections = [title for level, title in headings if level == "##"]
+            if not sections:
+                continue
+            first = next(i for i, line in enumerate(lines) if line.startswith("## "))
+            listed = [m.group(1) for line in lines[:first] if (m := TOC_ITEM_RE.match(line))]
+            if not listed:
+                yield Finding(doc, f"over {REFERENCE_TOC_LINES} lines and no contents list. List "
+                                   f"its ## headings as links after the title, so a partial "
+                                   f"read sees what the file covers")
+                continue
+            anchors = {anchor(title) for _, title in headings}
+            for target in listed:
+                if target not in anchors:
+                    yield Finding(doc, f"contents list links #{target}, which no heading here has")
+            wanted = [anchor(title) for title in sections]
+            for title in sections:
+                if anchor(title) not in listed:
+                    yield Finding(doc, f"contents list lacks ## {title}")
+            if set(wanted) <= set(listed) and [a for a in listed if a in wanted] != wanted:
+                yield Finding(doc, "contents list has the ## headings out of order")
+
+
 def check_governance() -> Iterator[Finding]:
     """The governance files name a real contact, not a placeholder."""
     contacts = {
@@ -733,6 +774,7 @@ CHECKS: dict[str, Callable[[], Iterable[Finding]]] = {
     "secrets": check_secrets,
     "governance": check_governance,
     "shared": check_shared,
+    "contents": check_contents,
 }
 
 

@@ -346,6 +346,53 @@ class TestSharedCheck(CheckCase):
         self.assertClean(validate.check_shared())
 
 
+class TestContentsCheck(CheckCase):
+    """A reference over 100 lines opens with a list of its ## headings."""
+
+    TOC = ("- [Setup](#setup)\n"
+           "- [`spec.kind` — the field](#speckind--the-field)\n"
+           "- [Cleanup](#cleanup)\n")
+    PAD = "".join(f"line {i}\n" for i in range(100))
+    BODY = ("## Setup\n\n" + PAD + "```markdown\n## A heading in an example\n```\n\n"
+            "## `spec.kind` — the field\n\nText.\n\n## Cleanup\n\nText.\n")
+
+    def reference(self, toc: str = TOC, body: str = BODY) -> None:
+        self.build({"skills/demo-skill/SKILL.md": GOOD_SKILL,
+                    "skills/demo-skill/references/long.md": f"# Long\n\n{toc}\nIntro.\n\n{body}"})
+
+    def test_a_matching_list_is_clean(self):
+        self.reference()
+        self.assertClean(validate.check_contents())
+
+    def test_a_short_reference_needs_no_list(self):
+        self.reference(toc="", body=self.BODY.replace(self.PAD, ""))
+        self.assertClean(validate.check_contents())
+
+    def test_a_missing_list_is_caught(self):
+        self.reference(toc="")
+        self.assertFinding(validate.check_contents(), "no contents list")
+
+    def test_a_renamed_heading_is_caught(self):
+        self.reference(body=self.BODY.replace("## Cleanup", "## Teardown"))
+        findings = list(validate.check_contents())
+        self.assertFinding(findings, "#cleanup, which no heading here has")
+        self.assertFinding(findings, "lacks ## Teardown")
+
+    def test_an_unlisted_heading_is_caught(self):
+        self.reference(body=self.BODY + "\n## Leaks\n\nText.\n")
+        self.assertFinding(validate.check_contents(), "lacks ## Leaks")
+
+    def test_headings_out_of_order_are_caught(self):
+        swapped = "- [Cleanup](#cleanup)\n" + self.TOC.replace("- [Cleanup](#cleanup)\n", "")
+        self.reference(toc=swapped)
+        self.assertFinding(validate.check_contents(), "out of order")
+
+    def test_a_listed_subheading_is_allowed(self):
+        self.reference(toc=self.TOC + "  - [Detail](#detail)\n",
+                       body=self.BODY + "\n### Detail\n\nText.\n")
+        self.assertClean(validate.check_contents())
+
+
 class TestHygieneCheck(CheckCase):
     REAL = "hack/denylist/strings.txt"
 

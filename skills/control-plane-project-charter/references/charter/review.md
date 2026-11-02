@@ -1,5 +1,13 @@
 # Reviewing a change
 
+- [Re-run the gate and read its output](#re-run-the-gate-and-read-its-output)
+- [Each new test bites](#each-new-test-bites)
+- [Read the render](#read-the-render)
+- [Function code](#function-code)
+- [The v2 fields](#the-v2-fields)
+- [Provider constraints and dependencies](#provider-constraints-and-dependencies)
+- [What the report claims](#what-the-report-claims)
+
 The Crossplane-specific checks for reviewing a change to a control-plane project — function
 code, tests, the package — beyond reading the diff. The rules behind them are the charter's
 ([`control-plane-project-charter`](../../SKILL.md), cited as §N).

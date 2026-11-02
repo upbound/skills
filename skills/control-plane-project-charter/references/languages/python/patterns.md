@@ -1,5 +1,13 @@
 # Python: composition function patterns
 
+- [Function bootstrap](#function-bootstrap)
+- [Building a managed resource](#building-a-managed-resource)
+- [Tags and other flexible maps](#tags-and-other-flexible-maps)
+- [`resource.update()` replaces nested keys; it does not merge them](#resourceupdate-replaces-nested-keys-it-does-not-merge-them)
+- [A Fatal result](#a-fatal-result)
+- [An optional XRD object is a `dict` when absent and a model when present](#an-optional-xrd-object-is-a-dict-when-absent-and-a-model-when-present)
+- [Namespaces](#namespaces)
+
 The Python index is [`../python.md`](../python.md).
 
 ## Function bootstrap

@@ -1,5 +1,11 @@
 # Go: tests
 
+- [How `up` runs a Go test](#how-up-runs-a-go-test)
+- [Models in a test](#models-in-a-test)
+- [Composition test template (`tests/test-<n>/main.go`)](#composition-test-template-teststest-nmaingo)
+- [E2E tests](#e2e-tests)
+- [Go-specific failure modes (reproduced)](#go-specific-failure-modes-reproduced)
+
 Composition tests for a project whose functions are written in Go. What the suite must contain is in
 [`charter/evidence.md` § Coverage](../../charter/evidence.md#coverage-what-the-suite-must-contain) and
 applies unchanged.

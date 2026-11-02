@@ -148,7 +148,7 @@ One idiom on both targets; only the target flags differ:
   after your last look. The run is over only when `EXIT=` is in the log.
 - If you stop a run early (wrong target, stuck with a terminal cause), say it was **terminated** and why. A
   killed run has no outcome, and may have skipped teardown: clean up as
-  `control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers) says before you
+  `control-plane-project-charter/references/charter/targets.md#teardown-and-leftovers` says before you
   report.
 
 **Then check the target the run used.** The first progress line names it:

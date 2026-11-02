@@ -1,5 +1,11 @@
 # Go: composition functions
 
+- [The scaffold, and what to change in it](#the-scaffold-and-what-to-change-in-it)
+- [function-sdk-go v0.5: the calls a composition needs](#function-sdk-go-v05-the-calls-a-composition-needs)
+- [Function template (`functions/<n>/fn.go`)](#function-template-functionsnfngo)
+- [Unit-test template: the fast tier (`functions/<n>/fn_test.go`)](#unit-test-template-the-fast-tier-functionsnfn_testgo)
+- [Failure modes](#failure-modes)
+
 Imports and the `go.mod` wiring are in [`../go.md`](../go.md#imports-and-models).
 
 The scaffold facts below were observed on `up` v0.55.0, which pins `function-sdk-go` v0.5.0; every SDK name

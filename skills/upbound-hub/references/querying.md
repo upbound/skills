@@ -1,5 +1,11 @@
 # Querying
 
+- [Count with resourcestats, never by paging](#count-with-resourcestats-never-by-paging)
+- [Filtering `/resources` with CEL](#filtering-resources-with-cel)
+- [Pagination](#pagination)
+- [What health actually means](#what-health-actually-means)
+- [What Hub does not tell you](#what-hub-does-not-tell-you)
+
 ## Count with resourcestats, never by paging
 
 `metadata.total.count` **saturates at 1000**. Past that the server returns

@@ -1,5 +1,14 @@
 # Writing an E2ETest
 
+- [What happens on the control plane](#what-happens-on-the-control-plane)
+- [Fields](#fields)
+- [`defaultConditions` lists condition types, not expressions](#defaultconditions-lists-condition-types-not-expressions)
+- [The ProviderConfig the test creates](#the-providerconfig-the-test-creates)
+- [Credentials depend on the target](#credentials-depend-on-the-target)
+- [Go template (`tests/e2etest-<n>/main.go`)](#go-template-testse2etest-nmaingo)
+- [E2E RED](#e2e-red)
+- [What an E2ETest cannot assert](#what-an-e2etest-cannot-assert)
+
 Read before writing or changing any `E2ETest`, in any language. Running one (target, monitoring, report) is
 `e2e-test-configuration`'s job. Facts come from the up v0.55.0 source and runs; they may change between
 versions.

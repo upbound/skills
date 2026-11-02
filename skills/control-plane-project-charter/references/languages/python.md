@@ -1,5 +1,9 @@
 # Python
 
+- [Where everything is](#where-everything-is)
+- [Set up the venv first](#set-up-the-venv-first)
+- [Layout: SDK or embedded](#layout-sdk-or-embedded)
+
 The helper scripts ship with the `author-composition` skill, not the project. Write their full
 path, from that skill's directory, into every command: a shell variable set in one command is
 gone by the next.
@@ -16,6 +20,7 @@ gone by the next.
 | Set up the venv, first | `python3 <author-composition>/scripts/setup_venv.py --project <root>`, right after `up function generate` ([below](#set-up-the-venv-first)) |
 | Probe the project | `python3 <author-composition>/scripts/probe_project.py --project <root> [<Kind>…]`: layout, import prefix, import lines, class names. Standard library only |
 | A Kind's fields | `python3 <author-composition>/scripts/probe_project.py --project <root> --fields <Kind>`: every `forProvider` field, list fields with misleadingly singular Upjet names (`attribute`, `globalSecondaryIndex`) flagged, and the cross-resource `*Ref`/`*Selector` fields. Its `crossplane:` line reports the project's generation |
+| XR status and conditions | every status key in one `resource.update(rsp.desired.composite, {"status": {…}})`: a second call drops the first's keys ([`python/patterns.md`](python/patterns.md#resourceupdate-replaces-nested-keys-it-does-not-merge-them)). A custom condition: `rsp.conditions.append(fnv1.Condition(…, target=fnv1.TARGET_COMPOSITE))` |
 | Function unit tests (the fast tier) | `(cd functions/<n> && ../../.venv/bin/python -m unittest discover -s tests -t .)`; layout and template in [`python/tests.md`](python/tests.md#function-unit-tests) |
 
 ## Where everything is

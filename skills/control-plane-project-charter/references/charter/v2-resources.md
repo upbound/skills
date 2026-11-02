@@ -1,5 +1,15 @@
 # Crossplane v2 resources: the detail
 
+- [The `.m.` API groups](#the-m-api-groups)
+- [The verified behaviour behind §5's field table](#the-verified-behaviour-behind-5s-field-table)
+- [Authoring the XRD](#authoring-the-xrd)
+- [What the CRD defaults do to a render](#what-the-crd-defaults-do-to-a-render)
+- [What the function returns for the XR](#what-the-function-returns-for-the-xr)
+- [Connection details reach a function only through `writeConnectionSecretToRef`](#connection-details-reach-a-function-only-through-writeconnectionsecrettoref)
+- [Choosing a ProviderConfig](#choosing-a-providerconfig)
+- [Symptom of a missing or wrong ProviderConfig](#symptom-of-a-missing-or-wrong-providerconfig)
+- [Grep your own function before you report](#grep-your-own-function-before-you-report)
+
 [`control-plane-project-charter` §5](../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs) states the rules.
 
 ---

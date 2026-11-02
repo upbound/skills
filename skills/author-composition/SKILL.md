@@ -149,10 +149,15 @@ The language file has the bootstrap and the syntax. Language-independent, in ord
    generated models are not `runtime.Object`s, so convert through JSON, in and out).
 2. Create managed resources per binding rule 4.
 3. Convert flexible maps to the language's plain map type before assigning them.
-4. Extract connection details by **composition key**, not by resource name.
+4. Extract connection details by **composition key**, not by resource name; open
+   `control-plane-project-charter/references/charter/v2-resources.md#connection-details-reach-a-function-only-through-writeconnectionsecrettoref`
+   now.
 5. Mark a composed ProviderConfig — anything auto-ready cannot judge — ready explicitly.
 6. Give each optional resource its **own conditional block** rather than another early
    return (patterns.md: the guard-clause chain).
+7. Before you write XR status or conditions, open
+   `control-plane-project-charter/references/charter/v2-resources.md#what-the-function-returns-for-the-xr`
+   now.
 
 For iterating on a crash rather than an assertion, use the fast tier where the language
 offers one (Python: `unittest` in `functions/<n>/tests/`; Go: `go test ./...` in
@@ -167,7 +172,8 @@ repeat. Before you call anything covered (charter §8):
 1. **Check provider validity**, not only v2 conformance, as charter §6 says; write the result
    in your summary.
 2. **Grep your own function** with the two greps in
-   `control-plane-project-charter/references/charter/v2-resources.md` and judge each hit rather
+   `control-plane-project-charter/references/charter/v2-resources.md#grep-your-own-function-before-you-report`
+   and judge each hit rather
    than counting them. Legitimate: a `namespace` chosen by a cluster-scoped XR or set on an
    object embedded inside `forProvider` (a provider-kubernetes `Object` manifest); a
    `providerConfigRef` where the right config is not `ClusterProviderConfig/default`, with a
@@ -175,13 +181,15 @@ repeat. Before you call anything covered (charter §8):
    on a composed Secret or ConfigMap of a namespaced XR is not legitimate: Crossplane overwrites
    it.
 3. **Read the render, not the assertions:** `up test run "tests/test-*" --function-logs`, then
-   read it as `control-plane-project-charter/references/charter/evidence.md` says (the directory
-   the run prints as `Test artifacts written to <dir>`). A run without the flag writes nothing,
+   open `control-plane-project-charter/references/charter/evidence.md#reading-the-render` now
+   and read the render as it says (the directory the run prints as
+   `Test artifacts written to <dir>`). A run without the flag writes nothing,
    and any existing directory is stale. Add each emitted resource to `assertResources`; until you
    do, it is untested even though the suite is green.
-4. **The suite satisfies `control-plane-project-charter/references/charter/evidence.md`
-   "Coverage"**: each input shape including a minimal XR, each observed-state branch, every
-   `status` field on the composite.
+4. **The suite satisfies
+   `control-plane-project-charter/references/charter/evidence.md#coverage-what-the-suite-must-contain`**:
+   each input shape including a minimal XR, each observed-state branch, every `status` field on
+   the composite.
 
 ## Phase 7: Report
 

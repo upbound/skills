@@ -1,5 +1,12 @@
 # KCL: conditionals, comprehensions and references
 
+- [Conditional resources](#conditional-resources)
+- [List comprehensions](#list-comprehensions)
+- [References between composed resources](#references-between-composed-resources)
+- [Merging with `|`](#merging-with-)
+- [Optional fields](#optional-fields)
+- [Multi-branch logic](#multi-branch-logic)
+
 Structure and the helpers (`config.metadata`, `config.sanitizeLabels`) are
 in [`patterns.md`](patterns.md); the KCL index is [`../kcl.md`](../kcl.md).
 

@@ -1,5 +1,13 @@
 # Running E2E on a local kind control plane (`--local`)
 
+- [Preconditions](#preconditions)
+- [Target flags](#target-flags)
+- [What the run does](#what-the-run-does)
+- [Timings (observed with up v0.55.0)](#timings-observed-with-up-v0550)
+- [Reaching the cluster while it runs](#reaching-the-cluster-while-it-runs)
+- [Evidence and cleanup](#evidence-and-cleanup)
+- [Leaks](#leaks)
+
 Read before running `up test run --e2e --local`. [SKILL.md](../SKILL.md) has what both targets share.
 Facts below come from the up v0.55.0 source and runs, and may change between versions.
 

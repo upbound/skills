@@ -52,7 +52,8 @@ Keep the `test-*` glob (charter §7).
 **Read the render, not just the exit code.** `up test run` checks only the resources a test
 asserts: an extra managed resource added to a function left a 2-test suite at 2/2 PASS. When the
 change added or modified a composed resource, re-run with `--function-logs` and list what the
-function emitted as `control-plane-project-charter/references/charter/evidence.md` shows (use
+function emitted as
+`control-plane-project-charter/references/charter/evidence.md#reading-the-render` shows (use
 the directory the run prints). Check that every resource the change should produce is in the
 render and asserted: one rendered but not asserted is a gap to report, not a pass.
 
@@ -121,9 +122,9 @@ run in flight: in many agents a session's jobs die with it, leaving the KIND clu
 
 **Tear down with `up project stop`** from the project root, but only after deleting the XRs you
 applied and waiting until `kubectl get managed -A` is empty: `up project stop` deletes the
-control plane with whatever is still on it, and the cloud resources behind it stay. The steps,
-what to do when deletion hangs, and what a hand-deleted cluster leaves behind:
-`control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers).
+control plane with whatever is still on it, and the cloud resources behind it stay. For the
+steps, what to do when deletion hangs, and what a hand-deleted cluster leaves behind, open
+`control-plane-project-charter/references/charter/targets.md#teardown-and-leftovers` now.
 
 ### Never
 

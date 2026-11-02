@@ -1,5 +1,10 @@
 # KCL: function structure
 
+- [Module layout](#module-layout)
+- [Entry point (`main.k`)](#entry-point-maink)
+- [A domain module (`network.k`)](#a-domain-module-networkk)
+- [Composing a connection Secret](#composing-a-connection-secret)
+
 The KCL index is [`../kcl.md`](../kcl.md); conditionals, comprehensions and references are in
 [`patterns-logic.md`](patterns-logic.md).
 
