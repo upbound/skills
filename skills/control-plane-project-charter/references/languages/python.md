@@ -19,7 +19,7 @@ gone by the next.
 | Scaffold a test | `up test generate <n> --language python`: writes `tests/test-<n>/` (with `--e2e`: `tests/e2etest-<n>/`); the CLI prepends the prefix itself, so do not pass it |
 | Set up the venv, first | `python3 <author-composition>/scripts/setup_venv.py --project <root>`, right after `up function generate` ([below](#set-up-the-venv-first)) |
 | Probe the project | `python3 <author-composition>/scripts/probe_project.py --project <root> [<Kind>…]`: layout, import prefix, import lines, class names. Standard library only |
-| A Kind's fields | `python3 <author-composition>/scripts/probe_project.py --project <root> --fields <Kind>`: every `forProvider` field, list fields with misleadingly singular Upjet names (`attribute`, `globalSecondaryIndex`) flagged, and the cross-resource `*Ref`/`*Selector` fields. Its first line reports the project's generation |
+| A Kind's fields | `python3 <author-composition>/scripts/probe_project.py --project <root> --fields <Kind>`: every `forProvider` field, list fields with misleadingly singular Upjet names (`attribute`, `globalSecondaryIndex`) flagged, and the cross-resource `*Ref`/`*Selector` fields. Its `crossplane:` line reports the project's generation |
 | Function unit tests (the fast tier) | `(cd functions/<n> && ../../.venv/bin/python -m unittest discover -s tests -t .)`; layout and template in [`python/tests.md`](python/tests.md#function-unit-tests) |
 
 ## Where everything is
@@ -82,8 +82,8 @@ PYBIN=$(for v in 3.13 3.12 3.11; do command -v python$v && break; done)
   succeeds; every install then fails with `Package '...' requires a different Python: 3.14.4
   not in '<3.14,>=3.11'`, and the empty `.venv` left behind is what VS Code picks up. A venv
   cannot be re-pointed: `rm -rf .venv` and rebuild. `setup_venv.py` reads the constraint first,
-  picks the newest matching `python3.N`, and replaces a venv that does not match
-  (`--no-recreate` reports instead).
+  uses its own interpreter if that matches, else the newest matching `python3.N`, and replaces
+  a venv that does not match (`--no-recreate` reports instead).
 - **Models last, editable.** Each function and test pyproject depends on `crossplane-models`,
   so installing one copies the models into `site-packages` over an editable install; `pip list`
   still shows the package, but a regenerated model is invisible. Installed last and editable,
@@ -128,7 +128,7 @@ Then edit only the logic files. Two limits:
 - **The CLI has no embedded templates.** `up test generate --language python` in an embedded
   project writes an SDK test, so the tree ends up with both layouts. In an embedded project,
   copy an existing test directory instead.
-- **`.up/python` must exist before `up function generate` / `up test generate`.** The
+- **`.up/python` must exist before `up function generate`.** The
   `crossplane-models` dependency is written into the new `pyproject.toml` only when the schemas
   already exist; `up project build`, `up dependency add` and `up xrd generate` create them.
   Otherwise add `"crossplane-models @ file:./../../.up/python"` to `dependencies` yourself (the

@@ -31,8 +31,10 @@ up repository get "$REPO" --format=json 2>/dev/null \
   || echo "repository does not exist yet"
 ```
 
-`public = True` → go on. Anything else needs a decision that is not yours: `--public` only makes a repository
-it *creates* public, so it fixes "does not exist yet" and changes nothing for an existing private one
+`public = True` → go on (each function's repository too:
+`control-plane-project-charter/references/charter/targets.md`). Anything else needs a decision that
+is not yours: `--public` only makes a repository it *creates* public, so it fixes "does not exist
+yet" and changes nothing for an existing private one
 (`control-plane-project-charter/references/charter/targets.md`).
 
 - If the user already chose `--public` (earlier in the conversation, or relayed in the brief by an
@@ -44,8 +46,8 @@ it *creates* public, so it fixes "does not exist yet" and changes nothing for an
   stop and report. **Never add `--public` because a run hung: it permanently publishes the user's package.**
 
 **3. Credentials.** `source: Upbound` web identity works here, and only here. Each test gets its own control
-plane named `<project>-uptest-<test>`, so a trust policy needs a wildcard subject (inference). A static Secret
-works too. Shapes: author-tests' `e2e.md` reference.
+plane named `<project>-uptest-<test>` (existing one: SKILL.md Phase 2), so a trust policy needs a
+wildcard subject (inference). A static Secret works too. Shapes: author-tests' `e2e.md` reference.
 
 ## Target flags
 
@@ -64,13 +66,14 @@ up test run "tests/e2etest-<n>" --e2e --control-plane-group="<group>" --kubeconf
 
 1. Creates a control plane `<project>-uptest-<test name>` in the group. The first progress line is `Creating
    development control plane in Spaces`.
-2. Crossplane version: `spec.crossplane.version` or `--control-plane-version` if set; otherwise the latest
-   version matching the project's constraint (`^v2.0.0-up.0` for a v2 project). `spec.crossplane.autoUpgrade.channel`
-   applies here.
+2. Crossplane version: `--control-plane-version` if set, else the test's `spec.crossplane` (a channel without
+   `version` gets the channel's version, ignoring the project's constraint), else the latest version matching
+   the project's constraint (`^v2.0.0-up.0` for a v2 project).
 3. Pushes the built package to the repository, applies `initResources`, installs the Configuration and waits
    for it, then applies `extraResources` without waiting.
 4. Applies the manifests and asserts `defaultConditions` within `timeoutSeconds`.
-5. Tears down after every test, pass or fail, unless `spec.skipDelete: true` or `--skip-control-plane-cleanup`.
+5. Tears down after every test, pass or fail, unless `spec.skipDelete: true` or `--skip-control-plane-cleanup`;
+   a failed control-plane creation or a panic (no `timeoutSeconds`) leaves the control plane in the group.
 
 **Timings:** 30–40 minutes per test was normal in earlier runs of this skill on a Space; not re-measured with
 up v0.55.0.

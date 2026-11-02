@@ -8,7 +8,7 @@ the function unit tests (the fast tier) and your editor, which otherwise reports
 `from models.io...` and `from crossplane.function import ...` as unresolved on completely
 correct code.
 
-Two rules decide the whole design, both verified rather than assumed:
+Three rules decide the whole design, all verified rather than assumed:
 
 1. **Install from the project's own pins, never by package name.** `resource.update()`
    serializes differently across SDK releases (control-plane-project-charter's
@@ -54,14 +54,12 @@ def find_root(start: Path) -> Path | None:
 
 
 def layout_of(d: Path) -> str:
-    """sdk | embedded | unknown — the same test the other scripts use.
+    """sdk | embedded | unknown.
 
-    An SDK function is a pyproject.toml AND a function/ package; an SDK test is the
-    pyproject alone. The SDK layout ships its own function/main.py, so only a main.py at
-    the directory root means embedded.
+    Any pyproject.toml means the SDK layout, for a function and a test alike. The SDK
+    layout ships its own function/main.py, so only a main.py or fn.py at the directory
+    root means embedded.
     """
-    if (d / "pyproject.toml").is_file() and ((d / "function").is_dir() or (d / "test").is_dir()):
-        return "sdk"
     if (d / "pyproject.toml").is_file():
         return "sdk"
     if (d / "main.py").is_file() or (d / "fn.py").is_file():

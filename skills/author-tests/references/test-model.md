@@ -49,9 +49,9 @@ Ways of *structuring* tests. Each language file shows the syntax.
 
 ### Resource-focused bundle
 
-Group 3-5 related tests in one directory that share a base spec (composition/XRD path,
-timeout, validate) and vary only the XR and the expected resources: basic, feature-enabled,
-feature-disabled. Syntax: KCL spread, a Python helper, YAML `---` documents.
+One directory per composition (author-tests, Phase 2), its tests sharing a base spec
+(composition/XRD path, timeout, validate) and varying the XR and the expected resources.
+Syntax: KCL spread, a Python helper, YAML `---` documents.
 
 ### Parameterized test matrix
 
@@ -68,9 +68,8 @@ Test resource **dependencies** and **status-driven branches** without a cloud, b
 - Keep `validate: false`, as in the table above.
 - Mock only the status fields the composition reads (e.g. `status.atProvider.state: deployed`, a
   condition `type: Ready, status: "True"`, or a provider-specific contract like
-  `status.eks.clusterArn`). What a mock needs to be observed at all (the annotation, and for a
-  namespaced XR the XR's namespace), what its name does, and the condition rules:
-  `control-plane-project-charter/references/charter/evidence.md`, "Coverage".
+  `status.eks.clusterArn`). What a mock needs to be observed at all, what its name does, and the
+  condition rules: `control-plane-project-charter/references/charter/evidence.md`, "Coverage".
 
 This verifies "resource B only renders once resource A is Ready" and "the XR surfaces field X once
 the observed endpoint is known". Examples: the charter's language file for your test language (Go:

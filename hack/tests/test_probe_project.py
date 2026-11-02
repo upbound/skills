@@ -141,6 +141,16 @@ class ProbeProjectTest(unittest.TestCase):
         first = next(l for l in out if l.lstrip().startswith("from models."))
         self.assertIn("io.upbound.dev.m.widgets.widget", first)
 
+    def test_ga_version_sorts_before_a_higher_major_beta(self):
+        # Kubernetes ranks stability before major (v2, v1, v2beta1, v1beta1).
+        root = self.project("v2")
+        pkg = root / ".up" / "python" / "models" / "io" / "upbound" / "m" / "aws" / "ec2" / "vpc"
+        for version in ("v1", "v2beta1"):
+            (pkg / f"{version}.py").write_text("from pydantic import BaseModel\nclass VPC(BaseModel):\n    x: str\n")
+        out = self.probe(root, "VPC").splitlines()
+        first = next(l for l in out if l.lstrip().startswith("from models."))
+        self.assertIn("io.upbound.m.aws.ec2.vpc import v1  <- USE THIS", first)
+
     def test_missing_kind_names_the_crossplane_api_dependency(self):
         out = self.probe(self.project("v2"), "ManagedResourceActivationPolicy")
         self.assertIn("NOT FOUND", out)

@@ -75,7 +75,8 @@ container, in *every* language including Go. Nothing mounts a host path into tho
 and by default nothing forwards your shell environment into them — a composition function never
 sees your credential files, whatever the table above says about its tests.
 
-The one deliberate escape hatch is the `render.crossplane.io/runtime-docker-env` function
-annotation, set with `up test run --function-annotations render.crossplane.io/runtime-docker-env=KEY=VALUE`.
-It injects explicit `k=v` pairs and nothing else. If a function needs a value at render time,
-that is the supported route — not an env var you exported and hoped would arrive.
+Two routes in are deliberate: a test's `functionCredentialsPath`, a file of Secrets for the
+pipeline steps' `credentials`, and the `render.crossplane.io/runtime-docker-env` function
+annotation, set with `up test run --function-annotations render.crossplane.io/runtime-docker-env=KEY=VALUE`,
+which injects explicit `k=v` pairs and nothing else. If a function needs a value at render time,
+use one — not an env var you exported and hoped would arrive.

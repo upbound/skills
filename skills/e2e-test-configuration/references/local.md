@@ -9,7 +9,7 @@ runs, and may change between versions.
 - **Docker must be reachable** (`docker info` exits 0). `up` creates the cluster itself through the kind
   library; you need the `kind` CLI only to look inside or clean up.
 - **List `kind get clusters` and `docker ps -a` before the run, and keep the lists.** Anything already there
-  is not this run's, even with this project's `<project>-uptest-` name (SKILL.md, Never): report it.
+  is not this run's, even with this project's `<project>-uptest-` name (SKILL.md, Never and Phase 2): report it.
 - **Don't run `up ctx`, or check a repository, `--public` or the group.** `--local` needs no context or
   profile, and it sideloads the package instead of pushing it
   (`control-plane-project-charter/references/charter/targets.md`), so a failing `up ctx . --short` is not a
@@ -20,7 +20,7 @@ runs, and may change between versions.
   on kind. The shapes, the AWS credentials-file format and how to build it in memory are in author-tests'
   `e2e.md` reference.
 - **Why the default umask (SKILL.md Phase 2).** `up` writes the local registry's TLS certificate and key
-  (`/tmp/up-local-registry/<cluster>/.certs/`) with your umask, and the registry container runs as a
+  (`${TMPDIR:-/tmp}/up-local-registry/<cluster>/.certs/`) with your umask, and the registry container runs as a
   non-root user. Under `umask 077` it can't read them and exits; the run waits at `Waiting for package to
   be ready` until `context deadline exceeded`, about 10 min later (observed with up v0.55.0). `docker logs
   <cluster>-registry` shows `open /registry-data/.certs/tls.crt: permission denied`. To protect a credentials
@@ -56,9 +56,9 @@ inside the run idiom in SKILL.md Phase 4. Optional:
 4. Applies `initResources`, **then** installs the Configuration and waits for its packages, **then** applies
    `extraResources` (Namespace, Secret, ProviderConfig) without waiting for them.
 5. Applies the manifests and asserts `defaultConditions` within `timeoutSeconds`.
-6. **Tears down after every test that got past setup, pass or fail:** the test's resources, then the kind
+6. **Tears down after every test that got through steps 1-2, pass or fail:** the test's resources, then the kind
    cluster, the registry and its directory. `spec.skipDelete: true` or `--skip-control-plane-cleanup` skips it,
-   and so, silently, does a setup failure or a panic ([Leaks](#leaks)).
+   and so, silently, does a failure in those steps, or a panic ([Leaks](#leaks)).
 
 The first progress line is `Creating local development control plane...`.
 
@@ -98,8 +98,8 @@ fi
 
 Once the run has exited **and the [Leaks](#leaks) check is clean**, `rm -f <kubeconfig>`: the cluster it
 points at is gone, and the file is this run's leftover (charter §9). Until then keep it: a run that leaked (a
-setup failure, a panic, a killed run, `--skip-control-plane-cleanup`) left the cluster running, and cleaning it
-up needs this kubeconfig.
+failure creating it, a panic, a killed run, `--skip-control-plane-cleanup`) left the cluster running, and
+cleaning it up needs this kubeconfig.
 
 Use `kind get kubeconfig`, not a kubeconfig `up` leaves in `/tmp`: observed with up v0.55.0,
 `/tmp/up-*.kubeconfig` was empty (0 bytes), and the test's own `/tmp/<test><random>/kubeconfig.yaml` was gone by
@@ -185,13 +185,14 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
 
 ## Leaks
 
-- **A setup failure leaks the cluster, silently.** Once kind has created the cluster, any later setup failure
-  makes `up` skip teardown with no message. The failures include the UXP install (a bad
-  `--control-plane-version` or Helm value), the license, the pull secret, the registry, the image config,
-  `setupTimeoutSeconds` running out, or an interrupt during `Creating local development control plane`. The
-  kind cluster, `<cluster>-registry` and `/tmp/up-local-registry/<cluster>/` stay behind (observed with up
-  v0.55.0: `✗ Creating local development control plane`, and no `Tearing down` line). kind cleans up after a
-  failure inside its own create. An `E2ETest` without `timeoutSeconds` panics after setup (exit 2) and leaks
+- **A failure while creating the control plane leaks the cluster, silently.** Once kind has created
+  the cluster, a failure before `up` has its control plane back skips teardown with no message: the UXP
+  install (a bad `--control-plane-version` or Helm value), the license, the pull secret, the registry, the
+  image config, `setupTimeoutSeconds` running out, or an interrupt, all during `Creating local development
+  control plane`. The kind cluster, `<cluster>-registry` and `${TMPDIR:-/tmp}/up-local-registry/<cluster>/` stay
+  behind (observed with up v0.55.0: `✗ Creating local development control plane`, and no `Tearing down`
+  line). kind cleans up after a failure inside its own create. A later setup failure (sideload,
+  `initResources`, the package wait, `extraResources`) is torn down. An `E2ETest` without `timeoutSeconds` panics after setup (exit 2) and leaks
   the same way, as does a run killed by a command timeout. After any run whose log has no
   `Tearing down test control plane` line, run `kind get clusters` and `docker ps -a`.
 - **Remove only what this run created:** the cluster `kind get clusters` lists for this run, with
@@ -201,4 +202,4 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
 - **`kind delete cluster` leaves the registry container behind**
   (`control-plane-project-charter/references/charter/targets.md`). If you delete a leaked cluster by hand, check
   `docker ps -a` for this run's registry container (`upbound/olareg`) and remove it with
-  `docker rm -f -v <container>`, then `rm -rf /tmp/up-local-registry/<cluster>`.
+  `docker rm -f -v <container>`, then `rm -rf ${TMPDIR:-/tmp}/up-local-registry/<cluster>`.

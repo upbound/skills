@@ -12,9 +12,9 @@ On any target, in this order:
 2. The control plane is created, then `initResources` are applied, then the package is installed and waited for.
 3. `extraResources` are server-side applied: no wait, no condition check.
 4. The manifests are applied and `defaultConditions` asserted within `timeoutSeconds`.
-5. Teardown follows every test that got past setup, pass or fail: the test's resources, then the control
-   plane. `skipDelete: true` or `--skip-control-plane-cleanup` leaves the control plane up, and a setup failure
-   or a panic skips teardown silently (e2e-test-configuration's `local.md`, Leaks).
+5. Teardown follows every test that got its control plane, pass or fail: the test's resources, then the control
+   plane. `skipDelete: true` or `--skip-control-plane-cleanup` leaves the control plane up, and a failure while
+   creating it or a panic skips teardown silently (e2e-test-configuration's `local.md`, Leaks).
 
 `--function-logs` is rejected with `--e2e`: an e2e run writes no `render.log`, so its output and exit code are
 the only record.
@@ -127,7 +127,9 @@ its fail message: keep both in every copy, since later runs read the program, no
 
 ## Go template (`tests/e2etest-<n>/main.go`)
 
-Compiles and parses (`✓ Parsing tests`); its spec mirrors a Go E2ETest that passed on a local control plane
+With `resourcesToItems`, the helper from the composition-test template in
+`control-plane-project-charter/references/languages/go/tests.md`, it compiles and parses
+(`✓ Parsing tests`); its spec mirrors a Go E2ETest that passed on a local control plane
 with up v0.55.0, and its `ClusterProviderConfig` entry is checked by compiling and running the program only.
 Rename the placeholders; keep the shape.
 
@@ -211,9 +213,7 @@ func fail(format string, args ...any) {
 }
 ```
 
-`resourcesToItems` is the helper from the composition-test template in
-`control-plane-project-charter/references/languages/go/tests.md`. The E2E run is
-`up test run "tests/e2etest-<n>" --e2e …`; the composition gate stays `"tests/test-*"`
+The E2E run is `up test run "tests/e2etest-<n>" --e2e …`; the composition gate stays `"tests/test-*"`
 (`control-plane-project-charter/references/charter/container.md`).
 
 ## E2E RED
@@ -225,8 +225,8 @@ resource the others depend on, or break a selector. Not the only composed resour
 nothing is Ready at once (Crossplane v2.3.1). Set `timeoutSeconds` just above the green run's measured
 `chainsaw/apply` time: a shorter one fails whatever you mutated. Check the failure is the Ready assertion: the
 error line names `((conditions[?type == 'Ready'])[0])`. The diff's `status: {}` is not the real status. Make
-sure the failure isn't a credential error, then revert with git, after keeping any uncommitted work in the
-mutated file (`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout. Editing
+sure the failure isn't a credential error, then restore the mutated file from its copy, not from git
+(`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout. Editing
 `defaultConditions` or an expected value is not RED, and an unparsable condition is a broken test.
 
 ## What an E2ETest cannot assert

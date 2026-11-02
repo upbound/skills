@@ -219,15 +219,14 @@ Trimmed from `function-template-typescript`, which adds jest, eslint and prettie
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
+    "tsc": "tsc",
     "local": "node dist/main.js --insecure --debug"
   },
   "dependencies": {
     "@crossplane-org/function-sdk-typescript": "^0.7.0",
-    "commander": "^12.0.0",
-    "pino": "^10.1.0"
-  },
-  "devDependencies": {
     "@types/node": "^24.10.1",
+    "commander": "^12.0.0",
+    "pino": "^10.1.0",
     "typescript": "^5.9.3"
   }
 }
@@ -293,10 +292,11 @@ up project build                     # packages the tarballs instead of building
 up test run "tests/test-*"           # composition gate; tests/* also runs the e2e programs (charter §7)
 ```
 
-The `Dockerfile` is the template's: a `node` build stage running `npm ci` and the compile, and
-a distroless `nodejs` runtime stage named `image` with `ENTRYPOINT ["/nodejs/bin/node",
-"dist/main.js"]`. Rebuild the tarballs after every change to `src/`: `up` packages whatever is
-on disk, so a stale tarball tests old code without a warning.
+The `Dockerfile` is the template's: a `node` build stage running a production-only `npm ci`,
+then `npm run tsc` (hence that script, and the compiler in `dependencies`), and a distroless
+`nodejs` runtime stage named `image` with `ENTRYPOINT ["/nodejs/bin/node", "dist/main.js"]`.
+Rebuild the tarballs after every change to `src/`: `up` packages whatever is on disk, so a
+stale tarball tests old code without a warning.
 
 A YAML composition test for the template's versioning branch:
 
@@ -323,8 +323,9 @@ spec:
         versioningConfiguration: { status: Enabled }
 ```
 
-The rest of the suite (the versioning-off branch with a `resourceRefs` guard, the observed
-bucket driving `status.bucketArn`) is in [`go-templating.md`](go-templating.md), and
+The rest of the suite is in [`go-templating.md`](go-templating.md) (the versioning-off branch
+with a `resourceRefs` guard) and [`go/tests.md`](go/tests.md) (the observed bucket driving
+`status.bucketArn`), and
 [`yaml.md`](yaml.md) has the YAML object model.
 
 | What you see | Cause |

@@ -113,10 +113,10 @@ What it does not look at all, and why it does not try:
   * Kind stutter. `repositoryClass` is a good name and `repositoryName` is not,
     and the difference is semantic. A check that fires on both pushes someone to
     break the good one.
-  * Which fields are identity fields needing `self == oldSelf`.
+  * Which fields are identity fields needing an immutability rule.
   * Whether a `pattern` matches what the backend actually enforces.
 
-Those stay review judgements. See `charter/xrd-design.md`.
+Those stay review judgements. See `control-plane-project-charter/references/charter/xrd-design.md`.
 """
 
 from __future__ import annotations

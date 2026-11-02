@@ -131,7 +131,6 @@ convention; projects vary (one embedded project uses `exclude_unset=True` withou
 | Mistake | Fix |
 |---|---|
 | `exclude_none=True` on asserted resources (compares too much), or `exclude_unset=True` on the top-level test | asserted resources `exclude_unset=True`; top-level test `exclude_none=True` |
-| `up test generate` before `.up/python` exists: imports do not resolve | `up project build` first, so `crossplane-models` is wired into `pyproject.toml` |
 | A mutant through the model (it drops a keyword the Kind lacks: render unchanged) or a nested `resource.update` (it replaces the sibling keys: red for the wrong reason) | `d = resource.struct_to_dict(r.resource)`, change one key in `d`, `resource.update(r, d)` |
 
 ## Function unit tests

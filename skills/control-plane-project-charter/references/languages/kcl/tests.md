@@ -5,7 +5,7 @@ suite must contain is in [`charter/evidence.md`](../../charter/evidence.md#cover
 the KCL index is [`../kcl.md`](../kcl.md).
 
 A KCL test module ends with `items = [...]`: that list is what `up` reads. Defining `_items` and
-never assigning `items` produces no tests. Paths in a test (`compositionPath`, `xrdPath`,
+never assigning `items` fails `Parsing tests`. Paths in a test (`compositionPath`, `xrdPath`,
 `xrPath`) are resolved from the project root, as in every language.
 
 ## Composition test
@@ -35,7 +35,7 @@ _items = [
             assertResources: [
                 ec2v1beta1.VPC{
                     # No metadata.name while VPC appears once in the render; with several,
-                    # copy each name from render.log (charter/evidence.md).
+                    # pin each (author-tests, "Pin a kind that renders more than once").
                     spec.forProvider: {
                         region: "us-west-2"
                         tags: { Environment: "test" }
@@ -141,7 +141,7 @@ _buildTest = lambda v {
                 metadata: { name: "test-${v.name}", namespace: "default" }
                 spec: { region: "us-west-2", **v.spec }
             }
-            assertResources: []        # what this variant expects
+            assertResources: []        # fill in: an empty list asserts nothing (charter §8)
         }
     }
 }
@@ -156,7 +156,7 @@ feeding the previous resource's status in through `observedResources`. Split the
 into files of the same test directory:
 
 ```text
-tests/test-<resource>-sequence/
+tests/test-<resource>/
 ├── main.k         # the tests
 ├── resources.k    # resource1, resource2: expectations, each with its crossplane.io/composition-resource-name annotation
 ├── conditions.k   # shared condition sets
@@ -191,9 +191,8 @@ _xr = {
     spec: { region: "us-west-2" }
 }
 
-# A mock is observed only with a metadata.name and the XR's namespace; without them it is silently
-# ignored (charter/evidence.md). Any valid name works, and the render gives it to the composed
-# resource, so this case's assertions name it too.
+# What a mock needs: charter/evidence.md, Coverage. Its name becomes the composed resource's, so
+# this case's assertions name it too.
 _resource1Name = "test-<resource>-resource1"
 
 _test1 = metav1alpha1.CompositionTest {

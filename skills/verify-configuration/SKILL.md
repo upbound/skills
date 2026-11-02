@@ -145,7 +145,7 @@ what to do when deletion hangs, and what a hand-deleted cluster leaves behind:
 
 Checks for you, not a report format (report what ran, charter §4):
 - Build succeeds (exit 0, package in `_output/`).
-- All composition tests pass ("Failed tests: 0"), the run did not print `No test files found`,
+- All composition tests pass ("Failed tests: 0" and exit 0), the run did not print `No test files found`,
   and every resource the change produces is in the render and asserted.
 - E2E offered (interactive) or handled as the brief says (unattended), unless the project
   rules it out.

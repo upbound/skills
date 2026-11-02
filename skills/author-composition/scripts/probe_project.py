@@ -96,14 +96,14 @@ def print_fields(version_file: Path, kind: str) -> None:
     classes = class_fields(version_file)
     fp = classes.get("ForProvider")
     if fp is None:
-        # An XR has no ForProvider — its authored surface is Spec. Show that instead of
+        # An XR (or another non-managed Kind) has no ForProvider — show Spec instead of
         # reporting nothing, which reads as "this Kind has no fields".
         spec = classes.get("Spec")
         if spec is None:
             print(f"      (no ForProvider and no Spec class in {version_file.name} — "
                   f"read the file directly)")
             return
-        print(f"      no ForProvider (this is an XR, not a managed resource)")
+        print(f"      no ForProvider (an XR or another Kind that is not a managed resource)")
         print(f"      Spec fields ({len(spec)}):")
         for name, typ in spec:
             print(f"        {name}: {typ}")
@@ -114,7 +114,8 @@ def print_fields(version_file: Path, kind: str) -> None:
 
     # Cross-resource references, anywhere in the module (they are often nested).
     # Spec-level refs are not cross-resource references to author: providerConfigRef is
-    # API-server-defaulted (setting it is a defect), and connection-secret refs are
+    # API-server-defaulted (setting it is a defect unless the right config is not
+    # ClusterProviderConfig/default), and connection-secret refs are
     # unrelated. matchControllerRef is a selector's own knob, not a field you set.
     SKIP_CLASSES = {"Spec", "ProviderConfigRef", "WriteConnectionSecretToRef",
                     "PublishConnectionDetailsTo", "ProviderConfigRefPolicy"}
@@ -140,7 +141,7 @@ def print_fields(version_file: Path, kind: str) -> None:
     if lists:
         print()
         print("      NOTE: Upjet keeps Terraform's SINGULAR names for repeatable blocks —")
-        print(f"      these are lists despite the singular name: {', '.join(lists)}")
+        print(f"      these fields are lists, whatever their name: {', '.join(lists)}")
 
 
 
@@ -174,7 +175,7 @@ def project_xr_kinds(root: Path) -> dict[str, Path]:
 
 
 def crossplane_generation(root: Path) -> str:
-    """"v2", "v1", or "unknown" — read from the project's own XRDs.
+    """"v2", "v1", "mixed", or "unknown" — read from the project's own XRDs.
 
     This governs more of the guidance than the language does: a v1 project uses the
     non-namespaced provider models and a cluster-scoped ProviderConfig, and pointing it
@@ -207,8 +208,9 @@ def crossplane_generation(root: Path) -> str:
 def version_key(version: str) -> tuple[int, int, int]:
     """Sort key giving Kubernetes API-version precedence, newest first.
 
-    v1 > v2beta1 is wrong; the real order is by major, then stability (ga > beta > alpha),
-    then the stability revision. Returned negated so plain ascending sort puts newest first.
+    Stability first (ga > beta > alpha), then major, then the stability revision:
+    v2, v1, v2beta1, v1beta1, as apimachinery's CompareKubeAwareVersionStrings orders them.
+    Returned negated so plain ascending sort puts newest first.
     """
     m = re.fullmatch(r"v(\d+)(?:(alpha|beta)(\d+))?", version)
     if not m:
@@ -216,7 +218,7 @@ def version_key(version: str) -> tuple[int, int, int]:
     major = int(m.group(1))
     stage = {None: 2, "beta": 1, "alpha": 0}[m.group(2)]
     rev = int(m.group(3) or 0)
-    return (-major, -stage, -rev)
+    return (-stage, -major, -rev)
 
 
 def model_group(dotted: str) -> str:

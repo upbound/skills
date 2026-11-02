@@ -51,7 +51,7 @@ that and stop. If the project is partly migrated, plan only what is left and say
 yq '.metadata.name' upbound.yaml
 find apis -name definition.yaml | sort                      # XRDs
 find apis -name composition.yaml | sort                     # compositions
-ls -1d functions/*/ tests/test-*/ tests/e2etest-*/ 2>/dev/null
+find functions tests -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort
 ls -1 examples/ 2>/dev/null
 ```
 
@@ -93,14 +93,14 @@ sections apply to each.
 # XRDs: version, scope, Kind, claim and connection-secret fields
 yq '[.apiVersion, .spec.scope, .spec.names.kind, .spec.claimNames, .spec.connectionSecretKeys, .spec.defaultCompositeDeletePolicy]' apis/<path>/definition.yaml
 # Compositions
-yq '[.spec.mode, .spec.writeConnectionSecretsToNamespace, .spec.compositeTypeRef, .spec.pipeline[].functionRef.name]' apis/<path>/composition.yaml
+yq '[.spec.mode, .spec.writeConnectionSecretsToNamespace, .spec.publishConnectionDetailsWithStoreConfigRef, .spec.compositeTypeRef, .spec.pipeline[].functionRef.name]' apis/<path>/composition.yaml
 # Examples
 yq '[.kind, .metadata.namespace, .spec.compositionSelector, .spec.compositionRef, .spec.writeConnectionSecretToRef]' examples/<file>.yaml
 
 # Functions and tests: legacy provider groups and model paths, in any language
 grep -rnE '(aws|azure|gcp)\.upbound\.io|io[./]upbound[./](aws|azure|gcp)[./]|(kubernetes|helm)\.crossplane\.io|io[./]crossplane[./](kubernetes|helm)[./]' functions/ tests/
 # ... and the fields whose v2 meaning differs
-grep -rnE 'deletionPolicy|providerConfigRef|managementPolicies|[Ss]ecretRef|namespace\s*[:=]' functions/ tests/
+grep -rniE 'deletionPolicy|providerConfigRef|managementPolicies|[Ss]ecretRef|namespace\s*[:=]' functions/ tests/
 grep -rniE 'connection_?details|writeConnectionSecret' functions/ tests/
 ```
 

@@ -58,6 +58,9 @@ test_network = compositiontest.CompositionTest(
 print(yaml.dump({"items": [test_network.model_dump(by_alias=True, exclude_none=True)]}))
 ```
 
+A growing suite gets modules, not directories (author-tests, Phase 2): `test/<concern>.py`,
+imported in `__main__.py` as `from test import <concern>`.
+
 ## Composition test, embedded layout (`tests/test-<n>/main.py`)
 
 What the `up project init` templates generate: `.model.` imports, a `resources.py` beside it, and

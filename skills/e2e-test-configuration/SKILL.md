@@ -70,12 +70,12 @@ at the first failure:
 3. **Credentials.** List what the test programs read, in any language, and check each. A variable built
    from others (author-tests' `e2e.md` reference) must be exported inside the Phase 4 run block, before
    `up test run`, since one exported in an earlier command is gone: check its inputs (`AWS_*`) instead.
+   **Never echo a credential variable, in any form**; the loop prints only the names that are missing.
 
    ```bash
    grep -rhoE 'UP_[A-Z0-9_]+' tests/e2etest-*/ | sort -u
-   # then, for each - test presence with -n only, inside [ ]: an echo of $VAR, ${VAR:-x} or
-   # ${VAR:+set}${VAR:-unset} prints the value whenever it is set
-   [ -n "${UP_<NAME>:-}" ] || echo "MISSING: UP_<NAME>"
+   # list every name the run needs: the UP_* above and the inputs of a built one
+   for v in UP_<NAME> AWS_<NAME>; do [ -n "$(printenv "$v")" ] || echo "MISSING: $v"; done
    ```
 
    KCL and Python programs see only `UP_`-prefixed variables and no `~/.aws`; Go and
@@ -87,6 +87,8 @@ at the first failure:
    [space.md](references/space.md) (context, group, repository visibility). Local: run under the default
    umask (`022`), never `umask 077`; under `077` the package is never ready and the run ends in
    `context deadline exceeded` ([local.md](references/local.md#preconditions) has why and the symptom).
+5. **No control plane is named `<project>-uptest-<test>`** for a test to run (`kind get clusters`, or
+   `up ctp list --group=<group>`): `up` would reuse it and delete it at teardown. Report it instead.
 
 **If you cannot complete a precondition, stop and say so. Do not start the run.** That includes a check that
 is blocked rather than failed: a permission prompt you cannot answer, a command the sandbox refuses, a
@@ -99,14 +101,14 @@ the user explicitly asks you to.
 Read the test's own settings first:
 
 ```bash
-grep -rniE 'timeoutseconds|skipdelete' tests/e2etest-<n>/
+grep -rnwiE 'timeoutseconds|setuptimeoutseconds|cleanuptimeoutseconds|skipdelete' tests/e2etest-<n>/
 ```
 
 - **No `timeoutSeconds` in that output: don't run.** It is a broken test, not a sizing question: the run would
   panic after setup and leak its control plane (author-tests' `e2e.md` reference). Report it as a failed
   precondition.
 - **Worst case** ≈ build + `setupTimeoutSeconds` (default 600) + `timeoutSeconds` + `cleanupTimeoutSeconds`
-  (default 600). Scaffolds write `timeoutSeconds` 300 (Go) or 4500 (YAML, KCL, Python, go-templating).
+  (default 600) + 300 s teardown. Scaffolds write `timeoutSeconds` 300 (Go) or 4500 (YAML, KCL, Python, go-templating).
   Typical durations differ by target: see its reference.
 - **`skipDelete: true`** leaves the control plane and the cloud resources running. Say so before you run.
 - **Stuck threshold: `min(15 min, timeoutSeconds / 3)` with no new log output, counted from the line that
@@ -177,10 +179,10 @@ to pass: before you call an error terminal, read
 [troubleshooting.md](references/troubleshooting.md#transient-or-terminal).
 
 **Stuck** = no new log output for the threshold from Phase 3. First check the resource is not still `Creating`
-(`crossplane beta trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
+(`crossplane resource trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
 brief in [troubleshooting.md](references/troubleshooting.md): hand it to a sub-agent to keep your context
 small, or follow it yourself. The target's reference says how to reach the control plane while it exists.
-Stop the run only if the investigation finds a terminal cause; otherwise let `timeoutSeconds` end it.
+Stop the run only if the investigation finds a terminal cause; otherwise let the test's timeouts end it.
 `up: error: context deadline exceeded` is not a diagnosis; report the underlying Configuration or Provider
 condition instead.
 

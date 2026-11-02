@@ -8,8 +8,8 @@ references:
 
 # Composition Authoring
 
-Author and modify Crossplane composition functions, in any language `up function generate`
-supports, test first.
+Author and modify Crossplane composition functions, in KCL, Python, Go,
+go-templating or (by hand) TypeScript, test first.
 
 ## Before you start
 
@@ -43,7 +43,8 @@ design or gate script wins over these: say where you departed.
 3. **Test first: watch each new composition or unit test fail for the reason you intended**;
    for a new E2ETest this is optional. A syntax error, a missing path, `✗ Parsing tests`, a
    compile error or a bug in the test's own logic is a broken test, not RED. Backfill by
-   mutating the implementation, never the expected value (§3).
+   mutating the implementation, never the expected value; a surviving mutant of your change
+   is a missing test (§3).
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
@@ -54,14 +55,16 @@ design or gate script wins over these: say where you departed.
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
    zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
    render, composition test, local control plane, cloud — and never claim one you did not
-   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   reach; for each new composition or unit test, the change that turns it red. Comments and
    docs claim no more (§4, §8).
 
 ## Phase 1: Detect the language and the Crossplane generation — do not ask
 
 **Language:** detect it as charter §10 says and read the language file before writing a line;
 its layout, imports and bootstrap are wrong by default if you guess. No functions yet: take it
-from `upbound.yaml`, else an existing function, else ask — a decision, not a discoverable fact.
+from `upbound.yaml`, else an existing function, else as
+`control-plane-project-charter/references/languages/README.md` says (and when to add a step in
+another language).
 
 **Generation**, which governs more of the guidance than the language does:
 
@@ -80,16 +83,16 @@ project started as: the templates differ
 Make sure the XRD and a composition exist: the test points at them. Write the XRD yourself
 (`author-configuration-package`;
 `control-plane-project-charter/references/charter/v2-resources.md` has the v2 skeleton).
-Scaffold the composition with `up composition generate`, which emits only an auto-ready step,
-and wire your function in with `up function generate <n> <composition-path>`. Leave the
-function body empty or unchanged.
+Scaffold the composition with `up composition generate`, which does not wire in your function
+(`control-plane-project-charter/references/charter/generators.md`), and wire it in with
+`up function generate <n> <composition-path> --language <lang>` (Phase 1). Leave the function body empty or unchanged.
 
 `control-plane-project-charter` §2 has the general table. The composition-specific additions:
 
 | What you need | How to get it — no question required |
 |---|---|
 | **Models missing** (fresh clone, or only your XR's model missing) | `.up/` is gitignored. Run `up project build`. It resolves and caches the dependencies itself and writes every model, your XR's included (observed with up v0.55.0, with an empty `--cache-dir` and no `.up/`). `up dep update-cache` refreshes only the dependency models |
-| Function layout, import line, class names, field names and types | the generated models under `.up/<language>/`, read as the language file says (Go: `control-plane-project-charter/references/languages/go.md`, "Imports and models") |
+| Function layout, import line, class names, field names and types | the generated models, where and how the language file says (Go: `control-plane-project-charter/references/languages/go.md`, "Imports and models") |
 
 **Python:** before Phase 3, run what
 `control-plane-project-charter/references/languages/python.md` says with this skill's
@@ -109,7 +112,8 @@ the simplest correct behaviour, say so in your summary, and continue.
 
 1. **Layout** — match what the project already uses; never convert one to the other.
 2. **Composition keys** — they become `crossplane.io/composition-resource-name`, and
-   Crossplane derives resource names from them. A rename is a migration.
+   Crossplane derives resource names from them. A rename, like a removed resource, deletes the
+   live one: a migration.
 3. **References before status plumbing.** If resource B needs an ARN or ID from resource A,
    a `*Ref` field makes the provider resolve it, so the composition stays single-pass and
    never reads A's status.
@@ -143,8 +147,8 @@ the RED→GREEN transition, not only the final green.
 The language file has the bootstrap and the syntax. Language-independent, in order:
 
 1. Parse the observed XR with the language's required bootstrap (Python needs
-   `struct_to_dict`; skipping it fails *silently* on current Up CLI versions. Go: the generated
-   models are not `runtime.Object`s, so convert through JSON, in and out).
+   `struct_to_dict`; skipping it fails at model construction (`AttributeError: get`). Go: the
+   generated models are not `runtime.Object`s, so convert through JSON, in and out).
 2. Create managed resources per binding rule 4.
 3. Convert flexible maps to the language's plain map type before assigning them.
 4. Extract connection details by **composition key**, not by resource name.

@@ -30,7 +30,9 @@ up project run --timeout=20m     # the --timeout default is 5m, short for a firs
 **3. On a Space? Pre-flight before you spend ten minutes:**
 
 ```bash
-up repository get <repository>              # from upbound.yaml spec.repository; PUBLIC=false and no pull secret => it will wedge
+up repository get <name>     # spec.repository = xpkg.upbound.io/<org>/<name>; the profile's org must be <org>
+                             # PUBLIC=false and no pull secret => it will wedge
+                             # same for each function's <name>_<function> (charter targets.md)
 kubectl get imageconfigs.pkg.crossplane.io
 kubectl -n crossplane-system get secrets | grep -i pull
 ```
@@ -48,7 +50,8 @@ caller and stop.
 | **B. Publish the repository** | `up project run --public --timeout=20m` | **Permanently publishes their package**, and does not change a repository that already exists (`control-plane-project-charter/references/charter/targets.md`). A disclosure decision, never made on their behalf |
 | **C. Local KIND control plane** | `up project run --local --timeout=20m` | Nothing is pushed, so the pull failure cannot occur, and it still creates real cloud resources through their provider credentials. But it is not the Space they pointed you at, and Space-specific behaviour goes uncovered |
 
-**5. Run it streaming.** Let the output stream, or `tee` it to a file.
+**5. Run it streaming.** Let the output stream, or `tee` it to a file (exit code:
+`${PIPESTATUS[0]}`/`$pipestatus[1]`, charter §4).
 
 **6. If it wedges anyway**, follow the next section. Another blind attempt costs another ~10
 minutes and usually fails the same way.
