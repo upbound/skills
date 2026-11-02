@@ -1,10 +1,10 @@
 # Reading a render, and making a suite exhaustive
 
-What a clean `up project build` checks per language, how to find what a function emitted, how `assertResources` matches, the one assertion that catches a surplus resource, and what a suite must contain. [`control-plane-project-charter` §8](../../SKILL.md#8-a-green-run-is-not-evidence) states the rule.
+[`control-plane-project-charter` §8](../../SKILL.md#8-a-green-run-is-not-evidence) states the rule.
 
 ## What a clean `up project build` checks
 
-The package was assembled; a clean build never proves the function *runs*. Per language:
+Per language:
 
 - **KCL and single-file Python:** nothing is imported, type-checked or executed — a function
   with an `AttributeError` on its normal path builds cleanly.
@@ -22,8 +22,6 @@ up test run "tests/<t>" --function-logs
 # the run prints: Test artifacts written to <dir>
 grep -h "composition-resource-name:" <dir>/*/render.log | sort -u
 ```
-
-Three things about that path:
 
 - **`--function-logs` is what writes the artifacts.** `--output-dir` alone writes nothing; it
   only changes the base directory. `--function-logs` is rejected outright with `--e2e`. A
@@ -131,9 +129,8 @@ on the desired state (Go, Python).
 The usual first suite is **one** test against the shipped example XR (`xrPath` plus `xrdPath`),
 asserting **only** composed resources. Write that test yourself: `up test generate`'s stub leaves
 `xrPath` empty ([`generators.md`](generators.md)), and the inline-`xr` tests below add to it,
-they don't replace it. Alone, that suite is green over a function that crashes on a minimal XR,
-silently drops status fields, and never runs its readiness branch. "The tests pass" is not a
-verification claim until the suite covers these three shapes. Each language file shows them in its own
+they don't replace it. "The tests pass" is not a verification claim until the suite covers the
+three shapes below (charter §8). Each language file shows them in its own
 syntax (Python: `languages/python/tests.md`; Go: `languages/go/tests.md`; YAML:
 `languages/yaml.md`).
 
@@ -148,9 +145,7 @@ exception: no `CompositionTest` can assert it (author-tests, "A Fatal result").
 Besides `xr`, the test takes these inline fields, all optional: `composition` and `xrd` (inline
 instead of `*Path`), `extraResources`, `context`, and `functionCredentialsPath`.
 
-**2. One test per observed-state branch.** Code gated on observed resources or on readiness
-**never executes** when `observedResources` is empty — it is unexercised, not merely
-unasserted. Supply the observed state explicitly:
+**2. One test per observed-state branch.** Supply the observed state explicitly:
 
 - **Every observed resource needs the `crossplane.io/composition-resource-name` annotation.** It
   is the key that matches a mock to the composed resource the function stores under that name;
@@ -197,8 +192,7 @@ the provider.
 
 1. A test for the omitted case asserting the resources that *should* be there. This catches
    crashes on that branch — the common failure — and is a real regression guard.
-2. A **`resourceRefs` assertion on the composite** (above), which turns absence into a real
-   automated guard: a surplus resource fails the list comparison.
+2. A **`resourceRefs` assertion on the composite** (above).
 3. A read of `render.log` confirming the conditional resource is absent, quoted in your
    summary — that is where you get the `resourceRefs` order from anyway.
 

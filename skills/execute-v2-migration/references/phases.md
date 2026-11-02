@@ -1,13 +1,6 @@
 # Running the stages
 
-The commands for each stage, the sub-agent briefs, what to do when a step fails, and the final
-summary. What changes in each file is in the plan, which points at sections of
-`plan-v2-migration` `breaking-changes.md`; read the section before you edit.
-
 ## Stage 0: Pre-flight
-
-Find the branch first: the plan, with its ticks, may exist only on `migrate-to-v2`, so the plan
-and v1 checks have to run on that branch, not on whatever happens to be checked out.
 
 ```bash
 git status --porcelain
@@ -69,11 +62,9 @@ If an item is already in its v2 form, tick it and move on.
 
 For each function, in the plan's order:
 
-1. **Tests first.** Hand the [test brief](#test-brief) to a sub-agent. It updates the tests that
-   cover the function and runs each with `up test run "tests/<test>"`. Expect red, and read
-   why: the failure must name a v2 difference, for example an expected `ec2.aws.m.upbound.io`
-   resource the unmigrated function does not emit. A compile error or a missing name is a test
-   mistake, not RED: the sub-agent fixes the test and reruns it.
+1. **Tests first.** Hand the [test brief](#test-brief) to a sub-agent, and read why each test went
+   red: the failure must name a v2 difference, for example an expected `ec2.aws.m.upbound.io`
+   resource the unmigrated function does not emit.
 2. **Then the function.** Hand the [function brief](#function-brief) to a sub-agent. It
    migrates the function and runs the language's compile check, then
    `up test run "tests/test-*"`, until every test passes.
@@ -131,8 +122,7 @@ commands in the README; the Crossplane version and test paths in CI.
 ## Sub-agent briefs
 
 A sub-agent does not see this conversation, so each brief names the project root, the
-languages, the provider family and the files. Wait for its report. With no sub-agents, follow
-the brief yourself (`control-plane-project-charter` §1).
+languages, the provider family and the files.
 
 ### Test brief
 
@@ -155,8 +145,6 @@ test is wrong: fix it and run again.
 Report: RED as expected | FAILED; files changed; per test, the failure lines that show the v2
 difference; anything you could not update.
 ```
-
-For an E2E test, drop the run step: it runs in stage 7.
 
 ### Function brief
 
@@ -208,14 +196,11 @@ Add `with --public` only when the user chose it; without a target the E2E skill 
 
 | What | Do |
 |---|---|
-| No plan | Stop: run `plan-v2-migration` first. |
-| Branch `migrate-to-v2` exists, locally or on the remote | A previous run. Stage 0 checks it out, tracking the remote one, and resumes with `continue` (interactive: ask first). Never delete it without the user's say-so. |
 | `up project build` fails in stage 1 | Check the models for the `.m.` groups (stage 1 table), run `up dep update-cache` again and rebuild. Still no `.m.` models: remove the generated `.up/` (gitignored, the build regenerates it) and rebuild. Still failing: stop and report the dependency versions. |
 | `unknown function` in stage 6 | A rename missed a reference: check every composition's `functionRef.name` against the new directory (`control-plane-project-charter/references/charter/generators.md`). Still failing: stop and report. |
 | An edit's target is not where the plan says | Re-read the file. Already v2: tick it. Otherwise stop and report the file and item. |
 | A test sub-agent cannot get RED for the right reason | The test or the plan item is wrong: report it; do not migrate the function against it. |
 | A sub-agent reports FAILURE | One retry, with the failure in the brief (interactive: offer it). Fails again: stop and report; interactive options are retry, skip (fix later by hand), abort. |
-| Composition tests fail in stage 7 | Stop. Do not run E2E. Report the failing tests; after the fix, resume with `continue`. |
 | An E2E run looks stuck | `e2e-test-configuration` has stuck detection; check provisioning and quotas, or run the tests one at a time. |
 | A connection Secret is missing on a control plane | The resource the function reads connection details from lacks `writeConnectionSecretToRef`, or a key name differs from what the provider writes. Check both as `control-plane-project-charter/references/charter/v2-resources.md` says; the function composes the Secret, and a test asserts the reference (`breaking-changes.md`, "Connection secrets"). |
 

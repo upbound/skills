@@ -62,10 +62,9 @@ precondition that fails ends the run**; it is not a warning you carry forward. C
 at the first failure:
 
 1. **The project builds:** `up project build`.
-2. **The composition tests pass:** `up test run "tests/test-*"`. That is `test-*` by default, not `tests/*`:
-   `up test run` runs every matched dir's program, e2e ones too, even without `--e2e`, and fails at
-   `✗ Parsing tests` when an e2e input is unset. If the project's own gate runs `up test run tests/*`,
-   use it, with the e2e inputs (check 3) set for that run too, and say so in the report
+2. **The composition tests pass:** `up test run "tests/test-*"`, not `tests/*` (charter §7). If the
+   project's own gate runs `up test run tests/*`, use it, with the e2e inputs (check 3) set for that run
+   too, and say so in the report
    (`control-plane-project-charter/references/charter/container.md`).
 3. **Credentials.** List what the test programs read, in any language, and check each. A variable built
    from others (author-tests' `e2e.md` reference) must be exported inside the Phase 4 run block, before
@@ -78,8 +77,7 @@ at the first failure:
    for v in UP_<NAME> AWS_<NAME>; do [ -n "$(printenv "$v")" ] || echo "MISSING: $v"; done
    ```
 
-   KCL and Python programs see only `UP_`-prefixed variables and no `~/.aws`; Go and
-   go-templating programs run locally and can read any name, so also check a Go program's `os.Getenv` calls
+   Go and go-templating programs can read any name (charter §7), so also check a Go program's `os.Getenv` calls
    and a go-templating test's `env`/`expandenv` calls. An unset variable the program
    does not fail on becomes an empty Secret. That surfaces only when the provider rejects it, after a
    control plane and real resources exist.
@@ -92,8 +90,7 @@ at the first failure:
 
 **If you cannot complete a precondition, stop and say so. Do not start the run.** That includes a check that
 is blocked rather than failed: a permission prompt you cannot answer, a command the sandbox refuses, a
-credential you cannot read. A run with a precondition known to be unmet carries no information and is not
-free. Report which precondition you could not establish and what the user needs to do. Skip a check only if
+credential you cannot read. Report which precondition you could not establish and what the user needs to do. Skip a check only if
 the user explicitly asks you to.
 
 ## Phase 3: Size the run

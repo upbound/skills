@@ -1,7 +1,6 @@
 # Python: test templates
 
-Composition-test and E2E-test templates in Python, SDK and embedded. What a suite must contain is
-in [`tests.md`](tests.md) and [`charter/evidence.md`](../../charter/evidence.md); the Python index
+What a suite must contain is in [`tests.md`](tests.md) and [`charter/evidence.md`](../../charter/evidence.md); the Python index
 is [`../python.md`](../python.md).
 
 ## Composition test, SDK layout (`tests/test-<n>/test/__main__.py`)

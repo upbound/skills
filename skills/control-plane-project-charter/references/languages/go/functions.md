@@ -1,9 +1,6 @@
 # Go: composition functions
 
-Imports and the `go.mod` wiring are in [`../go.md`](../go.md#imports-and-models). The models are on
-disk under `.up/go/models/io/upbound/m/<provider>/<service>/<version>/<kind>.go` (no `dev.upbound.io`
-level). What a v2 managed resource needs is in
-[`control-plane-project-charter` §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs).
+Imports and the `go.mod` wiring are in [`../go.md`](../go.md#imports-and-models).
 
 The scaffold facts below were observed on `up` v0.55.0, which pins `function-sdk-go` v0.5.0; every SDK name
 was checked against that version's source. The function template passes the three tests in
@@ -21,8 +18,7 @@ was checked against that version's source. The function template passes the thre
 | `fn_test.go` | `TestRunFunction` with an **empty `cases` table** | add cases before you trust it. As generated, `go test` prints `ok` and runs nothing, the same vacuous pass as the stub test in charter §8 |
 | `go.mod` | `function-sdk-go v0.5.0`, plus the models `require` and `replace` | keep the `replace` ([`../go.md`](../go.md#gomod-the-models-replace)) |
 
-Compile with `go vet ./...` or `go build -o /dev/null ./...`, never plain `go build ./...` (Failure modes,
-below), and gitignore `functions/<n>/<n>`.
+Gitignore `functions/<n>/<n>` (Failure modes, below).
 
 ## function-sdk-go v0.5: the calls a composition needs
 
@@ -215,7 +211,7 @@ unit-test request built with `Observed` only (checked against v0.5.0).
 
 ## Unit-test template: the fast tier (`functions/<n>/fn_test.go`)
 
-`go test ./...` in `functions/<n>/` calls `RunFunction` directly: about a second, no project build. It is
+The fast tier ([`../go.md`](../go.md)) is
 also the easiest home for absence: a typed model can't carry `assertResources`' expression key
 (`charter/evidence.md`), and a Go unit test on the desired state compares a whole map. Asserting the
 exact set of resource names catches a surplus resource too.
@@ -375,9 +371,6 @@ does: it passes, and disabling the Fatal branch turns all three checks red.
 | What you do | What happens |
 |---|---|
 | `go build ./...` in `functions/<n>/` | writes `./<n>`, about 55 MB, and `git add functions/<n>` commits it |
-| Leave the scaffold `fn_test.go` as it is | `go test` prints `ok`; zero cases ran |
 | `composed.From(model)` or `resource.AsStruct(x)` with a model or an `any` | compile or vet error: `does not implement runtime.Object (missing method DeepCopyObject)` |
 | Import the non-`.m.` model in a v2 project | compiles; the rendered resource carries the cluster-scoped `apiVersion` |
-| Guess a constant such as `BucketAPIVersions3AwsMUpboundIoV1Beta1` | the spelling varies per kind (`VPCApiVersion…`, `SubnetAPIVersion…`); read the `const (` block of that kind's file |
 | Pass a model constant as a `string` | `cannot use … (constant of string type …) as string value`: the constants are typed, use `string(c)` |
-| Delete the models `replace` as unused | the first model import fails: `unrecognized import path "dev.upbound.io/models"` |

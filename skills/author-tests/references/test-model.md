@@ -1,7 +1,6 @@
 # The test model, patterns and common mistakes (language-agnostic)
 
-The object model, structuring patterns and mistakes that apply to Crossplane configuration tests in
-every language. The syntax is in the charter's language files, indexed by
+The syntax is in the charter's language files, indexed by
 `control-plane-project-charter/references/languages/README.md`; writing an `E2ETest` is
 [e2e.md](e2e.md).
 
@@ -38,9 +37,6 @@ Python and Go builders and raw YAML all render to exactly this shape.
 Fields, defaults, credentials, the ProviderConfig it creates, and what it cannot assert:
 [e2e.md](e2e.md).
 
-Managed resources in either kind follow binding rule 4; how the `.m.` group is spelled
-(import path or `apiVersion` string) is in the language file.
-
 ---
 
 ## Patterns
@@ -65,7 +61,6 @@ Test resource **dependencies** and **status-driven branches** without a cloud, b
 `observedResources` with mocked `status` into the render:
 
 - Test N asserts what renders given the observed state of prior resources.
-- Keep `validate: false`, as in the table above.
 - Mock only the status fields the composition reads (e.g. `status.atProvider.state: deployed`, a
   condition `type: Ready, status: "True"`, or a provider-specific contract like
   `status.eks.clusterArn`). What a mock needs to be observed at all, what its name does, and the
@@ -80,7 +75,7 @@ YAML: `control-plane-project-charter/references/languages/yaml.md`).
 
 ## Common mistakes
 
-Language-neutral mistakes beyond the rules in SKILL.md. KCL import-syntax and Python
+KCL import-syntax and Python
 dump-mode mistakes live in their language files.
 
 ### 1. A composed resource with no assertion at all
@@ -120,21 +115,16 @@ Verified by mutating one expected value, which fails with an exact field path an
 -  kmsKeyId: MY-OWN-DELIBERATE-MUTATION
 +  kmsKeyId: 1111-...
 ```
-Any XR whose `status` is populated from observed resources needs this — it is the only
-programmatic check on composition outputs.
 
 ### 3. Partial for objects, exact for lists — and the two fail differently
 
-Charter §8: an asserted object is partial at every depth (the surplus is never reported); an
-asserted list must match exactly, in length and order (`lengths of slices don't match`).
+Charter §8 has the rule.
 **Right:** assert a whole list, in order. An exact key set on a mapping: see
 `control-plane-project-charter/references/charter/evidence.md`.
 
 ### 4. Designing coverage without reading the XRD's defaults
 
-A test's input is not the XR you wrote but the XR **after the XRD's defaults have been
-applied**. A field you omitted to exercise the "unset" branch is not unset if the XRD gives it
-a `default`, and the branch you meant to cover never runs.
+The render applies the XRD's defaults first (charter §2).
 
 Read the XRD before choosing the shapes to test:
 

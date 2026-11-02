@@ -1,8 +1,7 @@
 # Running E2E on a local kind control plane (`--local`)
 
-Read before running `up test run --e2e --local`. [SKILL.md](../SKILL.md) has what both targets share:
-preconditions, the run idiom, stuck detection and the report. Facts below come from the up v0.55.0 source and
-runs, and may change between versions.
+Read before running `up test run --e2e --local`. [SKILL.md](../SKILL.md) has what both targets share.
+Facts below come from the up v0.55.0 source and runs, and may change between versions.
 
 ## Preconditions
 
@@ -143,9 +142,8 @@ before `EXIT=` is in the log, start it again (it prints the current state first)
 way, one watch per object.
 
 Quote it as **"read-back, not asserted"**, with its `Ready` condition: a read while `Ready` is `False` can be
-partial. It is not a provider read. If the window was missed, report "not read back" rather than re-running a
-green e2e for it or for a provider read ([SKILL.md](../SKILL.md), Never). It is report evidence, never a
-pass condition (author-tests' `e2e.md` reference).
+partial. It is not a provider read. A missed window: [SKILL.md](../SKILL.md), Never. It is report
+evidence, never a pass condition (author-tests' `e2e.md` reference).
 
 The resource tables the log prints during the assert are progress output, not a read-back: in the runs observed
 with up v0.55.0, none showed the XR `Ready` although the assert passed. Quote the assert's `PASS` line, never a
@@ -175,8 +173,7 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
   cluster was deleted with managed resources on it: their cloud resources are orphaned (what to report:
   `control-plane-project-charter/references/charter/targets.md`, Teardown and leftovers). `N` counts only
   what outlived the test's own delete step: `0 remaining` doesn't prove the cloud is clean.
-- **A provider read taken during the run**, quoted. A resource it missed is "not verified at the provider":
-  never re-run a green e2e for it.
+- **A provider read taken during the run**, quoted.
 - **Leftovers, checked in the provider's API** by the names or tags the test used, not in Kubernetes. Don't
   assume a provider CLI exists: `command -v <cli>` first, then use whatever is installed (observed: no `aws`
   CLI, but an SDK such as boto3). If neither is available, say the leftovers were not checked. A name or tag

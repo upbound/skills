@@ -1,8 +1,6 @@
 # Python: composition function patterns
 
-The function bootstrap, building a managed resource, and the Python-specific data-shape traps:
-tag maps, `resource.update()` semantics, a Fatal result, optional XRD objects, namespaces, and
-XRD schemas that generate clean models. The Python index is [`../python.md`](../python.md).
+The Python index is [`../python.md`](../python.md).
 
 ## Function bootstrap
 
@@ -72,7 +70,7 @@ resource.update(rsp.desired.resources["rg"], desired_rg)   # the key is the comp
 Two things are Python-specific:
 
 - **`ProviderConfigRef` requires `kind`** in the Pydantic model. That constrains constructing
-  one when the project asks for it; it is not a reason to construct one.
+  one when the project asks for it.
 - **A value equal to the model default does not reach the render under the pinned SDK.** Up to
   0.12.0 (`up function generate` pins 0.11.0; [`../python.md`](../python.md#set-up-the-venv-first))
   `resource.update()` dumps a model with `exclude_defaults`, so even an assigned
@@ -220,11 +218,8 @@ With a namespaced XR, Crossplane overwrites `metadata.namespace` on every compos
 (managed resources, Secrets, ConfigMaps, child XRs) with the XR's namespace, so do not set it
 ([charter §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs)). You
 need the XR's namespace only for values inside a resource's spec, such as a ProviderConfig's
-`secretRef.namespace` ([`readiness.md`](readiness.md)) or the manifest of a provider-kubernetes
-`Object`:
+`secretRef.namespace` ([`readiness.md`](readiness.md)):
 
 ```python
 parent_ns = observed_xr.metadata.namespace   # for spec values only, never for metadata.namespace
 ```
-
-A cluster-scoped XR is the exception: there, the function chooses the namespace.

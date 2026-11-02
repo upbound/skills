@@ -1,10 +1,7 @@
 # Composition patterns — what they mean
 
-The language-agnostic half of composition authoring: what each pattern is *for*, when it
-applies, and how it fails. The syntax is in the charter's language files, indexed by
+The syntax is in the charter's language files, indexed by
 `control-plane-project-charter/references/languages/README.md`, under the same pattern names.
-What a v2 managed resource needs, the container boundary, the TDD loop and what a green run
-proves are in the charter, not here.
 
 ---
 
@@ -143,10 +140,8 @@ Upjet gives some list fields misleadingly **singular** names — `attribute`,
 
 ## Namespaces, connection details, ProviderConfig readiness
 
-The rules live in the charter; the code is in the language file.
-
 - **Namespaces:** omit `metadata.namespace` on everything a namespaced XR composes, child XRs
-  and Secrets included: Crossplane overwrites it. The two exceptions are in charter §5.
+  and Secrets included (charter §5).
 - **Connection details:** a v2 XR publishes none (no `writeConnectionSecretsToNamespace`), so
   compose the Secret yourself from the observed resources' details, read by composition key.
   When they arrive, and what a render shows: charter §5 and

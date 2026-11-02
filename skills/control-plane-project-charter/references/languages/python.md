@@ -1,9 +1,5 @@
 # Python
 
-Everything Python-specific for a control-plane project: composition functions and tests. The
-language-agnostic rules are in [`control-plane-project-charter`](../../SKILL.md); this file and
-[`python/`](python/) say how Python expresses them.
-
 The helper scripts ship with the `author-composition` skill, not the project. Write their full
 path, from that skill's directory, into every command: a shell variable set in one command is
 gone by the next.
@@ -44,12 +40,6 @@ you add a function or test directory; not after `up project build` (see "Models 
 **Why, when the function never runs on your host:** the unit tests need it, and without it an
 editor underlines every correct import, inviting a "fix". A project with no venv still builds
 and goes green, so skipping it is the common mistake.
-
-| What | Runs where | Needs the venv |
-|---|---|---|
-| The function, under `up test run` / `up project build` | container | no |
-| `probe_project.py` | host | no |
-| Function unit tests, your editor's language server | host | yes |
 
 **Build it from the project's own pins, not by package name.** `pip install
 crossplane-function-sdk-python` gets the newest release, and `resource.update()` serializes
@@ -134,6 +124,3 @@ Then edit only the logic files. Two limits:
   Otherwise add `"crossplane-models @ file:./../../.up/python"` to `dependencies` yourself (the
   one edit to a generated pyproject you may need), run `up project build`, and re-run
   `setup_venv.py`. A missing line breaks imports; it does not change which builder `up` picks.
-
-The function bootstrap is in [`python/patterns.md`](python/patterns.md), the test shapes in
-[`python/test-templates.md`](python/test-templates.md).

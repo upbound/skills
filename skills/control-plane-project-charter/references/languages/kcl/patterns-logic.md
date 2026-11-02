@@ -1,7 +1,6 @@
 # KCL: conditionals, comprehensions and references
 
-Conditional resources, list comprehensions, selector references, merging, optional fields and
-multi-branch logic. Structure and the helpers (`config.metadata`, `config.sanitizeLabels`) are
+Structure and the helpers (`config.metadata`, `config.sanitizeLabels`) are
 in [`patterns.md`](patterns.md); the KCL index is [`../kcl.md`](../kcl.md).
 
 ## Conditional resources

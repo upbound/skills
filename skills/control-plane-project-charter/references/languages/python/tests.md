@@ -1,7 +1,6 @@
 # Python: tests
 
-How composition-test assertions are written and dumped in Python. What a suite must contain, and
-why, is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
+What a suite must contain, and why, is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
 this file is the Python syntax for it. Templates are in [`test-templates.md`](test-templates.md);
 the Python index is [`../python.md`](../python.md).
 

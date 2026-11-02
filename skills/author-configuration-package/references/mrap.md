@@ -1,8 +1,6 @@
 # Activating managed resources: ManagedResourceActivationPolicy (MRAP)
 
-What an MRAP manifest looks like, where it must sit, what `up project build` does and does not
-check, how to see its effect, and what `up dep add --api` writes and which tag it takes. The
-skill's MRAP line states the rule.
+The skill's MRAP line states the rule.
 
 ---
 

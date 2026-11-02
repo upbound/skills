@@ -4,8 +4,6 @@ Go templates with Sprig, used two ways in an `up` project: as **composition func
 (`function-go-templating`) and as **tests**. They share a syntax and nothing else — different inputs, different
 function sets — so do not carry idioms from one to the other unexamined.
 
-The language-agnostic rules are in [`control-plane-project-charter`](../../SKILL.md).
-
 | | |
 |---|---|
 | Scaffold a function | `up function generate <n> --language go-templating` → `functions/<n>/00-prelude.yaml.gotmpl`, `01-compose.yaml.gotmpl` |
@@ -18,8 +16,7 @@ The language-agnostic rules are in [`control-plane-project-charter`](../../SKILL
 `up` v0.55.0 builds a go-templating function on `function-go-templating-base:v0.9.0-13-gd1fa2e3`
 (its `internal/language/images.yaml`). Everything below holds in function-go-templating v0.9.0 and
 v0.13.0; the [upstream README](https://github.com/crossplane-contrib/function-go-templating#using-this-function)
-on `main` also documents newer helpers. Everything the charter says about v2 managed resources (§5)
-and test-first development (§3) applies.
+on `main` also documents newer helpers.
 
 **Layout.** `up function generate` writes `00-prelude.yaml.gotmpl` (`{{ $xr := getCompositeResource . }}`)
 and `01-compose.yaml.gotmpl`. The function reads every file in lexical order, appends `---` to each,
@@ -157,8 +154,7 @@ items:
 {{- end }}
 ```
 
-What the suite must contain beyond this — a minimal XR, one test per observed-state branch, every status field
-asserted on the composite — is in
+What else the suite must contain:
 [`charter/evidence.md` § Coverage](../charter/evidence.md#coverage-what-the-suite-must-contain).
 Observed-state tests add `observedResources` to a case exactly as in [`yaml.md`](yaml.md).
 
@@ -168,7 +164,6 @@ Observed-state tests add `observedResources` to a case exactly as in [`yaml.md`]
 |---|---|
 | Misspell a case key (`$case.versionin`) | **silently renders `<no value>`** into the manifest. In the reproduction the XR got `versioning: <no value>`, the function read it as false, and the test passed for the wrong reason. Guard keys with `hasKey` + `fail` as above, and never let `<no value>` reach a manifest |
 | Template syntax error / unknown function | the **whole run** fails at generation (`failed to parse templates`) |
-| A non-template file in the test directory | nothing runs: `No test files found`, exit 0 |
 | Expectation with the wrong shape (a list where the API has an object) | **passes** if the function writes the same wrong shape: assertions compare test against render, never against the CRD. Check field shapes in the provider's CRD (or the generated models) before writing them into a template |
 | Expectation indented one level off | the assertion silently moves to another field or object; read the rendered manifest back if a test passes that should not |
 

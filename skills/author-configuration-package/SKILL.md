@@ -197,10 +197,8 @@ that ships.
 `control-plane-project-charter/references/charter/xrd-design.md` has the rules. Run the
 mechanical ones before the first build with the script in this skill's directory
 (`<author-configuration-package>` below is a placeholder for the absolute path of the directory
-containing this SKILL.md; it is not a project path). Invoke it by its
-path in the skill directory, with the project root as the working directory: don't copy it into
-the project, and don't write a test program for the XRD; prove its CEL rules on an API server
-(charter §3).
+containing this SKILL.md; it is not a project path). Invoke it with the project root as the
+working directory (charter §3).
 
 ```bash
 python3 <author-configuration-package>/scripts/check_xrd_schema.py \
