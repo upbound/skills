@@ -17,24 +17,30 @@ the workflow and the report shapes; how to reach the control plane while it exis
 
 Known transient:
 
-- `failed to get restmapping: no matches for kind` early in a run (provider CRDs not installed yet).
+- `failed to get restmapping: no matches for kind` for a provider kind early in a run (its CRDs not installed yet).
 - `unexpected status code 429` (or 502/503) from `xpkg.upbound.io` at `Checking dependencies` or during
   control-plane creation: a registry rate limit. Retry with backoff rather than diagnosing it; a failure
   during control-plane creation can leave the control plane behind, so check for leftovers before the retry
   (the target's reference).
-- XR `Responsive` `False`, `WatchCircuitOpen`: a watch circuit breaker that closes again (after 5 min by
-  default); `Ready` is unaffected (Crossplane v2.1+ `internal/circuit/token_bucket.go`).
 
 Target-specific ones are in the target's reference.
 
+**Not transient:** XR `Responsive` `False`, `WatchCircuitOpen` ("Too many watch events from <Kind>/<name>").
+It does not block `Ready`, so a green E2E hides it. Something keeps rewriting the named object, most often the
+function and the provider writing the same field (`author-composition/references/patterns.md`, "Pattern:
+references beat status plumbing"). Report it.
+
+**Not transient:** `no matches for kind` for the project's own XR until the apply times out: its CRD was never
+created, and `kubectl describe xrd <name>` says why (`control-plane-project-charter/references/charter/xrd-design.md`).
+
 ## Resources under test
 
-Kinds, names and namespaces of the test's manifests, for `crossplane beta trace` and the brief below. Match
+Kinds, names and namespaces of the test's manifests, for `crossplane resource trace` and the brief below. Match
 the test directory's language. Select only `spec.manifests`: `extraResources` carry the credential, and it must
 not land in your output.
 
 ```bash
-# Go (tests/<n>/go.mod): the program prints the test YAML; it needs the UP_* inputs set
+# Go (tests/<n>/go.mod): the program prints the test YAML; set each UP_* input to a dummy value
 (cd tests/<n> && go run .) | yq -o json '.items[].spec.manifests'
 
 # KCL (tests/<n>/*.k)
@@ -48,7 +54,7 @@ kcl tests/<n>/ | yq -o json '.items[].spec.manifests'
 # flag that prints the generated test. Read kinds and names from the template.
 
 # YAML (tests/<n>/*.yaml)
-yq -o json '.items[].spec.manifests' tests/<n>/*.yaml
+yq -o json '.spec.manifests' tests/<n>/*.yaml
 ```
 
 Then:
@@ -88,7 +94,7 @@ Steps:
 3. Resource status:
    kubectl get <kind> <name> -n <namespace> -o yaml --kubeconfig <path>
    kubectl get managed -o wide --kubeconfig <path>
-   KUBECONFIG=<path> crossplane beta trace <kind> <name> -n <namespace> -o wide
+   KUBECONFIG=<path> crossplane resource trace <kind> <name> -n <namespace> -o wide   # before v2.3: beta trace
 
 4. Events:
    kubectl get events -n <namespace> --sort-by='.lastTimestamp' --kubeconfig <path> | tail -50
@@ -123,10 +129,10 @@ Hand the sub-agent the table below with the brief. Its report decides what happe
   plane") says, before you report.
 - **Anything else**, including no cause found: keep waiting. The test's own `timeoutSeconds` ends a test that
   is running; a run still in setup (such as `Waiting for package to be ready`, below) is ended by
-  `setupTimeoutSeconds` instead, and a setup failure skips up's teardown without a message. So once the run
-  has exited, check its log for the `Tearing down test control plane` line before you report. Without it, find
-  what the run left behind ([local.md](local.md) Leaks; on a Space, `up controlplane list`) and clean it up as
-  `targets.md` says, then report the outcome with the analysis.
+  `setupTimeoutSeconds` instead. Once the run has exited, check its log for the `Tearing down test control
+  plane` line before you report. Without it, find what the run left behind ([local.md](local.md) Leaks; on
+  a Space, `up controlplane list`) and clean it up as `targets.md` says, then report the outcome with the
+  analysis.
 
 ## Failure patterns
 

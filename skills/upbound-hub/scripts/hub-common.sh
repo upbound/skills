@@ -150,19 +150,14 @@ EOF
 # than a walk of every group at every version.
 # ---------------------------------------------------------------------------
 
-HUB_APIS_DOC=""       # cached /apis
 HUB_GV_PROBES=""      # cached "group/version<TAB>resource resource ..." lines
 
-# Cached GET of /apis. One space means "tried and failed", so an unreachable Hub
-# is not re-requested on every lookup.
+# GET of /apis. Fails when the Hub is unreachable or returns nothing.
 hub_apis_doc() {
-  local dir="$1"
-  if [ -z "$HUB_APIS_DOC" ]; then
-    HUB_APIS_DOC="$("$dir/hub-curl" /apis 2>/dev/null)" || HUB_APIS_DOC=" "
-    [ -n "$HUB_APIS_DOC" ] || HUB_APIS_DOC=" "
-  fi
-  case "$HUB_APIS_DOC" in " ") return 1 ;; esac
-  printf '%s' "$HUB_APIS_DOC"
+  local doc
+  doc="$("$1/hub-curl" /apis 2>/dev/null)" || return 1
+  [ -n "$doc" ] || return 1
+  printf '%s' "$doc"
 }
 
 # Does <group>/<version> serve <resource>? Cached per group/version.
@@ -200,8 +195,9 @@ hub_pin_fallback() {
 #
 # Prints "group version". Probes the pinned group/version first, then the rest of
 # the pinned group's versions, then every other *.hub.upbound.io group. Falls
-# back to the pin unchanged when discovery fails, so the caller's request returns
-# the real error rather than one about /apis.
+# back to the pinned group when discovery fails (its version negotiated by
+# hub_pin_fallback when /apis is readable), so the caller's request returns the
+# real error rather than one about /apis.
 hub_resolve_gv() {
   local dir="$1" resource="$2" pin_group="${3:-}" pin_version="${4:-}"
   local apis groups group versions version

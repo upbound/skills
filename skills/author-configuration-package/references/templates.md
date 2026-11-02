@@ -81,6 +81,7 @@ Thumbs.db
 
 # Dependency cache
 .cache/
+.venv/
 ```
 
 ### Example XRs
@@ -182,8 +183,8 @@ conflicts with a draft value, normalize the value or relax the constraint, or as
 
 | Symptom | Check |
 |---|---|
-| `.up/<language>/` has no `.m.` models after the first build | the provider is v1.x (the `.m.` groups ship from v2.0.0); the package name is wrong |
-| `up function generate` errors about missing models | the first build did not run or failed: build, check `.up/<language>/`, then generate |
+| The model tree (SKILL.md Phase 6) has no `.m.` models after the first build | the provider is v1.x (the `.m.` groups ship from v2.0.0); the package name is wrong |
+| `up function generate` errors about missing models | the first build did not run or failed: build, check the model tree, then generate |
 | the first build fails | `upbound.yaml` syntax, provider versions, then the XRD's syntax |
 | the final build fails | the function's own sources (Go compiles here; KCL and Python are not type-checked, charter §8), its module or dependency file, and the composition's pipeline |
 | the XR never reaches Ready | `crossplane-contrib-function-auto-ready` is not the last step in the pipeline: move your function's step before it |

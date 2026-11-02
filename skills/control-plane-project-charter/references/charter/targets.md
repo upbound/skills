@@ -21,7 +21,8 @@ The context decides, not a flag (`internal/ctp`, `EnsureDevControlPlane`):
 3. Otherwise → local KIND, without saying so.
 
 `--control-plane-group` does not select a Space: from a context outside any Space, a run passing it
-still goes local. The first progress line names the result:
+still goes local. The first progress line names the result (a reused Space control plane
+prints neither):
 
 ```text
 Creating local development control plane...          <- local KIND
@@ -77,11 +78,11 @@ specified in the current context") omits the last two steps.
 
 ## `--kubeconfig` is an input
 
-`--kubeconfig` (a global flag, "Override default kubeconfig path") names a file `up` **reads** and
-never writes. A missing file is rejected at parse time. A file that exists but does not parse
-resolves no Space, so the run silently goes local (*observed*: a leftover file holding an error string
-turned a Space run into a local one). Write it fresh in this run and check it parses before passing
-it:
+`--kubeconfig` ("Override default kubeconfig path") names a file `up` **reads** (`up project run`
+also writes it, below). A missing file is rejected at parse time. A file that exists but does not
+parse resolves no Space, so the run silently goes local (*observed*: a leftover file holding an
+error string turned a Space run into a local one). Write it fresh in this run and check it parses
+before passing it:
 
 ```bash
 KCFG=$(mktemp -t kubeconfig.XXXXXX)
@@ -93,20 +94,21 @@ echo "kubeconfig: $KCFG"   # pass this path as a value: the variable is gone by 
 Once the run has exited and you are done reading through it, `rm -f <kubeconfig>`: it is this run's
 leftover too ([§9](../../SKILL.md#9-never-create-infrastructure-as-a-side-effect)).
 
-`up project run` also **rewrites** the current kubeconfig context to the dev control plane it
-created, unless `--no-update-kubeconfig`. After a failed run it can point at a different control
-plane than the one you are diagnosing (*observed*): run `up ctx .` before believing `kubectl`.
+`up project run` also **rewrites** the kubeconfig's current context (the `--kubeconfig` file, if
+given) to the dev control plane it created, unless `--no-update-kubeconfig`. After a failed run it
+can point at a different control plane than the one you are diagnosing (*observed*): run `up ctx .`
+before believing `kubectl`.
 
 ## Repository visibility and `--public`
 
 On a Space, the run pushes the configuration package to `spec.repository` (or `--repository`), and
-each embedded function to its own repository beside it. `up` creates a repository only when **all**
-of these hold: it does not exist yet, it is on the Upbound registry, and the login is not a robot
-token. A repository it creates is **private** unless `--public` is passed. It never changes an
-existing repository.
+each embedded function to its own repository, `<repository>_<function>`, which the install must pull
+too. `up` creates a repository only when **all** of these hold: it does not exist yet, it is on the
+Upbound registry, and the login is not a robot token. A repository it creates is **private** unless
+`--public` is passed. It never changes an existing repository.
 
 `--public` ("Create new repositories with public visibility") is accepted by `up test run`,
-`up project push`, `up project run` and `up project simulate create`.
+`up project push`, `up project run`, `up project simulate` and `up project simulation create`.
 
 | Repository | Without `--public` | With `--public` |
 |---|---|---|
@@ -165,10 +167,10 @@ and so cannot hit that row — but is not the Space they chose, and has its own 
 
 ## Teardown and leftovers
 
-- **E2E** tears its control plane down after every test that got past setup, pass or fail, unless
-  `spec.skipDelete: true` or `--skip-control-plane-cleanup`. On `--local`, a setup failure after kind
-  has created the cluster, or a panic (an `E2ETest` without `timeoutSeconds`), skips teardown
-  silently. The cluster, its registry container and its registry directory stay behind (observed
+- **E2E** tears its control plane down after every test that got one, pass or fail, unless
+  `spec.skipDelete: true` or `--skip-control-plane-cleanup`. A failure while creating the control
+  plane (on `--local`, once kind has created the cluster), or a panic (an `E2ETest` without
+  `timeoutSeconds`), skips teardown silently. A local run's cluster, registry container and registry directory stay behind (observed
   with up v0.55.0; e2e-test-configuration's `local.md`, Leaks). kind cleans up after a failure
   inside its own create.
 - **`up project run`** leaves its control plane running. `up project stop` from the project root
@@ -176,7 +178,8 @@ and so cannot hit that row — but is not the Space they chose, and has its own 
   It finds the control plane the same way a run does, so pass `--local` when the context is a Space;
   it asks for confirmation unless `--force`. It deletes nothing on the control plane first (below).
 - **`kind delete cluster --name up-<project>` leaves `up-<project>-registry` running** (*observed*).
-  Remove it with `docker rm -f -v up-<project>-registry`.
+  Remove it with `docker rm -f -v up-<project>-registry`, then
+  `rm -rf ${TMPDIR:-/tmp}/up-local-registry/up-<project>`.
 
 ### Delete the XRs, and wait, before the control plane
 

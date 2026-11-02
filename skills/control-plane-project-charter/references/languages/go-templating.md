@@ -37,6 +37,7 @@ something is observed, `.observed.resources` is nil.
 | read a field that may be missing | `{{ if $vpc.status.atProvider.id }}` | a missing key chains to no value without an error: falsy in `if`, `<no value>` when printed, nothing through `quote` (a YAML `null`). `index` on an absent map errors: test the map first |
 | compose a resource | `{{ setResourceNameAnnotation "vpc" }}` as a line under `metadata.annotations` | prints `gotemplating.fn.crossplane.io/composition-resource-name: vpc`; the function strips it and uses the value as the composition resource name. Any other document without it (not the XR, not a `meta.gotemplating…` kind) is a Fatal: `"<Kind>" template is missing required … annotation` |
 | write XR status | a document with the XR's `apiVersion` and `kind`, a `status:`, and no resource-name annotation | merged into the desired XR's status; several such documents merge rather than replace. With the annotation it is composed as a resource instead |
+| set an XR condition | a `meta.gotemplating.fn.crossplane.io/v1alpha1` `ClaimConditions` document, `conditions: [{type, status: "True", reason, message, target: Composite}]` | not a status document ([why](../charter/v2-resources.md#what-the-function-returns-for-the-xr)). `Ready`, `Synced`, `Healthy`, `UpToDate` are reserved: a Fatal |
 | return a Fatal result | `{{ fail "message" }}` | any execution error returns Fatal `cannot execute template: …` before one document is decoded, so nothing the template printed is composed, wherever the `fail` sits |
 | mark readiness | nothing: function-auto-ready decides. For what it cannot judge, `gotemplating.fn.crossplane.io/ready: "True"` | annotation values must be strings: an unquoted `True` is a Fatal `invalid annotations` |
 | pass data to a later step | a document `apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1`, `kind: Context`, `data:` | pipeline context, not XR status |
@@ -67,6 +68,10 @@ Verified against `up` v0.55.0:
   next to the template and `up test run` stops with `No test files found`.
 - All files in the directory are concatenated (lexical order, `---` between them) and rendered **once** with Go
   `text/template` plus [Sprig](https://masterminds.github.io/sprig/) — in-process, on your machine.
+- **Only the first YAML document is read**, so a later file's own `items:` is silently dropped. To
+  split a suite: shared `define`s in `00-helpers.yaml.gotmpl`, each concern's cases in a `define`
+  in `10-<concern>.yaml.gotmpl`, and `items:` once, in `01-items.yaml.gotmpl`, calling each with
+  `template` (up v0.55.1).
 - **There is no input**: `.` is nil. The function-side helpers (`getCompositeResource` and friends) do not exist
   here, and neither do Helm's (`required`, `toYaml`, `include`): calling one fails with `function "…" not
   defined`. Sprig's `fail`, `hasKey`, `dict`, `list`, `toJson` are what you have.
@@ -75,10 +80,6 @@ Verified against `up` v0.55.0:
   it from the project root after the template has rendered (up v0.55.0 source), as for every test language.
 - The output must be `items:` with a list of `CompositionTest` objects — the same object model as YAML tests
   ([`yaml.md`](yaml.md)).
-
-Over plain YAML, templating buys a **test matrix**: one test body, ranged over a list of cases, with per-case
-conditional expectations. If a test has no matrix, plain YAML is clearer — but match the language the project's
-other tests use.
 
 ### Composition test template (`tests/test-<n>/test.yaml.gotmpl`)
 

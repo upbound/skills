@@ -35,8 +35,8 @@ check first:
 scripts/hub-curl /apis | jq -r '.groups[].name'
 ```
 
-Within a group, v1beta1 is served everywhere; the v1alpha1 `Resource` and
-`ResourceStats` types are deprecated.
+Within a group, v1beta1 is served everywhere except `catalog.hub.upbound.io`
+(v1alpha1 on 1.0.x); the v1alpha1 `Resource` and `ResourceStats` types are deprecated.
 
 ## Setup
 
@@ -116,7 +116,7 @@ Prefer these over hand-rolled curl. They handle auth, pagination, and the quirks
 
 **Reporting health against the wrong denominator.** Most records carry no conditions at
 all, and `Unknown` is not the same as failing. Give three numbers: assessable, explicitly
-failing, and not reporting. Never divide by the total.
+failing, and Unknown or not reporting. Never divide by the total.
 
 **Reading through kubectl.** Hub implements no `limit`/`continue`, so `hub-kubectl get` on
 a collection silently returns one page as if it were the whole list. Read with

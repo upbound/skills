@@ -34,7 +34,7 @@ references:
 ---
 # Development Charter
 
-**Every skill in this plugin follows this charter:** how to behave as an agent, how to
+**Every control-plane-project skill follows this charter:** how to behave as an agent, how to
 develop, what Crossplane v2 requires, and how to report what you did.
 
 **It does not replace the task skill.** Before you write or review, load what your row
@@ -118,6 +118,9 @@ Scaffolding, `upbound.yaml` metadata, dependencies, the XRD, an MRAP and the exa
 declarative: `up project build`, `author-configuration-package/scripts/check_xrd_schema.py` (in
 that skill's directory, not a project path) and the composition tests that use them check
 those. Write no test program for them, and don't copy a skill's script into the project.
+Except the XRD's CEL rules: only an API server compiles and runs them, so prove each on one
+in the change that writes it
+([`charter/xrd-design.md`](references/charter/xrd-design.md#prove-the-schema-on-a-control-plane)).
 
 **Why:** watching a test fail first makes a coverage claim checkable.
 
@@ -162,13 +165,17 @@ those. Write no test program for them, and don't copy a skill's script into the 
 **Use distinguishing inputs.** Every value the function passes through gets, in at least one
 test, an input that is neither its default nor shared with a sibling field, or a hard-coded
 constant stays green (author-tests Phase 3). For a pass-through field, expected == input is
-correct; prove it by hard-coding the field in the function and seeing a test go red, never by
-editing the expectation.
+correct.
+
+**A test must be able to fail, and a surviving mutant of the change's behaviour is a defect
+fixed in the same change.** Prove a test you did not watch fail by mutating the
+implementation, never its expected value. An assertion that can't fail, or a mutant (a dropped
+field, a hard-coded pass-through, a skipped branch) that leaves the suite green, needs its
+killing test now, not a gap in the report. Only what no render or unit test reaches (XRD
+`required`, enums, provider behaviour) is reported uncovered (§4).
 
 **Detail:** [`charter/tdd.md`](references/charter/tdd.md) has the two-tier inner loop (every
-`up test run` pays a full build, so use a fast tier for crashes), and how to backfill tests for
-code that already works by proving each one can fail: mutate the implementation, never the
-test's expected value.
+`up test run` pays a full build, so use a fast tier for crashes) and the mutation procedure.
 
 ## 4. Report the effect, not the intent
 
@@ -220,7 +227,7 @@ Compositions target the `.m.` provider API groups (`.m.` means *modern*, not "na
 
 | Aspect | Use this | Not this |
 |---|---|---|
-| Managed resource `apiVersion` | `<service>.<cloud>.m.upbound.io/v1beta1` (Upbound providers) or `<...>.m.crossplane.io/v1beta1` (community) | the same group without `.m.` |
+| Managed resource `apiVersion` | `<service>.<cloud>.m.upbound.io/v1beta1` (Upbound providers) or `<...>.m.crossplane.io/<its CRD's version>` (community) | the same group without `.m.` |
 | A new XRD | `apiextensions.crossplane.io/v2` + `scope: Namespaced`; Kind without an `X` prefix, no `claimNames` | `v1`, cluster-scoped, `claimNames` |
 | **Composition** | **stays `apiextensions.crossplane.io/v1`** | there is no `v2` Composition — do not bump it |
 
@@ -237,7 +244,7 @@ resource.
 | `providerConfigRef` | Omit it if and only if `ClusterProviderConfig/default` exists and is the right one | The CRD defaults it to `ClusterProviderConfig/default` |
 | `metadata.name` | Only for a stable external name | Otherwise generated: deterministic in a render (safe to assert), not across re-creations |
 | `crossplane.io/composition-resource-name` | Never by hand | It comes from the key you store the resource under |
-| `writeConnectionSecretToRef` | **Yes, on every resource whose connection details the function reads** | Crossplane hands a composed resource's connection details to the function only from the Secret this names. Without it they arrive empty, and no render shows the difference |
+| `writeConnectionSecretToRef` | **Yes, on every resource whose connection details the function reads** | Crossplane hands a composed resource's connection details to the function only from the Secret this names. Without it they arrive empty (Detail below) |
 
 **Never let a missing connection detail fall back to a value.** They are empty until the
 provider has written that Secret, and always empty without the reference above, so a default
@@ -332,10 +339,9 @@ fields.
 **Observed-state branches are reachable, and you are expected to reach them.** A render starts
 with no observed resources *unless the test supplies `spec.observedResources`*. So code gated
 on observed-and-ready is dead in a test that omits that field and live in one that sets it —
-write the second test rather than declaring the branch untestable. A mock is matched by its
-composition-resource-name annotation, and for a namespaced XR needs the XR's namespace: without
-it the mock is silently ignored. Its own name replaces the generated one
-([`charter/evidence.md`](references/charter/evidence.md), Coverage). Such a test proves your
+write the second test rather than declaring the branch untestable. What a mock needs to be
+observed at all, and to tell a kept resource from a fresh one:
+[`charter/evidence.md`](references/charter/evidence.md), Coverage. Such a test proves your
 branch logic given the status you wrote, not that a provider ever reports that status. For
 that, `--e2e` or a live apply — or say it is unverified.
 

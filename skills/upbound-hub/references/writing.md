@@ -4,7 +4,7 @@ Use `scripts/hub-kubectl`, which points kubectl at Hub through a temporary
 kubeconfig.
 
 ```bash
-scripts/hub-kubectl get controlplanes -A
+scripts/hub-kubectl get controlplane <name> -n <realm>
 scripts/hub-kubectl replace -f controlplane.yaml -n <realm>
 ```
 
@@ -121,7 +121,8 @@ So: list the dependent control planes first, tell the user exactly what will be
 removed, and get explicit agreement. Do not present it as a way to rename a realm.
 
 ```bash
-scripts/hub-kubectl get controlplanes -n <realm>
+scripts/hub-list controlplanes 100 \
+  | jq -r '.[] | select(.metadata.namespace == "<realm>") | .metadata.name'
 ```
 
 ## Registration tokens
@@ -130,18 +131,18 @@ A subresource POST. The body must carry full TypeMeta matching the parent kind
 even though it is otherwise ignored, and `-f /dev/null` therefore fails:
 
 ```bash
-# apiVersion is fleet.hub.upbound.io/v1beta1 on Hub 1.1.0
+# fleet.hub.upbound.io/v1beta1 on Hub 1.1.0, in the body and the URL alike
 printf '%s' '{"apiVersion":"hub.upbound.io/v1beta1","kind":"ControlPlane",
   "metadata":{"name":"<name>","namespace":"<realm>"}}' \
 | scripts/hub-kubectl create --raw \
-    "/apis/fleet.hub.upbound.io/v1beta1/namespaces/<realm>/controlplanes/<name>/registrationtoken" \
+    "/apis/hub.upbound.io/v1beta1/namespaces/<realm>/controlplanes/<name>/registrationtoken" \
     -f - \
-| jq -r '.status.registrationToken'
+| (umask 077; jq -r '.status.registrationToken' > "<file the user named>")
 ```
 
 The response is a full ControlPlane with the credential at
 `.status.registrationToken`. `create --raw` prints the whole object to stdout, so
-extract the field or redirect to a `umask 077` file. **Do not echo it into a
+extract the field into a `umask 077` file, as above. **Do not echo it into a
 transcript, a log, or a file the user did not ask for.**
 
 ## Do not write here

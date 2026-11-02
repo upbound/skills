@@ -53,7 +53,7 @@ _generateSubnets = lambda config: {str: any} -> [any] {
 ```
 
 The labels are what a sibling selects on (below). Keep the index stable: it is part of the
-composition resource name, so reordering the input list renames, and orphans, live resources.
+composition resource name, so reordering the input list renames, and so deletes, live resources.
 
 ## References between composed resources
 

@@ -74,9 +74,9 @@ stop and report the file.
 Tests lead. A migration starts from working code, so there is no natural RED. For each
 function, update its tests to v2 and watch them fail against the unmigrated function — for the
 v2 reason, not a compile error — then migrate the function until they pass: the loop in
-`control-plane-project-charter` §3. A plan item no updated test turned red is proven by mutation
-(`control-plane-project-charter/references/charter/tdd.md`) or reported as uncovered. Procedure and
-briefs: [phases.md](references/phases.md#stage-5-tests-then-functions).
+`control-plane-project-charter` §3. A plan item no updated test turned red gets a test proven by
+mutation (`control-plane-project-charter/references/charter/tdd.md`); only what no render
+reaches is reported uncovered (§3). Procedure and briefs: [phases.md](references/phases.md#stage-5-tests-then-functions).
 
 **Checkpoints:** after the tests, `up test run "tests/<test>"` fails on a v2 difference; after
 the function, the language's compile check (KCL `kcl lint`, Python `ast` parse, Go `go vet`), then
@@ -86,8 +86,9 @@ brief (interactive: offer it), then stop and report.
 ## Stage 6: Renames
 
 Only the renames the plan lists, which follow a deliberate Kind rename; `git mv`, then
-`functionRef.name` and `step`. **Checkpoint:** `up project build` succeeds. Otherwise stop and
-report.
+`functionRef.name`. **Checkpoint:** `up test run "tests/test-*"` passes (`up project build` does
+not check `functionRef`; a render fails on a stale one with `unknown function`). Otherwise stop
+and report.
 
 ## Stage 7: Verification
 

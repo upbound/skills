@@ -44,7 +44,8 @@ design or gate script wins over these: say where you departed.
 3. **Test first: watch each new composition or unit test fail for the reason you intended**;
    for a new E2ETest this is optional. A syntax error, a missing path, `✗ Parsing tests`, a
    compile error or a bug in the test's own logic is a broken test, not RED. Backfill by
-   mutating the implementation, never the expected value (§3).
+   mutating the implementation, never the expected value; a surviving mutant of your change
+   is a missing test (§3).
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
@@ -55,7 +56,7 @@ design or gate script wins over these: say where you departed.
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
    zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
    render, composition test, local control plane, cloud — and never claim one you did not
-   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   reach; for each new composition or unit test, the change that turns it red. Comments and
    docs claim no more (§4, §8).
 
 ## Phase 1: Detect the test language — do this first
@@ -70,8 +71,8 @@ writing a test: it carries the templates and the silent failure modes.
    (`apis/*/definition.yaml`, `apis/*/composition.yaml`, the function source, the example XRs
    in `examples/*/*.yaml`) — do not ask. **Modifying a test:** read it, match its language and
    style, and understand its current assertions before you change them.
-2. **Checking what is not a render.** `up test run` evaluates `CompositionTest` and `E2ETest`
-   objects and nothing else. For the declarative files — dependencies in `upbound.yaml`, the
+2. **Checking what is not a render.** `up test run` evaluates `CompositionTest`, `OperationTest`
+   and `E2ETest` objects and nothing else. For the declarative files — dependencies in `upbound.yaml`, the
    XRD, `examples/`, a `ManagedResourceActivationPolicy` — sort what can be checked:
 
    - **What a render reaches, cover with a render.** XRD defaults reach the render through
@@ -97,6 +98,7 @@ writing a test: it carries the templates and the silent failure modes.
      stays uncovered unless the project's gate checks it (charter §4: say what you did not
      verify). Through `xrdPath` the render defaults the XR; it does not reject one that breaks
      `required`, an enum or the status schema, so an XRD mutation there stays green (up v0.55.0).
+     Nor does it compile CEL: prove the XRD's rules on an API server (charter §3).
 
 3. **Organise:**
 
@@ -105,14 +107,15 @@ writing a test: it carries the templates and the silent failure modes.
    | Composition | `test-` | ≥60s | `false` (scaffold default) | local render, no cloud |
    | E2E | `e2etest-` | sized to what you provision ([e2e.md](references/e2e.md)) | n/a | real cloud lifecycle |
 
-   Consolidate in one directory: the same resource type in different configs, feature on/off
-   variants, 3–5 related scenarios. Separate directories: different resource types, complex
-   sequential dependencies, and every E2E test. `up test run` runs every matched dir's program,
-   so the composition gate is `up test run "tests/test-*"` (charter §7).
+   **One composition-test directory per composition**, every resource type and sequence
+   included, split into files as it grows (the language file shows how). A new directory only
+   for another composition, another test language or an E2E test: directories share no code,
+   so copied helpers drift. `up test run` runs every matched dir's program, so the composition
+   gate is `up test run "tests/test-*"` (charter §7).
 
 4. **Scaffold with `up test generate <name> [--e2e] --language <lang>`** (`kcl`, `python`,
-   `yaml`, `go`, `go-templating`); never create a test directory by hand. Pass the bare name:
-   the CLI prepends `test-`/`e2etest-`. Then write the test
+   `yaml`, `go`, `go-templating`); never create a test directory by hand (embedded Python: copy
+   an existing one). Pass the bare name: the CLI prepends `test-`/`e2etest-`. Then write the test
    from the template in the language file. Python: run `setup_venv.py` again after generating
    each test directory (`control-plane-project-charter/references/languages/python.md`).
 

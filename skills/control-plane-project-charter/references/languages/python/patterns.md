@@ -149,6 +149,10 @@ resource already written drops the labels the model set. Put annotations on the 
 `r.resource.get_or_create_struct("metadata").get_or_create_struct("annotations")[key] = value`
 (a `Struct` has no `setdefault`).
 
+A custom XR condition goes in the response
+([why](../../charter/v2-resources.md#what-the-function-returns-for-the-xr)):
+`rsp.conditions.append(fnv1.Condition(type="BucketReady", status=fnv1.STATUS_CONDITION_TRUE, reason="Available", target=fnv1.TARGET_COMPOSITE))`.
+
 ## A Fatal result
 
 ```python

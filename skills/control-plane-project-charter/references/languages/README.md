@@ -28,6 +28,13 @@ A test directory that matches no row is skipped without a message. One that matc
 no `CompositionTest` or `E2ETest` — a Go program printing `items: []` — contributes zero tests
 (charter §8).
 
+## Choosing the composition language
+
+Unless the spec or an existing function sets it: **go-templating** while the function renders
+the XR into resources (mapping, loops, conditionals on `spec`); **Go or Python** once it compares,
+classifies or merges observed state. When a template outgrows that, add a Go or Python function
+as another pipeline step (a project may mix function languages) rather than growing it.
+
 ## Choosing the test language for new tests
 
 The language of *new* tests is a choice, not a detection.

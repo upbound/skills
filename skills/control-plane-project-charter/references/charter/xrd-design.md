@@ -78,6 +78,8 @@ A field with only `type: string` and no `description` accepts anything and docum
 
 **Verify bounds against vendor documentation, not from memory.** Guessing produces confident, wrong constraints in both directions: too tight rejects the user's own valid input, too loose defers the failure again. Backend key rules especially are rarely what you assume, and often vary by resource subtype, which a single `pattern` cannot express; those parts belong in CEL (below).
 
+A one-field format belongs in `pattern:`. A regex in CEL is a raw string, `r'^[a-z0-9\-]+$'`: in a plain one, `\-` or `\d` does not compile.
+
 ---
 
 ## One field, one axis
@@ -137,7 +139,7 @@ Defaulting to the most restrictive option is the strongest form of this: if `acc
 
 ## Make destructive edits impossible
 
-Ask of every field: what happens if someone edits this on a live object? When the answer is "the backend destroys and recreates the resource", a one-word `kubectl edit` is a data-loss event with no guard. Add a transition rule:
+Ask of every field: what happens if someone edits this on a live object? When the answer is "the backend destroys and recreates the resource", a one-word `kubectl edit` is a data-loss event with no guard. Add a transition rule, on the field when it is required:
 
 ```yaml
 x-kubernetes-validations:
@@ -145,7 +147,22 @@ x-kubernetes-validations:
   message: repositoryName is immutable
 ```
 
+An optional field needs it on the parent, since a rule on the field never runs while the field is absent:
+
+```yaml
+x-kubernetes-validations:
+- rule: has(self.region) == has(oldSelf.region) && (!has(self.region) || self.region == oldSelf.region)
+  message: region is immutable
+```
+
 Identity fields, names, classes, types and project or account keys are almost always in this category.
+
+- **A rule states what a valid object satisfies:** `self != oldSelf` rejects every update that keeps the field.
+- **`has()` takes a field**, `has(self.region)`; `has(self)` and `has(oldSelf)` do not compile.
+- **Create needs no guard:** a rule reading `oldSelf` skips it. To judge creates too, set `optionalOldSelf: true` and read `oldSelf.hasValue()` and `oldSelf.value()` (Kubernetes 1.30+).
+- **`self == oldSelf` on `spec` freezes every field in it.**
+- **`has()` is true for `""`**, so setting the empty string is an add.
+- **No `oldSelf` in the items of a list** that is not `x-kubernetes-list-type: map`: the CRD is refused.
 
 ---
 
@@ -159,7 +176,7 @@ maxItems: 32
 x-kubernetes-list-type: set
 ```
 
-Without `x-kubernetes-list-type`, a list is atomic: duplicates are accepted, and two controllers or two people doing server-side apply clobber each other instead of merging. Use `set` for unordered unique scalars and `atomic` where order is meaningful, such as a virtual repository's resolution order. `maxItems` is not only hygiene: CEL rules are costed against the declared maximum, so an unbounded list can leave no budget for the validations you want later.
+Without `x-kubernetes-list-type`, a list is atomic: duplicates are accepted, and two controllers or two people doing server-side apply clobber each other instead of merging. Use `set` for unordered unique scalars and `atomic` where order is meaningful, such as a virtual repository's resolution order. `maxItems` is not only hygiene: CEL rules are costed against the declared maximums, so a list without `maxItems`, or a string a rule reads without `maxLength`, can leave no budget for the validations you want later.
 
 **Never reach for `uniqueItems: true`.** It is the obvious way to write "the backend rejects duplicates", and it is forbidden in a CRD schema: the API server refuses to create the CRD at all, with `uniqueItems cannot be set to true since the runtime complexity becomes quadratic`. `x-kubernetes-list-type: set` means this, and is enforced on admission rather than quadratically.
 
@@ -167,7 +184,7 @@ Without `x-kubernetes-list-type`, a list is atomic: duplicates are accepted, and
 
 ## `status` is the half of the API people forget
 
-Crossplane injects `status.conditions` and nothing else (§5: an empty `status` hides what the composition computed). Callers usually cannot derive the URL, the key it actually got or the resolved identifier themselves, because composition naming is rarely the object name. Surface what the caller cannot compute:
+Crossplane injects `status.conditions` and nothing else. Callers usually cannot derive the URL, the key it actually got or the resolved identifier themselves, because composition naming is rarely the object name. Surface what the caller cannot compute:
 
 ```yaml
 status:
@@ -208,22 +225,31 @@ Run author-configuration-package's `check_xrd_schema.py` as its Phase 3 says (ex
 print as `REVIEW`, not `FAIL`: each is a judgement, and a check that fails every boolean gets
 disabled.
 
-What the check deliberately ignores: **kind stutter** (`repositoryClass` is a good name and `repositoryName` is not, the difference is semantic, and a check firing on both pushes someone to break the good one); which fields are **identity fields** needing `self == oldSelf`; and whether a `pattern` matches what the backend actually enforces. Those stay review judgements.
+What the check deliberately ignores: **kind stutter** (`repositoryClass` is a good name and `repositoryName` is not, the difference is semantic, and a check firing on both pushes someone to break the good one); which fields are **identity fields** needing an immutability rule; and whether a `pattern` matches what the backend actually enforces. Those stay review judgements.
 
 ---
 
 ## Prove the schema on a control plane
 
-A schema that parses is not a schema that works. The API server compiles CEL expressions, not your YAML parser, so a rule with a typo is invisible until something applies against it. `--dry-run=server` exercises the whole admission path and writes nothing:
+A schema that parses is not a schema that works. Only the API server compiles CEL; `up project build`, `check_xrd_schema.py` and composition tests with `xrdPath` pass a broken rule. Crossplane accepts the XRD and reports the CRD it cannot create only in a Warning event, so wait for `Established`. `--dry-run=server` then exercises the whole admission path and writes nothing:
 
 ```bash
 kubectl apply -f apis/<resource>/definition.yaml
+kubectl wait --for=condition=Established xrd/<name>   # times out: kubectl describe xrd <name>
 kubectl apply --dry-run=server -f /tmp/bad-xr.yaml     # must be REJECTED, and say why
 kubectl apply --dry-run=server -f examples/<r>.yaml    # must be ACCEPTED
-kubectl patch <kind> <name> -n <ns> --type=merge --dry-run=server \
-  -p '{"spec":{"<immutable-field>":"other"}}'          # must be REJECTED
 ```
 
-Write one rejection case per rule, plus a valid control that must pass. A suite where everything is rejected proves nothing: a schema that rejects everything passes it too.
+Write one rejection case per rule, plus a valid control that must pass: a schema that rejects everything passes a suite of rejections.
+
+Without a control plane, a throwaway `kind` cluster with a CRD carrying the XRD's group, names and version schemas (one `storage: true`) gives the same verdict.
+
+A transition rule needs a stored object; a dry run stores none, and patching it then fails with `NotFound`, which looks like a rejection. On that CRD-only cluster (a control plane would compose resources, §9), apply the example, then patch it three ways: a change and an add or remove (optional field) must print the rule's message, an unrelated update passes.
+
+```bash
+kubectl apply -f examples/<r>.yaml
+kubectl patch <kind> <name> -n <ns> --type=merge --dry-run=server \
+  -p '{"spec":{"<immutable-field>":"other"}}'
+```
 
 Then read `kubectl get` output once, with real objects in it. Duplicate printer columns, a defaulted field that did not default, and a status that never populates are all invisible in the source and obvious in the table.

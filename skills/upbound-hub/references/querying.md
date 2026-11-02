@@ -15,9 +15,10 @@ scripts/hub-stats controlPlane kind          # by control plane, then kind
 scripts/hub-stats kind -- ready=False        # only what is explicitly not Ready
 ```
 
-The raw request. **`apiVersion` and `kind` are required** — the handler decodes
-with no group-version defaults and checks for an exact match, so a body of just
-`{"query": …}` is a 400:
+The raw request, on Hub 1.0.x (`inventory.hub.upbound.io` on 1.1.0, in the URL
+and the `apiVersion` alike). **`apiVersion` and `kind` are required** — the
+handler decodes with no group-version defaults and checks for an exact match, so
+a body of just `{"query": …}` is a 400:
 
 ```json
 POST /apis/hub.upbound.io/v1beta1/resourcestats

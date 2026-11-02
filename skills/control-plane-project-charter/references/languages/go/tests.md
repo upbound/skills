@@ -15,7 +15,7 @@ mutant both turn it red, and the failure modes in the last section are reproduce
 
 | | |
 |---|---|
-| Scaffold | `up test generate <n> --language go` → `tests/test-<n>/{go.mod,main.go}`, no `go.sum`: run `go mod tidy` before your own `go vet`, `go build` or `go run .` (`up test run` tidies first). Pass the bare name: `up` adds the prefix (`test-x` gives `tests/test-test-x`; with `--e2e`, `e2etest-`). Each directory is its own `package main` module, so no other directory can import its helpers: add a case to an existing program before scaffolding another |
+| Scaffold | `up test generate <n> --language go` → `tests/test-<n>/{go.mod,main.go}`, no `go.sum`: run `go mod tidy` before your own `go vet`, `go build` or `go run .` (`up test run` tidies first). Pass the bare name: `up` adds the prefix (`test-x` gives `tests/test-test-x`; with `--e2e`, `e2etest-`) |
 | Detected by | a `go.mod` in the test directory |
 | Generation | `go mod tidy`, then `go run .`, both **with the test directory as CWD**, in your working tree, on your machine (no container). A file the program opens itself resolves from `tests/test-<n>/`; the paths it *emits* (`compositionPath`, `xrdPath`) are resolved by `up` from the project root |
 | Contract | the program prints `{items: [CompositionTest, …]}` as YAML on stdout. A non-zero exit fails the whole run at `✗ Parsing tests`, before any render. `items: []` is zero tests, not a passing test. An `E2ETest` program's output carries the credential Secret: run it by hand only with a dummy value (author-tests' `e2e.md` reference) |
@@ -25,8 +25,8 @@ Consequences:
 
 - **The program generates tests; it is not one.** Assertions go in `assertResources`, where `up` evaluates them
   against a render. A program that checks repo files and exits non-zero on a mismatch fails as `✗ Parsing
-  tests`, indistinguishable from a broken test, and passes as `No test files found`. For checks that are not a
-  render, see `author-tests` "Checking what is not a render".
+  tests`, indistinguishable from a broken test, and, printing `items: []`, passes as `No test files found`.
+  For checks that are not a render, see `author-tests` "Checking what is not a render".
 - **Commit `go.mod` and `go.sum` after running `go mod tidy` yourself.** `up test run` tidies in place, so an
   untidy module leaves the tree dirty after every test run.
 - The program inherits `up`'s full environment, any variable name (charter §7's `UP_` filter is for KCL and
@@ -58,8 +58,8 @@ Three tests for the function template in [`functions.md`](functions.md): one per
 absence guard on the composite) and one observed-state test that drives a status field. Adapt the helpers; keep
 the shape. The status test asserts the bucket too: a test that asserts only the composite stays green if that
 branch stops composing anything. The shipped-example test (charter `evidence.md`, Coverage) sets
-`spec.XrPath = ptr.To("examples/<…>.yaml")` and leaves `Xr` nil: with both set, `up` silently renders the
-inline `Xr`. The path resolves from the project root, like `compositionPath`.
+`spec.XrPath = ptr.To("examples/<…>.yaml")` and leaves `Xr` nil: with both set, `up test run` fails
+validation. The path resolves from the project root, like `compositionPath`.
 
 ```go
 // Package main generates the composition tests for Bucket.
@@ -97,9 +97,8 @@ func main() {
 			bucket("eu-central-1"),
 			versioning("eu-central-1"),
 		),
-		// Fails if the mock is ignored: bucketArn can only come from it. The annotation matches the mock; a
-		// namespaced XR's mock also needs the XR's namespace, or it is silently ignored, with no error. Its
-		// name replaces the generated one; this one equals it (charter/evidence.md, Coverage).
+		// Fails if the mock is ignored: bucketArn can only come from it. What a mock needs, and what its name
+		// does (this one equals the generated name): charter/evidence.md, Coverage.
 		compositionTest("status-from-observed-bucket", inlineXR(map[string]any{"region": "eu-central-1"}),
 			[]any{map[string]any{
 				"apiVersion": "s3.aws.m.upbound.io/v1beta1",
@@ -215,6 +214,10 @@ func resourcesToItems[T any](resources ...any) []T {
 	return items
 }
 ```
+
+**Add a case to this program before scaffolding another** (author-tests, Phase 2): each test
+directory is its own `package main` module, so no other can import its helpers. As it grows,
+split it into files of the one package (`main.go`, `xr.go`, `expect_<concern>.go`).
 
 Run it and read the render before trusting an expectation you typed
 ([`charter/evidence.md`](../../charter/evidence.md) says how, and why the generated `resourceRefs` names

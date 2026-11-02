@@ -72,7 +72,7 @@ items = network.generateNetworkResources(_config) \
     + storage.generateStorageResources(_config)
 ```
 
-`items` is what function-kcl reads. Name every other top-level variable with a leading `_`:
+`items` is what function-kcl reads. Give every top-level variable you reassign a leading `_`:
 reassigning a top-level name fails with `ImmutableError … Can not change the value of 'items',
 because it was declared immutable`.
 
@@ -112,13 +112,14 @@ generateNetworkResources = lambda config: {str: any} -> [any] {
 Every resource sets `forProvider` and nothing else unless the project asks
 ([charter §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs)), and
 merges `config.metadata("<key>")` into its metadata: the key is the composition resource name,
-so it must be unique per resource and stable across runs (renaming it orphans the live resource).
+so it must be unique per resource and stable across runs (renaming it deletes the live resource:
+author-composition's `patterns.md`).
 Set `metadata.name` only when the resource needs a stable external name.
 
 ## Composing a connection Secret
 
 A v2 XR publishes no connection details, so compose a Secret yourself
-(`plan-v2-migration` `breaking-changes.md`, "Connection secrets"). No `metadata.namespace`: Crossplane
+(author-composition's `patterns.md`). No `metadata.namespace`: Crossplane
 puts it in the XR's namespace
 ([charter §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs)).
 
@@ -157,9 +158,9 @@ _connectionSecret = lambda config: {str: any} -> [any] {
 The observed values exist only once the resource has been created and reported back, so the
 Secret is gated on every value it carries, and appears on a later reconcile. A test reaches the
 status branch only with `spec.observedResources`
-([charter §8](../../../SKILL.md#8-a-green-run-is-not-evidence)), and never the connection
-details: no render passes them, so assert `writeConnectionSecretToRef` on the `db-instance`
-instead ([`charter/v2-resources.md`](../../charter/v2-resources.md)).
+([charter §8](../../../SKILL.md#8-a-green-run-is-not-evidence)), and the connection details
+only as [`charter/v2-resources.md`](../../charter/v2-resources.md) says; assert
+`writeConnectionSecretToRef` on the `db-instance` either way.
 Importing `corev1` needs the Kubernetes API models: an `apiDependencies` entry in
 `upbound.yaml` for `k8s`, then `up project build`.
 

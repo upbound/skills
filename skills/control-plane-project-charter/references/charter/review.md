@@ -23,9 +23,10 @@ code, tests, the package — beyond reading the diff. The rules behind them are 
 
 - For each new test, the report names the implementation change that turns it red and says it
   was seen failing. An `E2ETest` may instead be reported unproven (§3, §4).
+- A mutant of the change's behaviour that the suite survives is a defect in this change (§3).
 - **Check one yourself:** mutate the implementation (delete the field, move the block below an
-  early return), confirm that exactly that test goes red, then revert with git, after keeping
-  any uncommitted change in that file: the revert discards it
+  early return), confirm that exactly that test goes red, then restore the file from a copy
+  taken before the mutation, not from git
   ([`tdd.md`](tdd.md#backfilling-tests-for-code-that-already-exists)). A RED produced by editing
   the expected value does not count, and neither does a syntax error, a missing path or a
   compile error (§3).
@@ -34,8 +35,10 @@ code, tests, the package — beyond reading the diff. The rules behind them are 
 - An entry naming only `kind` passes against any resource of that kind: the fields the change
   adds are asserted, and every `status` field the function writes is asserted on the composite.
 - No test program for a declarative file (the XRD surface, `examples/`, an MRAP,
-  `upbound.yaml`; §3). A program under `tests/` that checks repo files and exits non-zero is a
-  linter, not a test: it adds zero tests and, failing, stops the run at `✗ Parsing tests`. What
+  `upbound.yaml`; §3), but each CEL rule the change writes was proven on an API server
+  ([`xrd-design.md`](xrd-design.md#prove-the-schema-on-a-control-plane)). A program under
+  `tests/` that checks repo files and exits non-zero is a linter, not a test: it adds zero tests
+  and, failing, stops the run at `✗ Parsing tests`. What
   no render reaches is covered by the build or reported uncovered (author-tests, "Checking what is not a render").
 - An `E2ETest` that differs from another only in its name covers nothing new and doubles the
   cloud run (author-tests' `e2e.md`).
@@ -84,7 +87,7 @@ Run the two greps under "Grep your own function before you report" in
   miss. A namespace set on a composed resource of a namespaced XR is overwritten by Crossplane.
 - A function that reads a composed resource's connection details sets
   `writeConnectionSecretToRef` on that resource, and composes nothing from a missing value: a
-  fallback such as `or ""` is a bug no render shows
+  fallback such as `or ""` is a bug
   ([`v2-resources.md`](v2-resources.md#connection-details-reach-a-function-only-through-writeconnectionsecrettoref)).
 
 ## Provider constraints and dependencies

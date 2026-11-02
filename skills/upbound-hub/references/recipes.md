@@ -7,7 +7,7 @@ scripts/hub-health | jq '.resources'
 ```
 
 Answer with three numbers, because the API can only produce three: how many are
-assessable, how many are explicitly failing, and how many never reported. Do not
+assessable, how many are explicitly failing, and how many are Unknown or never reported. Do not
 turn it into one percentage of the total — see [querying.md](querying.md).
 
 By kind:
@@ -63,11 +63,13 @@ scripts/hub-list resources 100 \
      | "\(.type)=\(.reason): \(.message)"] | join("; "))"'
 ```
 
-Filter out paused resources, which are not broken:
+Filter out paused resources, which are not broken, by reason: a paused managed resource's
+condition carries no message.
 
 ```bash
-scripts/hub-list resources 100 \
-  'filter=conditions.synced.status == "False" && !conditions.synced.message.matches("(?i)paused")'
+scripts/hub-list resources 100 'filter=conditions.synced.status == "False"' \
+| jq '[.[] | select(any(.status.conditions[]?;
+    .type == "Synced" and .reason == "ReconcilePaused") | not)]'
 ```
 
 ## "What changed recently?"

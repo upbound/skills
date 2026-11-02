@@ -15,8 +15,8 @@ Generated: [date] · Function language(s): [per function] · Test language: [lan
 
 - XRDs [n] · compositions [n] · functions [n] · composition tests [n] · E2E tests [n] · examples [n]
 - Breaking changes found: [each, with its breaking-changes.md section]
-- Decisions: [Kind kept or renamed; deletionPolicy mapping; each non-default providerConfigRef;
-  who reads the connection Secret] — [made by the user | assumed: why]
+- Decisions: [Kind kept or renamed; deletionPolicy mapping; each non-default providerConfigRef]
+  — [made by the user | assumed: why]
 - Rollout risk: [installed v1 APIs, if the user has a control plane running this package]
 
 Tick each item (`[x]`) when it is done. `execute-v2-migration` resumes at the first unticked one.
@@ -83,14 +83,14 @@ against the unmigrated function, then migrate the function until they pass.
 
 [None: Kinds and directory names are kept.] Otherwise, only for a Kind renamed in stage 2:
 
-- [ ] `git mv functions/[old] functions/[new]`; `functionRef.name` and `step` match
+- [ ] `git mv functions/[old] functions/[new]`; `functionRef.name` = `<org>-<repo>[new]`
 - [ ] `git mv tests/[old] tests/[new]`
 
 ## Stage 7: Verification
 
 - [ ] `verify-configuration`: `up project build` and every composition test pass
 - [ ] Render one example: no legacy provider group; managed resources carry `forProvider` only,
-      unless the project's spec or API sets more
+      unless the project's spec, API or models set more (charter `v2-resources.md`)
 - [ ] E2E tests (`e2e-test-configuration`): create cloud resources, so only with the user's
       go-ahead; otherwise listed as not run
 
