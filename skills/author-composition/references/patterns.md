@@ -1,5 +1,11 @@
 # Composition patterns — what they mean
 
+**Open these first, if they are not open in this session:** the `control-plane-project-charter`
+skill, and your language's index and function file in
+`control-plane-project-charter/references/languages/` (Go: `go.md`, `go/functions.md`; Python: `python.md`, `python/patterns.md`; KCL: `kcl.md`,
+`kcl/patterns.md`; go-templating and YAML: their one file). This file says
+what a pattern means; those say how to write it.
+
 - [The object model every language builds](#the-object-model-every-language-builds)
 - [Pattern: module organisation](#pattern-module-organisation)
 - [Pattern: the configuration object](#pattern-the-configuration-object)

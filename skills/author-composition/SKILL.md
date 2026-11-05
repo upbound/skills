@@ -64,8 +64,11 @@ The project's own API, design or gate script wins over these: say where you depa
 
 ## Phase 1: Detect the language and the Crossplane generation — do not ask
 
-**Language:** detect it as charter §10 says and read the language file before writing a line;
-its layout, imports and bootstrap are wrong by default if you guess. No functions yet: take it
+**Language:** detect it as charter §10 says. If they are not open in this session, open its
+index and function file in `control-plane-project-charter/references/languages/` now, before
+you write or change a line, even in a project that already has code (Go: `go.md`, `go/functions.md`; Python: `python.md`, `python/patterns.md`; KCL: `kcl.md`,
+`kcl/patterns.md`; go-templating and YAML: their one file): its
+layout, imports and bootstrap are wrong by default if you guess. No functions yet: take it
 from `upbound.yaml`, else an existing function, else as
 `control-plane-project-charter/references/languages/README.md` says (and when to add a step in
 another language).
@@ -150,7 +153,8 @@ fails while the others pass.
 Implement until the test passes, and no further. Re-run `up test run "tests/<t>"` and report
 the RED→GREEN transition, not only the final green.
 
-The language file has the bootstrap and the syntax. Language-independent, in order:
+Not open yet in this session? Open the language's index and function file now (Phase 1 names
+them): they have the bootstrap, the syntax and the failure modes. Language-independent, in order:
 
 1. Parse the observed XR with the language's required bootstrap (Python needs
    `struct_to_dict`; skipping it fails at model construction (`AttributeError: get`). Go: the

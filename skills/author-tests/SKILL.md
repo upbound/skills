@@ -24,7 +24,7 @@ Loading this skill does not load it, and the rules here cite its sections (§1�
 A test's *meaning* is language-agnostic; only its *syntax* differs. Every test compiles to a
 `CompositionTest` or an `E2ETest` (`meta.dev.upbound.io/v1alpha1`). The rules are in this file;
 the object model, structuring patterns and common mistakes in
-[test-model.md](references/test-model.md) (Phase 1 says when); the
+[test-model.md](references/test-model.md) (Phase 1: open it in every session that writes one); the
 syntax in the charter's file for the test language (Phase 1).
 
 - Writing or changing an `E2ETest`: Phase 4.
@@ -66,10 +66,13 @@ The project's own API, design or gate script wins over these: say where you depa
 ## Phase 1: Detect the test language — do this first
 
 Pick the language as charter §10 says (existing tests, else the composition language, else
-YAML; functions in more than one language and no tests yet: ask). Before writing a test, open
-its index and tests file in `control-plane-project-charter/references/languages/` now (Go:
-`go.md`, `go/tests.md`): they carry the templates and the silent failure modes. Before your
-first test in a project, also open [test-model.md](references/test-model.md) now.
+YAML; functions in more than one language and no tests yet: ask). If they are not open in this
+session, open its index and tests file in `control-plane-project-charter/references/languages/`
+now, before you write or change a test (Go: `go.md`, `go/tests.md`; Python: `python.md`,
+`python/tests.md`; KCL: `kcl.md`, `kcl/tests.md`; go-templating and YAML: their one file): they
+carry the templates and the silent failure modes. For a composition test, also open
+[test-model.md](references/test-model.md) now if it is not open in this session, even when the
+project already has tests.
 
 ## Phase 2: Decide what to test, and scaffold
 
