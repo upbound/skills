@@ -4,10 +4,11 @@
 # hub-types [group-suffix]
 #
 # Tabulates the type catalog across the fleet, optionally filtered to groups
-# ending with a suffix.
+# ending with a suffix. A suffix also matches its v2 namespaced twin, with .m.
+# before the domain: aws.upbound.io matches ec2.aws.m.upbound.io too.
 #
 #   hub-types                     # everything
-#   hub-types aws.upbound.io      # AWS provider types only
+#   hub-types aws.upbound.io      # AWS provider types only, .m. groups included
 #   hub-types spaces.upbound.io   # the Spaces type family
 #
 # Columns: KIND, GROUP, SCOPE, CPs (control planes), RES (resources), and the
@@ -30,7 +31,8 @@ esac
 suffix="${1:-}"
 
 "$dir/hub-list" typedefinitions 100 | jq -r --arg suffix "$suffix" '
-  def matches(g): ($suffix == "") or ((g // "") | endswith($suffix));
+  ($suffix | sub("(?<d>[^.]+\\.[^.]+)$"; "m.\(.d)")) as $m
+  | def matches(g): ($suffix == "") or ((g // "") | endswith($suffix) or endswith($m));
   def src_mix(db):
     [ (if (db.CustomResourceDefinition // 0)    > 0 then "CRD=\(db.CustomResourceDefinition)" else empty end),
       (if (db.CompositeResourceDefinition // 0) > 0 then "XRD=\(db.CompositeResourceDefinition)" else empty end),

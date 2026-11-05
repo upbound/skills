@@ -1,6 +1,6 @@
 # The container boundary
 
-Where manifest generation and function rendering run, and what crosses into them. [`control-plane-project-charter` §7](../../SKILL.md#7-the-container-boundary) states the rule.
+[`control-plane-project-charter` §7](../../SKILL.md#7-the-container-boundary) states the rule.
 
 ---
 
@@ -44,11 +44,8 @@ up test run "tests/e2etest-<n>" --e2e <target flags>       # --local, or a Space
 provisioning a control plane and real resources before the provider rejects the empty key.
 Failing at manifest generation costs about a second and names the variable you forgot.
 
-**That is safe only if the composition gate never runs an e2e program.** `up test run` runs
-the program of every directory it matches, with or without `--e2e`, and filters by kind only
-afterwards; one non-zero exit aborts the whole run at `✗ Parsing tests` before any test
-executes. So a plain `up test run "tests/*"` runs every e2e program too, and fails whenever
-their inputs are unset. Split the runs by directory prefix instead:
+**That is safe only if the composition gate never runs an e2e program** (§7). `up test run`
+filters by kind only after running every matched program, so split the runs by directory prefix:
 
 ```bash
 up test run "tests/test-*"                             # composition gate: no e2e program runs
@@ -63,9 +60,8 @@ it, the composition tests the same programs emit are dropped (`up test run --hel
 so in the README beside that command, and in your report as a departure from the `tests/test-*`
 default.
 
-An `e2etest-*` directory run on its own without `--e2e` stops with `unable to validate
-composition tests: no valid CompositionTests found`: the matched directories produced no
-`CompositionTest`. That is the wrong glob or a missing flag, not a failing test.
+An `e2etest-*` run without `--e2e` stops with `unable to validate composition tests: no valid
+CompositionTests found` (§7).
 
 Prefer web identity (`source: Upbound`) wherever the platform supports it — no credential
 crosses the boundary at all, and this whole section stops applying.
@@ -75,7 +71,8 @@ container, in *every* language including Go. Nothing mounts a host path into tho
 and by default nothing forwards your shell environment into them — a composition function never
 sees your credential files, whatever the table above says about its tests.
 
-The one deliberate escape hatch is the `render.crossplane.io/runtime-docker-env` function
-annotation, set with `up test run --function-annotations render.crossplane.io/runtime-docker-env=KEY=VALUE`.
-It injects explicit `k=v` pairs and nothing else. If a function needs a value at render time,
-that is the supported route — not an env var you exported and hoped would arrive.
+Two routes in are deliberate: a test's `functionCredentialsPath`, a file of Secrets for the
+pipeline steps' `credentials`, and the `render.crossplane.io/runtime-docker-env` function
+annotation, set with `up test run --function-annotations render.crossplane.io/runtime-docker-env=KEY=VALUE`,
+which injects explicit `k=v` pairs and nothing else. If a function needs a value at render time,
+use one — not an env var you exported and hoped would arrive.

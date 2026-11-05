@@ -1,9 +1,5 @@
 # KCL
 
-Everything KCL-specific for a control-plane project: composition functions and tests. The
-language-agnostic rules are in [`control-plane-project-charter`](../../SKILL.md); this file and
-[`kcl/`](kcl/) say how KCL expresses them.
-
 | | |
 |---|---|
 | Scaffold a function | `up function generate <n> --language kcl` (always pass `--language`: the default is go-templating; KCL is the default only for `up test generate`) |

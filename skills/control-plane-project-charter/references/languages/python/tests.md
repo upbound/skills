@@ -1,7 +1,12 @@
 # Python: tests
 
-How composition-test assertions are written and dumped in Python. What a suite must contain, and
-why, is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
+- [The coverage shapes in Python](#the-coverage-shapes-in-python)
+- [The two dump modes](#the-two-dump-modes)
+- [Assertion rules](#assertion-rules)
+- [Python-specific mistakes](#python-specific-mistakes)
+- [Function unit tests](#function-unit-tests)
+
+What a suite must contain, and why, is in [`charter/evidence.md`](../../charter/evidence.md#coverage-what-the-suite-must-contain);
 this file is the Python syntax for it. Templates are in [`test-templates.md`](test-templates.md);
 the Python index is [`../python.md`](../python.md).
 
@@ -131,7 +136,6 @@ convention; projects vary (one embedded project uses `exclude_unset=True` withou
 | Mistake | Fix |
 |---|---|
 | `exclude_none=True` on asserted resources (compares too much), or `exclude_unset=True` on the top-level test | asserted resources `exclude_unset=True`; top-level test `exclude_none=True` |
-| `up test generate` before `.up/python` exists: imports do not resolve | `up project build` first, so `crossplane-models` is wired into `pyproject.toml` |
 | A mutant through the model (it drops a keyword the Kind lacks: render unchanged) or a nested `resource.update` (it replaces the sibling keys: red for the wrong reason) | `d = resource.struct_to_dict(r.resource)`, change one key in `d`, `resource.update(r, d)` |
 
 ## Function unit tests

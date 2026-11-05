@@ -1,8 +1,6 @@
 # Templates: files, questions and reports for a configuration package
 
-The files this skill writes by hand, the questions to ask when the spec does not answer them,
-what to check when a build fails, and the hand-off report. The order of the work is SKILL.md's
-phases; function and test syntax is under `control-plane-project-charter/references/languages/`.
+Function and test syntax is under `control-plane-project-charter/references/languages/`.
 
 - [Templates](#templates)
 - [Questions for a new project](#questions-for-a-new-project)
@@ -18,10 +16,6 @@ The XRD has no template here: write it from the v2 skeleton in
 `control-plane-project-charter/references/charter/v2-resources.md` (SKILL.md Phase 3).
 
 ### upbound.yaml
-
-Cap the major of every dependency: a bare `up dep add <ref>` writes `'>=v0.0.0'`. Providers join
-`dependsOn` in Phase 4. Neither note is a YAML comment below, because the first build strips
-comments from `upbound.yaml` (SKILL.md, Phase 4).
 
 ```yaml
 apiVersion: meta.dev.upbound.io/v2alpha1
@@ -81,6 +75,7 @@ Thumbs.db
 
 # Dependency cache
 .cache/
+.venv/
 ```
 
 ### Example XRs
@@ -182,14 +177,11 @@ conflicts with a draft value, normalize the value or relax the constraint, or as
 
 | Symptom | Check |
 |---|---|
-| `.up/<language>/` has no `.m.` models after the first build | the provider is v1.x (the `.m.` groups ship from v2.0.0); the package name is wrong |
-| `up function generate` errors about missing models | the first build did not run or failed: build, check `.up/<language>/`, then generate |
+| The model tree (SKILL.md Phase 6) has no `.m.` models after the first build | the provider is v1.x; the package name is wrong |
+| `up function generate` errors about missing models | the first build did not run or failed: build, check the model tree, then generate |
 | the first build fails | `upbound.yaml` syntax, provider versions, then the XRD's syntax |
 | the final build fails | the function's own sources (Go compiles here; KCL and Python are not type-checked, charter §8), its module or dependency file, and the composition's pipeline |
 | the XR never reaches Ready | `crossplane-contrib-function-auto-ready` is not the last step in the pipeline: move your function's step before it |
-
-A composition test passing locally while the control plane rejects the composition on
-`spec.mode` is `mode: Resources` (SKILL.md Phase 5).
 
 ---
 

@@ -1,5 +1,10 @@
 # API surface
 
+- [Core resources](#core-resources)
+- [Other groups](#other-groups)
+- [Subresource paths](#subresource-paths)
+- [Reading an error](#reading-an-error)
+
 Versions differ by group, and by deployment. The tables below are what to expect,
 not a guarantee: a Hub serving `authentication.hub.upbound.io` at v1alpha1 and
 v1beta1 but not v1 exists, so `hub-list` asks `/apis` and drops a pinned version
@@ -7,7 +12,7 @@ the server does not serve. Check any deployment you are on:
 
 ```bash
 scripts/hub-curl /apis | jq '.groups[] | {name, versions: [.versions[].version]}'
-scripts/hub-curl "/apis/$GROUP/$VERSION" | jq '.resources[] | {name, namespaced, verbs}'
+scripts/hub-curl "/apis/<group>/<version>" | jq '.resources[] | {name, namespaced, verbs}'
 ```
 
 ### Hub 1.0.x
@@ -43,10 +48,6 @@ did not appear on the deployment tested, which had the `Catalog`, `Registry` and
 `AgentSessions` feature gates **off**. Absence here is not evidence of removal.
 Check `/apis` on a deployment with those gates enabled before concluding either way.
 
-**Do not pin a group.** `scripts/hub-list` and `scripts/hub-stats` resolve group
-and version from `/apis`. Within a group, target v1beta1; the v1alpha1 `Resource`
-and `ResourceStats` types are deprecated.
-
 ## Core resources
 
 On 1.0.x these are all under `hub.upbound.io/v1beta1`. On 1.1.0 they are split
@@ -71,15 +72,12 @@ verbs are unchanged.
 ### There is no `patch` and no `watch`
 
 The handler serves `get`, `list`, `create`, `update`, `delete` and 405s
-everything else. Three consequences:
+everything else. Two consequences:
 
 - **`kubectl apply` works once.** On an object that already exists it sends a
   merge PATCH and gets a 405. Use `kubectl replace`. Same for `kubectl edit`,
   `label`, and `annotate`.
 - **`kubectl get -w` 405s.** "Wait until ready" has to be a polling loop.
-- **kubectl paginates with `limit`/`continue`**, which Hub does not implement,
-  so `hub-kubectl get` on a collection silently returns one page. Read with
-  `hub-list`.
 
 ### Object shapes
 

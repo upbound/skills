@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 # Explicit, so import order does not matter. Without this, `import validate`
@@ -20,6 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import validate  # noqa: E402
 from support import GOOD_SKILL, CheckCase  # noqa: E402
+
+# The real table, before any test patches it.
+SHARED_SECTIONS = dict(validate.SHARED_SECTIONS)
 
 
 class TestFrontmatterCheck(CheckCase):
@@ -305,8 +309,19 @@ class TestSharedCheck(CheckCase):
             files[f"skills/{name.replace('_', '-')}/SKILL.md"] = text
         return files
 
+    def setUp(self):
+        super().setUp()
+        # The cases below build only the binding rules; compare that one section.
+        patcher = mock.patch.dict(validate.SHARED_SECTIONS, {"## Binding rules": self.OWNERS},
+                                  clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_the_three_named_skills_carry_the_rules(self):
         self.assertEqual(tuple(validate.SHARED_SECTIONS["## Binding rules"]), self.OWNERS)
+
+    def test_the_charter_load_step_is_shared_by_the_same_three(self):
+        self.assertEqual(tuple(SHARED_SECTIONS["## First: load the charter"]), self.OWNERS)
 
     def test_identical_copies_are_clean(self):
         files = self.owners(author_tests=self.skill("author-tests", self.RULES, after=""))
@@ -344,6 +359,53 @@ class TestSharedCheck(CheckCase):
         self.build(self.owners(upbound_hub=self.skill("upbound-hub", other),
                                demo_skill=GOOD_SKILL))
         self.assertClean(validate.check_shared())
+
+
+class TestContentsCheck(CheckCase):
+    """A reference over 100 lines opens with a list of its ## headings."""
+
+    TOC = ("- [Setup](#setup)\n"
+           "- [`spec.kind` — the field](#speckind--the-field)\n"
+           "- [Cleanup](#cleanup)\n")
+    PAD = "".join(f"line {i}\n" for i in range(100))
+    BODY = ("## Setup\n\n" + PAD + "```markdown\n## A heading in an example\n```\n\n"
+            "## `spec.kind` — the field\n\nText.\n\n## Cleanup\n\nText.\n")
+
+    def reference(self, toc: str = TOC, body: str = BODY) -> None:
+        self.build({"skills/demo-skill/SKILL.md": GOOD_SKILL,
+                    "skills/demo-skill/references/long.md": f"# Long\n\n{toc}\nIntro.\n\n{body}"})
+
+    def test_a_matching_list_is_clean(self):
+        self.reference()
+        self.assertClean(validate.check_contents())
+
+    def test_a_short_reference_needs_no_list(self):
+        self.reference(toc="", body=self.BODY.replace(self.PAD, ""))
+        self.assertClean(validate.check_contents())
+
+    def test_a_missing_list_is_caught(self):
+        self.reference(toc="")
+        self.assertFinding(validate.check_contents(), "no contents list")
+
+    def test_a_renamed_heading_is_caught(self):
+        self.reference(body=self.BODY.replace("## Cleanup", "## Teardown"))
+        findings = list(validate.check_contents())
+        self.assertFinding(findings, "#cleanup, which no heading here has")
+        self.assertFinding(findings, "lacks ## Teardown")
+
+    def test_an_unlisted_heading_is_caught(self):
+        self.reference(body=self.BODY + "\n## Leaks\n\nText.\n")
+        self.assertFinding(validate.check_contents(), "lacks ## Leaks")
+
+    def test_headings_out_of_order_are_caught(self):
+        swapped = "- [Cleanup](#cleanup)\n" + self.TOC.replace("- [Cleanup](#cleanup)\n", "")
+        self.reference(toc=swapped)
+        self.assertFinding(validate.check_contents(), "out of order")
+
+    def test_a_listed_subheading_is_allowed(self):
+        self.reference(toc=self.TOC + "  - [Detail](#detail)\n",
+                       body=self.BODY + "\n### Detail\n\nText.\n")
+        self.assertClean(validate.check_contents())
 
 
 class TestHygieneCheck(CheckCase):

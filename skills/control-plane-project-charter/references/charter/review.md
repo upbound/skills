@@ -1,5 +1,13 @@
 # Reviewing a change
 
+- [Re-run the gate and read its output](#re-run-the-gate-and-read-its-output)
+- [Each new test bites](#each-new-test-bites)
+- [Read the render](#read-the-render)
+- [Function code](#function-code)
+- [The v2 fields](#the-v2-fields)
+- [Provider constraints and dependencies](#provider-constraints-and-dependencies)
+- [What the report claims](#what-the-report-claims)
+
 The Crossplane-specific checks for reviewing a change to a control-plane project — function
 code, tests, the package — beyond reading the diff. The rules behind them are the charter's
 ([`control-plane-project-charter`](../../SKILL.md), cited as §N).
@@ -8,34 +16,34 @@ code, tests, the package — beyond reading the diff. The rules behind them are 
 
 - Run the project's own gate if it has one, else `up project build` and
   `up test run "tests/test-*" > /tmp/t.log 2>&1; echo "exit=$?"`. Read the log, not only the
-  exit code: after a `| tail`, `$?` is `tail`'s (§4).
-- `No test files found`, or a test program printing `items: []`, is zero tests, though it exits
-  0. A vacuous green is not a pass (§8).
+  exit code (§4).
+- `No test files found`, or a test program printing `items: []`, is zero tests, not a pass (§8).
 - A run that stops at `✗ Parsing tests` is a broken test, not a failing one, and never RED:
   an e2e program missing an input under a `tests/*` glob (§7), or a test program turned linter
   (below).
-- To re-run an `E2ETest`, load e2e-test-configuration and follow its Phase 2: on kind, the
-  default umask (`022`); `UP_<CLOUD>_CREDENTIALS` holds the credentials file's text in the
+- To re-run an `E2ETest`, load e2e-test-configuration and follow its Phase 2:
+  `UP_<CLOUD>_CREDENTIALS` holds the credentials file's text in the
   provider's own format (AWS: the INI profile author-tests' `e2e.md` builds, not JSON), never a
-  path to a file. Check or diff an e2e program's output only with a dummy value (`e2e.md`).
+  path to a file.
 
 ## Each new test bites
 
 - For each new test, the report names the implementation change that turns it red and says it
   was seen failing. An `E2ETest` may instead be reported unproven (§3, §4).
+- A mutant of the change's behaviour that the suite survives is a defect in this change (§3).
 - **Check one yourself:** mutate the implementation (delete the field, move the block below an
-  early return), confirm that exactly that test goes red, then revert with git, after keeping
-  any uncommitted change in that file: the revert discards it
+  early return), confirm that exactly that test goes red, then restore the file from a copy
+  taken before the mutation, not from git
   ([`tdd.md`](tdd.md#backfilling-tests-for-code-that-already-exists)). A RED produced by editing
   the expected value does not count, and neither does a syntax error, a missing path or a
   compile error (§3).
-- Every value the function passes through has, in at least one test, an input that is neither
-  its default nor shared with a sibling field. Otherwise a hard-coded constant stays green (§3).
+- Every pass-through value has a distinguishing input in at least one test (§3).
 - An entry naming only `kind` passes against any resource of that kind: the fields the change
   adds are asserted, and every `status` field the function writes is asserted on the composite.
 - No test program for a declarative file (the XRD surface, `examples/`, an MRAP,
-  `upbound.yaml`; §3). A program under `tests/` that checks repo files and exits non-zero is a
-  linter, not a test: it adds zero tests and, failing, stops the run at `✗ Parsing tests`. What
+  `upbound.yaml`; §3), but each CEL rule the change writes was proven on an API server
+  ([`xrd-design.md`](xrd-design.md#prove-the-schema-on-a-control-plane)). A program under
+  `tests/` that checks repo files and exits non-zero is a linter, not a test: it adds zero tests. What
   no render reaches is covered by the build or reported uncovered (author-tests, "Checking what is not a render").
 - An `E2ETest` that differs from another only in its name covers nothing new and doubles the
   cloud run (author-tests' `e2e.md`).
@@ -79,12 +87,10 @@ Run the two greps under "Grep your own function before you report" in
   field does not exist (§5).
 - Flag `providerConfigRef.kind: ProviderConfig` as a bug only when no namespaced
   `ProviderConfig` of that name exists in, or is created in, the XR's namespace.
-- A Kubernetes object embedded in `forProvider`, such as a provider-kubernetes `Object`
-  manifest, needs its own `metadata.namespace`; a missing one is a bug the composition tests
-  miss. A namespace set on a composed resource of a namespaced XR is overwritten by Crossplane.
+- A Kubernetes object embedded in `forProvider` needs its own `metadata.namespace` (§5).
 - A function that reads a composed resource's connection details sets
   `writeConnectionSecretToRef` on that resource, and composes nothing from a missing value: a
-  fallback such as `or ""` is a bug no render shows
+  fallback such as `or ""` is a bug
   ([`v2-resources.md`](v2-resources.md#connection-details-reach-a-function-only-through-writeconnectionsecrettoref)).
 
 ## Provider constraints and dependencies

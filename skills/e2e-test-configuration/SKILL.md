@@ -15,8 +15,9 @@ test gets a fresh control plane, creates real cloud resources, and is torn down 
 
 ## Before you start
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's directory; this skill
-does not load it. Every "ask" below follows its §1 (unattended: never ask; act on the brief and state the
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link below (or read the `SKILL.md` in its directory, beside this one): loading this
+skill does not load it. Every "ask" below follows its §1 (unattended: never ask; act on the brief and state the
 assumption, or stop and report), and its §4 binds every summary.
 
 - Writing or changing an `E2ETest` (fields, `defaultConditions`, credentials per target) is `author-tests`'
@@ -62,24 +63,22 @@ precondition that fails ends the run**; it is not a warning you carry forward. C
 at the first failure:
 
 1. **The project builds:** `up project build`.
-2. **The composition tests pass:** `up test run "tests/test-*"`. That is `test-*` by default, not `tests/*`:
-   `up test run` runs every matched dir's program, e2e ones too, even without `--e2e`, and fails at
-   `✗ Parsing tests` when an e2e input is unset. If the project's own gate runs `up test run tests/*`,
-   use it, with the e2e inputs (check 3) set for that run too, and say so in the report
+2. **The composition tests pass:** `up test run "tests/test-*"`, not `tests/*` (charter §7). If the
+   project's own gate runs `up test run tests/*`, use it, with the e2e inputs (check 3) set for that run
+   too, and say so in the report
    (`control-plane-project-charter/references/charter/container.md`).
 3. **Credentials.** List what the test programs read, in any language, and check each. A variable built
    from others (author-tests' `e2e.md` reference) must be exported inside the Phase 4 run block, before
    `up test run`, since one exported in an earlier command is gone: check its inputs (`AWS_*`) instead.
+   **Never echo a credential variable, in any form**; the loop prints only the names that are missing.
 
    ```bash
    grep -rhoE 'UP_[A-Z0-9_]+' tests/e2etest-*/ | sort -u
-   # then, for each - test presence with -n only, inside [ ]: an echo of $VAR, ${VAR:-x} or
-   # ${VAR:+set}${VAR:-unset} prints the value whenever it is set
-   [ -n "${UP_<NAME>:-}" ] || echo "MISSING: UP_<NAME>"
+   # list every name the run needs: the UP_* above and the inputs of a built one
+   for v in UP_<NAME> AWS_<NAME>; do [ -n "$(printenv "$v")" ] || echo "MISSING: $v"; done
    ```
 
-   KCL and Python programs see only `UP_`-prefixed variables and no `~/.aws`; Go and
-   go-templating programs run locally and can read any name, so also check a Go program's `os.Getenv` calls
+   Go and go-templating programs can read any name (charter §7), so also check a Go program's `os.Getenv` calls
    and a go-templating test's `env`/`expandenv` calls. An unset variable the program
    does not fail on becomes an empty Secret. That surfaces only when the provider rejects it, after a
    control plane and real resources exist.
@@ -87,11 +86,12 @@ at the first failure:
    [space.md](references/space.md) (context, group, repository visibility). Local: run under the default
    umask (`022`), never `umask 077`; under `077` the package is never ready and the run ends in
    `context deadline exceeded` ([local.md](references/local.md#preconditions) has why and the symptom).
+5. **No control plane is named `<project>-uptest-<test>`** for a test to run (`kind get clusters`, or
+   `up ctp list --group=<group>`): `up` would reuse it and delete it at teardown. Report it instead.
 
 **If you cannot complete a precondition, stop and say so. Do not start the run.** That includes a check that
 is blocked rather than failed: a permission prompt you cannot answer, a command the sandbox refuses, a
-credential you cannot read. A run with a precondition known to be unmet carries no information and is not
-free. Report which precondition you could not establish and what the user needs to do. Skip a check only if
+credential you cannot read. Report which precondition you could not establish and what the user needs to do. Skip a check only if
 the user explicitly asks you to.
 
 ## Phase 3: Size the run
@@ -99,14 +99,14 @@ the user explicitly asks you to.
 Read the test's own settings first:
 
 ```bash
-grep -rniE 'timeoutseconds|skipdelete' tests/e2etest-<n>/
+grep -rnwiE 'timeoutseconds|setuptimeoutseconds|cleanuptimeoutseconds|skipdelete' tests/e2etest-<n>/
 ```
 
 - **No `timeoutSeconds` in that output: don't run.** It is a broken test, not a sizing question: the run would
   panic after setup and leak its control plane (author-tests' `e2e.md` reference). Report it as a failed
   precondition.
 - **Worst case** ≈ build + `setupTimeoutSeconds` (default 600) + `timeoutSeconds` + `cleanupTimeoutSeconds`
-  (default 600). Scaffolds write `timeoutSeconds` 300 (Go) or 4500 (YAML, KCL, Python, go-templating).
+  (default 600) + 300 s teardown. Scaffolds write `timeoutSeconds` 300 (Go) or 4500 (YAML, KCL, Python, go-templating).
   Typical durations differ by target: see its reference.
 - **`skipDelete: true`** leaves the control plane and the cloud resources running. Say so before you run.
 - **Stuck threshold: `min(15 min, timeoutSeconds / 3)` with no new log output, counted from the line that
@@ -149,7 +149,7 @@ One idiom on both targets; only the target flags differ:
   after your last look. The run is over only when `EXIT=` is in the log.
 - If you stop a run early (wrong target, stuck with a terminal cause), say it was **terminated** and why. A
   killed run has no outcome, and may have skipped teardown: clean up as
-  `control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers) says before you
+  `control-plane-project-charter/references/charter/targets.md#teardown-and-leftovers` says before you
   report.
 
 **Then check the target the run used.** The first progress line names it:
@@ -177,10 +177,10 @@ to pass: before you call an error terminal, read
 [troubleshooting.md](references/troubleshooting.md#transient-or-terminal).
 
 **Stuck** = no new log output for the threshold from Phase 3. First check the resource is not still `Creating`
-(`crossplane beta trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
+(`crossplane resource trace`); slow cloud resources (NAT gateways, RDS) are normal. Otherwise investigate with the
 brief in [troubleshooting.md](references/troubleshooting.md): hand it to a sub-agent to keep your context
 small, or follow it yourself. The target's reference says how to reach the control plane while it exists.
-Stop the run only if the investigation finds a terminal cause; otherwise let `timeoutSeconds` end it.
+Stop the run only if the investigation finds a terminal cause; otherwise let the test's timeouts end it.
 `up: error: context deadline exceeded` is not a diagnosis; report the underlying Configuration or Provider
 condition instead.
 

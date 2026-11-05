@@ -14,6 +14,12 @@ Scaffold and modify Crossplane configuration packages — structure, XRDs, depen
 generated composition and function skeletons, examples and the build — in the order the CLI
 needs. Composition logic and tests are other skills' work.
 
+## First: load the charter
+
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link or phase below (or read the `SKILL.md` in its directory, beside this one).
+Loading this skill does not load it, and the rules here cite its sections (§1–§10) and files.
+
 ## Before you start
 
 Run the phases in order. The two builds bracket function generation: models come from the
@@ -29,9 +35,7 @@ choice — `--public` publishes their package — is
 
 ## Binding rules — they hold even if you open nothing else
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory: this skill does not load it, and the charter has the reasons. The project's own API,
-design or gate script wins over these: say where you departed.
+The project's own API, design or gate script wins over these: say where you departed.
 
 1. **Never block on a question nobody can answer.** Interactive, ask only what the project
    can't tell you; unattended, never ask: decide from the spec and state the assumption, or
@@ -43,7 +47,8 @@ design or gate script wins over these: say where you departed.
 3. **Test first: watch each new composition or unit test fail for the reason you intended**;
    for a new E2ETest this is optional. A syntax error, a missing path, `✗ Parsing tests`, a
    compile error or a bug in the test's own logic is a broken test, not RED. Backfill by
-   mutating the implementation, never the expected value (§3).
+   mutating the implementation, never the expected value; a surviving mutant of your change
+   is a missing test (§3).
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
@@ -54,7 +59,7 @@ design or gate script wins over these: say where you departed.
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
    zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
    render, composition test, local control plane, cloud — and never claim one you did not
-   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   reach; for each new composition or unit test, the change that turns it red. Comments and
    docs claim no more (§4, §8).
 
 ## Phase 1: Gather the project and resource information
@@ -62,8 +67,9 @@ design or gate script wins over these: say where you departed.
 From the spec: project name, API group, cloud, organisation, maintainer; then the resource Kind,
 its plural and its version (`v1alpha1` for a new API,
 `control-plane-project-charter/references/charter/xrd-design.md`); and the function language for
-Phase 7 (`kcl`, `python`, `go`, `go-templating`) — from the spec or an existing function, else
-ask: it is a decision, not a discoverable fact. New tests follow it (charter §10). Interactive
+Phase 7 (`kcl`, `python`, `go`, `go-templating`) — from the spec or an existing function, else as
+`control-plane-project-charter/references/languages/README.md` says. New tests follow it
+(charter §10). Interactive
 and not in the spec: ask, with the tables in
 [templates.md](references/templates.md#questions-for-a-new-project).
 
@@ -80,11 +86,11 @@ wire; the XRD is the one file you write (Phase 3).
 | Command | Input → Output |
 |---|---|
 | `up project init <name>` | interactive wizard → a whole working project (below) |
-| `up example generate [<xrd>]` | wizard or flags → `examples/<kind-lowercase>/<name>.yaml`. Given an XRD: always `<kind-lowercase>.yaml`, named `<kind-lowercase>` in `default` with placeholder values, whatever `--name`/`--namespace` say. `--path` is relative to `examples/` (up v0.55.0). Find the file; don't assume `example.yaml` |
+| `up example generate [<xrd>]` | wizard or flags → `examples/<kind-lowercase>/<name>.yaml`. Given an XRD: always `<kind-lowercase>.yaml`, named `<kind-lowercase>` (in `default` for a Namespaced XRD) with placeholder values, whatever `--name`/`--namespace` say. `--path` is relative to `examples/` (up v0.55.0). Find the file; don't assume `example.yaml` |
 | `up xrd generate <example.yaml>` | an example XR → an inferred `apis/<plural>/definition.yaml` + language models. Not for the XRD you ship (Phase 3) |
 | `up composition generate <xrd\|xr>` | XRD or XR → `apis/<plural>/composition.yaml`, and adds the required function packages as dependencies |
-| `up function generate <name> [<pipeline-path>]` | → `functions/<name>/…`, and wires it into that composition's pipeline. On an existing `functions/<name>` it prompts to overwrite and, without a TTY, cancels: wire the step by hand (`control-plane-project-charter/references/charter/generators.md`) |
-| `up test generate <name> [--e2e]` | → `tests/test-<name>/…` (or `tests/e2etest-<name>/…`) |
+| `up function generate <name> [<pipeline-path>] --language <lang>` | → `functions/<name>/…`, and wires it into that composition's pipeline. On an existing `functions/<name>` it prompts to overwrite and, without a TTY, cancels: wire the step by hand (`control-plane-project-charter/references/charter/generators.md`) |
+| `up test generate <name> --language <lang> [--e2e]` | → `tests/test-<name>/…` (or `tests/e2etest-<name>/…`) |
 
 The generators disagree on pluralization — `examples/storagebucket/` vs
 `apis/storagebuckets/` — so read the path each command prints.
@@ -121,9 +127,10 @@ anything else (`control-plane-project-charter/references/charter/generators.md`)
 
 ## Phase 3: Write the XRD, and check its design
 
-**Write the XRD yourself** (charter §5 has the reason,
-`control-plane-project-charter/references/charter/v2-resources.md` the v2 skeleton). For a
-**new** XRD:
+**Write the XRD yourself** (charter §5 has the reason). Open
+`control-plane-project-charter/references/charter/xrd-design.md` (the design rules) and
+`control-plane-project-charter/references/charter/v2-resources.md#authoring-the-xrd` (the v2
+skeleton) now. For a **new** XRD:
 
 | Field | Value |
 |---|---|
@@ -195,17 +202,16 @@ that ships.
 `control-plane-project-charter/references/charter/xrd-design.md` has the rules. Run the
 mechanical ones before the first build with the script in this skill's directory
 (`<author-configuration-package>` below is a placeholder for the absolute path of the directory
-containing this SKILL.md; it is not a project path). Invoke it by its
-path in the skill directory, with the project root as the working directory: don't copy it into
-the project, and don't write a test for the XRD (charter §3).
+containing this SKILL.md; it is not a project path). Invoke it with the project root as the
+working directory (charter §3).
 
 ```bash
 python3 <author-configuration-package>/scripts/check_xrd_schema.py \
   apis/*/definition.yaml
 ```
 
-Exit `0` is clean, `10` is at least one finding, and `2` means it extracted nothing — a corpus
-error, not a pass. `FAIL` lines are defects; `REVIEW` lines (booleans, bare strings) are calls
+Exit `0` is clean, `10` is at least one finding, and `2` is an error (nothing extracted, an
+unusable exceptions file, no PyYAML), not a pass. `FAIL` lines are defects, CEL rules the API server refuses among them; `REVIEW` lines (booleans, bare strings, transition rules that freeze `spec` or never run) are calls
 for you to make. The `ACRONYMS` table applies to the **Kind** only; trim it to the acronyms this
 API uses.
 
@@ -243,7 +249,7 @@ When several entries match one finding, the most specific gives the reason. An e
 matches nothing, or only findings a more specific entry already covers, is reported for REVIEW,
 and the script can then serve as a gate. To read a frozen API's state without gating, pass
 `--report-only` (exit 0 despite findings). A skeleton XRD has too few fields to count as an
-extraction, so pass `--min-corpus` until the API has grown.
+extraction, so pass `--min-corpus <N>` until the API has grown.
 
 ## Phase 4: Add dependencies
 
@@ -278,13 +284,14 @@ package name.
   formatting only: no dependency or version constraint changed, other than the legacy-entry
   rewrite above (the same package and constraint, in the new shape).
 - **External pipeline functions must be declared dependencies.** Embedded functions (built from
-  `functions/`) are wired automatically. An external `functionRef`
-  (`crossplane-contrib-function-auto-ready`, `function-patch-and-transform`) missing from
-  `dependsOn` or the cache makes `up test run`'s render fail with
+  `functions/`) are wired automatically. An external `functionRef` (its dependency's
+  `<org>-<repo>`: `crossplane-contrib-function-patch-and-transform`) missing from `dependsOn` or
+  the cache makes `up test run`'s render fail with
   `unknown function … is it listed in the render input?`. Fix it by declaring the dependency,
   not by deleting a step the project needs: declared external functions do render. The one step
-  to delete is the duplicate auto-ready step of Phase 5. An embedded function whose
-  `functionRef.name` departs from the generated one gives the same error
+  to delete is the duplicate auto-ready step of Phase 5. Any other `functionRef.name` (a bare
+  `function-patch-and-transform`, or an embedded one departing from the generated name) gives
+  the same error, even when declared
   (`control-plane-project-charter/references/charter/generators.md`).
 
 Writing a ManagedResourceActivationPolicy, or running `up dep add --api crossplane:<tag>`:
@@ -308,17 +315,18 @@ scaffold emits `Pipeline`; don't hand-edit it.
 ## Phase 6: First build
 
 `up project build` fetches any dependency missing from the cache and generates the models from
-the XRD and the dependencies; check the model tree under `.up/<language>/` exists and holds the
-Kinds and API versions you will compose. **Re-run it after every XRD change**: an edit leaves the
-models stale (a `status` field added by hand is absent from the model until a rebuild).
+the XRD and the dependencies; check the model tree under `.up/<language>/` (go-templating:
+`.up/json/`) exists and holds the Kinds and API versions you will compose. **Re-run it after
+every XRD change**: an edit leaves the models stale (a `status` field added by hand is absent
+from the model until a rebuild).
 No `.m.` models: the provider is v1.x. Any build that fails, or an XR that never gets Ready:
 [templates.md](references/templates.md#when-a-build-fails-or-the-xr-never-gets-ready).
 
 ## Phase 7: Generate the function
 
 Only after the first build: `up function generate <name> apis/<plural>/composition.yaml
---language <lang>`. It wires the models into the function only once they exist under
-`.up/<language>/`. Check its step comes before the auto-ready step in the pipeline.
+--language <lang>`. It wires the models into the function only once they exist (Phase 6). Check
+its step comes before the auto-ready step in the pipeline.
 
 Python, before you write the function body: run
 `python3 <author-composition>/scripts/setup_venv.py`, where `<author-composition>` is the
@@ -374,7 +382,7 @@ Checks for you before you report, not a report format (charter §4: report what 
 
 - Project structure created, with `upbound.yaml` metadata set before any generator ran
 - XRD written by hand, with the schema the user or spec defined, and `check_xrd_schema.py` run
-- First build generated the models (`.up/<language>/` model tree exists)
+- First build generated the models (the Phase 6 model tree exists)
 - `up function generate` created the function, its step before auto-ready
 - Final build succeeded (`.uppkg` under `_output/`)
 - No unbounded dependency: every `dependsOn` `version` caps the major you built against

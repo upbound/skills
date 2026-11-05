@@ -6,7 +6,7 @@
 # curl against the Upbound Platform aggregated API, with auth attached.
 #
 #   hub-curl /apis | jq '.groups[].name'
-#   hub-curl '/apis/hub.upbound.io/v1beta1/resources?pageSize=100'
+#   hub-curl '/apis/hub.upbound.io/v1beta1/realms'
 #
 # The bearer token goes into a 0600 curl config file rather than a -H argument,
 # so it never appears in the process table. Anything on a command line is
@@ -53,6 +53,21 @@ esac
 
 # Caller flags are filtered rather than passed through: -v and --trace print the
 # Authorization header, and a second URL operand would receive the token too.
+#
+# curl also reads -sv as -s -v, so a bundle of short options is walked as curl
+# walks it: up to the first option that takes a value, since the rest of the
+# word is that value (-XPOST, -d@file).
+bundled_flag() {
+  local rest="${1#-}"
+  while [ -n "$rest" ]; do
+    case "$rest" in
+      [vkKTx]*) echo "-${rest:0:1}"; return ;;
+      [AbcCdDeEFhHmoPQrtuUwXyYz]*) return ;;
+    esac
+    rest="${rest:1}"
+  done
+}
+
 for arg in "$@"; do
   case "$arg" in
     -v|--verbose|--trace|--trace-ascii|--trace-config|--libcurl|-K|--config|--proxy*|-T|--upload-file|-k|--insecure)
@@ -61,6 +76,12 @@ for arg in "$@"; do
     *://*)
       echo "hub-curl: refusing a second URL ('$arg'); auth applies to every URL" >&2
       exit 2 ;;
+    -[!-]*)
+      flag="$(bundled_flag "$arg")"
+      if [ -n "$flag" ]; then
+        echo "hub-curl: '$arg' is not allowed; its '$flag' would expose the bearer token" >&2
+        exit 2
+      fi ;;
   esac
 done
 

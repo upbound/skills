@@ -6,7 +6,7 @@
 # kubectl against the aggregated API. This is the write path; for reads prefer
 # hub-curl or hub-list, which paginate and are cheaper.
 #
-#   hub-kubectl get controlplanes -A
+#   hub-kubectl get controlplane <name> -n <realm>
 #   hub-kubectl apply -f controlplane.yaml -n default
 #
 # TLS:
@@ -49,7 +49,10 @@ config="$tmp/kubeconfig"
   printf '  cluster:\n'
   printf '    server: %s\n' "$HUB_API_URL"
   if [ -n "${HUB_CA_FILE:-}" ]; then
-    printf '    certificate-authority: %s\n' "$HUB_CA_FILE"
+    # kubectl resolves a relative path against this kubeconfig's directory.
+    ca="$HUB_CA_FILE"
+    case "$ca" in /*) ;; *) ca="$PWD/$ca" ;; esac
+    printf '    certificate-authority: %s\n' "$ca"
   elif [ "${HUB_INSECURE:-0}" = "1" ]; then
     printf '    insecure-skip-tls-verify: true\n'
   fi

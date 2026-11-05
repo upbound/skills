@@ -1,8 +1,15 @@
 # Crossplane v2 resources: the detail
 
-What `.m.` means, the verified behaviour behind §5's field table, authoring the XRD, what the
-CRD defaults do to a render, how connection details reach a function, choosing a ProviderConfig,
-and what a missing one looks like.
+- [The `.m.` API groups](#the-m-api-groups)
+- [The verified behaviour behind §5's field table](#the-verified-behaviour-behind-5s-field-table)
+- [Authoring the XRD](#authoring-the-xrd)
+- [What the CRD defaults do to a render](#what-the-crd-defaults-do-to-a-render)
+- [What the function returns for the XR](#what-the-function-returns-for-the-xr)
+- [Connection details reach a function only through `writeConnectionSecretToRef`](#connection-details-reach-a-function-only-through-writeconnectionsecrettoref)
+- [Choosing a ProviderConfig](#choosing-a-providerconfig)
+- [Symptom of a missing or wrong ProviderConfig](#symptom-of-a-missing-or-wrong-providerconfig)
+- [Grep your own function before you report](#grep-your-own-function-before-you-report)
+
 [`control-plane-project-charter` §5](../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs) states the rules.
 
 ---
@@ -30,9 +37,7 @@ the "namespaced" reading cannot be right.
 
 ## Authoring the XRD
 
-§5 says to write the XRD rather than infer it with `up xrd generate`;
-[`generators.md`](generators.md) lists what inference drops. The difference carries into the
-model `up project build` generates from it — the same API, inferred versus written:
+The same API, inferred versus written, in the model `up project build` generates:
 
 | | inferred from an example | written directly |
 |---|---|---|
@@ -69,22 +74,22 @@ spec:
           spec:
             type: object
             properties:
-              region: {type: string}
-              retentionDays: {type: integer, default: 90}
+              region: {type: string, description: Region to create the bucket in}
+              retentionDays: {type: integer, default: 90, description: Days to keep objects}
               tags:                              # an open-ended map, not fixed properties
                 type: object
+                description: Tags applied to the bucket
                 additionalProperties: {type: string}
             required: [region]
           status:                                # model it, or your function cannot report
             type: object
             properties:
-              bucketArn: {type: string}
+              bucketArn: {type: string, description: The bucket's cloud identifier}
 ```
 
-The fields sit directly under `spec` here, as in author-configuration-package's XRD template and
-the function templates (`xr.Spec.Region` in Go). Nesting them under `spec.parameters`, as many
-existing APIs do, is equally valid: the project's spec and its existing XRDs decide, and the
-function and the tests follow the XRD.
+The fields sit directly under `spec` here, as in the function templates (`xr.Spec.Region` in
+Go). Nesting them under `spec.parameters`, as many existing APIs do, is equally valid: the
+project's spec and its existing XRDs decide, and the function and the tests follow the XRD.
 
 An existing v1 API keeps its Kind when migrated, `X` prefix included: a new Kind is a new API
 ([`xrd-design.md`](xrd-design.md)).
@@ -122,11 +127,23 @@ crossplane-apis v2 (`core/v2/resource_namespace.go`), which every namespaced pro
 
 ---
 
+## What the function returns for the XR
+
+Each pipeline run starts from empty desired state, and Crossplane applies the XR status it
+returns with server-side apply (`composition_functions.go`, v2.4.3):
+
+- **A key the pipeline stops writing is removed.** Clear nothing yourself.
+- **Never write `null`:** the API server rejects it for a typed field, and the XR gets no status.
+- **A render keeps the input XR's status keys the function didn't write** (up v0.55.1).
+- **Custom conditions go in the response's conditions** (the language file), not desired
+  `status.conditions`, where Crossplane's copy of the current ones freezes them at their first
+  value. Returned `Ready`, `Synced`, `Healthy`, `UpToDate` are ignored.
+
+---
+
 ## Connection details reach a function only through `writeConnectionSecretToRef`
 
-§5 says to set `writeConnectionSecretToRef` on a resource whose connection details the function
-reads, and never to fall back to a value. The behaviour behind it, from the Crossplane v2.2
-source:
+The behaviour behind §5's rule, from the Crossplane v2.2 source:
 
 - **Crossplane reads them from the Secret the composed resource names, and from nowhere else.**
   For each observed composed resource it calls `SecretConnectionDetailsFetcher.FetchConnection`
@@ -134,18 +151,17 @@ source:
   returns nothing, and a Secret the provider has not written yet is ignored (`NotFound`). Both
   reach the function as an empty map, with no error and no event.
 - **A lookup in that map then yields nothing, silently:** KCL `?.ConnectionDetails?.password`
-  is `None` (kcl 0.10.4), Python `connection_details.get(…)` is `None`, a Go map read is `nil`. A
-  fallback such as `or ""` turns that into a Secret with an empty password.
+  is `None` (kcl 0.10.4), Python `connection_details.get(…)` is `None`, a Go map read is `nil`.
 - **On a namespaced MR the reference has only `name`.** The provider writes the Secret into the
   MR's namespace, which is the XR's, so name it per XR (`<xr-name>-<composition-key>`): a fixed
   name collides between two XRs in one namespace.
-- **No render can catch a missing reference.** `crossplane render` sets
-  `ConnectionDetails: nil // We don't support passing in observed connection details`, and the
-  render request up v0.55.0 sends carries observed resources as plain objects, so
-  `observedResources` in a composition test has no place for them either. A render-based test
-  can assert that the composed resource sets `writeConnectionSecretToRef` (assert it: that is the
-  regression a render can see) and that no connection Secret is composed while the details are
-  missing. It cannot show the values: those are unverified until a control plane.
+- **A render passes them only when the test supplies them.** up v0.55.0 renders with Crossplane
+  v2.3, which runs the same fetcher over the test's inputs: an observed mock that sets
+  `writeConnectionSecretToRef`, plus that Secret (in the mock's namespace) in `extraResources`,
+  reaches the function as its connection details. The test writes the mock's reference and the
+  Secret's keys, so also assert that the composed resource sets `writeConnectionSecretToRef` (that
+  is the regression a render can see) and that no connection Secret is composed while the details
+  are missing. Whether the provider writes those key names stays unverified until a control plane.
 
 **On a control plane**, a missing reference or a wrong key name looks the same: the managed
 resource reaches `Ready`, and the connection Secret the function composes never appears (the XR
@@ -203,11 +219,11 @@ Two checks, because one regex cannot do both:
 
 ```bash
 # 1. The two fields that are not hardcoded on a managed resource unless the project sets them.
-grep -rnE 'providerConfigRef|managementPolicies' functions/
+grep -rniE 'providerConfigRef|managementPolicies' functions/
 
 # 2. An assignment to a namespace field — not the word "namespace", which appears in
 #    every honest comment explaining why the field is deliberately absent.
-grep -rnE '(metadata\.)?namespace\s*[:=]' functions/
+grep -rniE '(metadata\.)?namespace\s*[:=]' functions/
 ```
 
 "No output" is not the pass condition: a well-commented function mentions these fields. Judge

@@ -1,10 +1,27 @@
 # Composition patterns — what they mean
 
-The language-agnostic half of composition authoring: what each pattern is *for*, when it
-applies, and how it fails. The syntax is in the charter's language files, indexed by
+**Open these first, if they are not open in this session:** the `control-plane-project-charter`
+skill, and your language's index and function file in
+`control-plane-project-charter/references/languages/` (Go: `go.md`, `go/functions.md`; Python: `python.md`, `python/patterns.md`; KCL: `kcl.md`,
+`kcl/patterns.md`; go-templating and YAML: their one file). This file says
+what a pattern means; those say how to write it.
+
+- [The object model every language builds](#the-object-model-every-language-builds)
+- [Pattern: module organisation](#pattern-module-organisation)
+- [Pattern: the configuration object](#pattern-the-configuration-object)
+- [Pattern: the guard-clause chain — the failure composition tests cannot see](#pattern-the-guard-clause-chain--the-failure-composition-tests-cannot-see)
+- [Pattern: conditional creation, and the `ready OR exists` rule](#pattern-conditional-creation-and-the-ready-or-exists-rule)
+- [Pattern: references beat status plumbing](#pattern-references-beat-status-plumbing)
+- [Pattern: list fields — one resource per element is a decision](#pattern-list-fields--one-resource-per-element-is-a-decision)
+- [Namespaces, connection details, ProviderConfig readiness](#namespaces-connection-details-providerconfig-readiness)
+- [Pattern: flexible maps](#pattern-flexible-maps)
+- [Pattern: merging](#pattern-merging)
+- [Naming](#naming)
+- [A green test with a misbehaving resource](#a-green-test-with-a-misbehaving-resource)
+- [Migrating a function to v2](#migrating-a-function-to-v2)
+
+The syntax is in the charter's language files, indexed by
 `control-plane-project-charter/references/languages/README.md`, under the same pattern names.
-What a v2 managed resource needs, the container boundary, the TDD loop and what a green run
-proves are in the charter, not here.
 
 ---
 
@@ -16,12 +33,16 @@ Three parts matter, identical in every language:
 | Part | What it is | The mistake it invites |
 |---|---|---|
 | `req.observed.composite` | the XR as it currently exists, including `status` | reading it as a plain map when the language gives you a typed object, or vice versa |
-| `req.observed.resources` | composed resources **that already exist**, keyed by composition key | assuming it is populated. In a composition test it is `{}` unless the test supplies `observedResources`, and for a namespaced XR each mock carries the XR's namespace (`control-plane-project-charter/references/charter/evidence.md`, Coverage) |
+| `req.observed.resources` | composed resources **that already exist**, keyed by composition key | assuming it is populated. In a composition test it is `{}` unless the test supplies `observedResources`, with mocks as `control-plane-project-charter/references/charter/evidence.md` (Coverage) describes |
 | `rsp.desired.resources["key"]` | what you want to exist, keyed by composition key | treating the key as cosmetic. It becomes `crossplane.io/composition-resource-name`, and Crossplane derives the resource name from it |
 
-**The composition key is an API.** Renaming a key on an existing platform orphans the
-resource it used to name: Crossplane sees the old resource as no longer desired and the new
-one as new. Choose keys as deliberately as a field name, and treat a rename as a migration.
+**The composition key is an API.** A composed resource the function stops returning, because
+its key was renamed or the resource removed, is deleted by Crossplane on every existing XR that
+runs the new version, and under the default management policies its cloud resource with it; a
+renamed key then creates a new one. Either is a migration: to keep the cloud resource, first
+ship a version that returns it with `Delete` dropped from its `managementPolicies`
+(`control-plane-project-charter/references/charter/v2-resources.md`), let every XR run it,
+then stop returning it. Choose keys as deliberately as a field name.
 
 ---
 
@@ -92,18 +113,25 @@ When resource B needs an ARN, ID, or name produced by resource A:
 
 | Approach | Cost |
 |---|---|
-| **`*Ref` / `*Selector` field** — the provider resolves it | single-pass composition, no readiness branch, nothing to test |
-| Read A's `status` and write it into B | a second reconcile, a readiness branch, a branch that never executes in a composition test |
+| **`*Ref` / `*Selector` field** — the provider resolves it | single-pass composition, no readiness branch; assert the ref or selector |
+| Read A's `status` and write it into B | a second reconcile, and a readiness branch only a test with `observedResources` reaches |
+
+**Not inside a list.** A `*Ref` or `*Selector` in a `forProvider` list without
+`x-kubernetes-list-type: map` never settles: the provider's forced server-side apply of the
+resolved value takes the whole list, and Crossplane's next apply takes it back
+(crossplane-runtime `pkg/reconciler/managed/api.go`). No render shows it. Read the target's ID
+from its observed status instead.
 
 **Check for a `*Ref` before writing any status-plumbing logic.** The generated schema lists
-them. A DynamoDB `Table` encrypted by a `Key` you also create needs only
-`serverSideEncryption.kmsKeyArnRef: {name: <key-name>}` — no status reading at all.
+them. A resource that consumes another one you also create needs only
+`<field>Ref: {name: <target-name>}`, the `metadata.name` your function sets on the target
+(charter §5) — no status reading at all.
 
 Selectors come in three shapes, and the choice is about coupling:
 
 | Selector | Matches | Use when |
 |---|---|---|
-| direct `*Ref` by name | the exact resource you named | you created it in this composition and know its key |
+| direct `*Ref` by name | the exact resource you named | you set the target's `metadata.name` yourself (charter §5), not a composition key |
 | `matchControllerRef` | resources composed by the same XR | you want "the VPC belonging to this XR" without naming it |
 | `matchLabels` | anything carrying the labels | crossing composition boundaries — the loosest coupling, and the easiest to break silently |
 
@@ -121,9 +149,9 @@ API:
    lifecycle does: one `BucketLifecycleConfiguration` holding N rules.
 3. **Is there an account- or region-scoped limit** that N elements would breach?
 
-`control-plane-project-charter` §6 has the rule classes and where they are written down. If
-the models cannot answer, say which API-level rule you could not confirm rather than
-assuming independence.
+`control-plane-project-charter/references/charter/provider-schema.md` has the rule classes and
+where they are written down. If the models cannot answer, say which API-level rule you could
+not confirm rather than assuming independence.
 
 Upjet gives some list fields misleadingly **singular** names — `attribute`,
 `globalSecondaryIndex`. Read the generated type, not the field name.
@@ -132,13 +160,11 @@ Upjet gives some list fields misleadingly **singular** names — `attribute`,
 
 ## Namespaces, connection details, ProviderConfig readiness
 
-The rules live in the charter; the code is in the language file.
-
 - **Namespaces:** omit `metadata.namespace` on everything a namespaced XR composes, child XRs
-  and Secrets included: Crossplane overwrites it. The two exceptions are in charter §5.
+  and Secrets included (charter §5).
 - **Connection details:** a v2 XR publishes none (no `writeConnectionSecretsToNamespace`), so
   compose the Secret yourself from the observed resources' details, read by composition key.
-  When they arrive, and what no render shows: charter §5 and
+  When they arrive, and what a render shows: charter §5 and
   `control-plane-project-charter/references/charter/v2-resources.md`.
 - **A composed ProviderConfig**, or anything else `function-auto-ready` cannot judge: mark it
   ready explicitly, or the XR never becomes ready.
@@ -184,6 +210,8 @@ the second: write one call with all the keys (the language file).
 2. Look for a `providerConfigRef` whose `kind` and name match no object that exists; the
    symptoms are in `control-plane-project-charter/references/charter/v2-resources.md`.
 3. Check the guard-clause chain and readiness branches; neither is exercised locally.
+4. Generation climbs, or the XR reports `WatchCircuitOpen`: a reference inside a list
+   ([above](#pattern-references-beat-status-plumbing)).
 
 Language-specific error messages — Pydantic validation, KCL type errors, TypeScript
 compilation — are in the matching `languages/` file.

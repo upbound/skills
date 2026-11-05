@@ -1,8 +1,13 @@
 # Running E2E on an Upbound Space (Upbound Cloud)
 
-Read before running `up test run --e2e` against a Space. [SKILL.md](../SKILL.md) has what both targets share:
-preconditions, the run idiom, stuck detection and the report. Facts come from the up v0.55.0 source and earlier
-runs of this skill, and may change between versions.
+- [Preconditions](#preconditions)
+- [Target flags](#target-flags)
+- [What the run does](#what-the-run-does)
+- [Stuck on a Space](#stuck-on-a-space)
+- [Evidence and cleanup](#evidence-and-cleanup)
+
+Read before running `up test run --e2e` against a Space. [SKILL.md](../SKILL.md) has what both targets share.
+Facts come from the up v0.55.0 source and earlier runs of this skill, and may change between versions.
 
 ## Preconditions
 
@@ -31,21 +36,22 @@ up repository get "$REPO" --format=json 2>/dev/null \
   || echo "repository does not exist yet"
 ```
 
-`public = True` → go on. Anything else needs a decision that is not yours: `--public` only makes a repository
-it *creates* public, so it fixes "does not exist yet" and changes nothing for an existing private one
+`public = True` → go on (each function's repository too:
+`control-plane-project-charter/references/charter/targets.md`). Anything else needs a decision that
+is not yours: `--public` only makes a repository it *creates* public, so it fixes "does not exist
+yet" and changes nothing for an existing private one
 (`control-plane-project-charter/references/charter/targets.md`).
 
-- If the user already chose `--public` (earlier in the conversation, or relayed in the brief by an
-  orchestrating agent as the user's explicit choice), use it; don't ask again. An orchestrator never decides
-  it itself.
+- If the user already chose `--public` (in the conversation, or relayed in a brief: SKILL.md Never), use it;
+  don't ask again.
 - Otherwise, before burning a run, name the options: publish publicly, change the existing repository's
   visibility (the user's call, outside this skill), push to a repository the control plane can already pull
   from (`--repository`), or have the caller choose the local target instead. Interactive, ask; unattended,
   stop and report. **Never add `--public` because a run hung: it permanently publishes the user's package.**
 
 **3. Credentials.** `source: Upbound` web identity works here, and only here. Each test gets its own control
-plane named `<project>-uptest-<test>`, so a trust policy needs a wildcard subject (inference). A static Secret
-works too. Shapes: author-tests' `e2e.md` reference.
+plane named `<project>-uptest-<test>` (existing one: SKILL.md Phase 2), so a trust policy needs a
+wildcard subject (inference). A static Secret works too. Shapes: author-tests' `e2e.md` reference.
 
 ## Target flags
 
@@ -64,13 +70,14 @@ up test run "tests/e2etest-<n>" --e2e --control-plane-group="<group>" --kubeconf
 
 1. Creates a control plane `<project>-uptest-<test name>` in the group. The first progress line is `Creating
    development control plane in Spaces`.
-2. Crossplane version: `spec.crossplane.version` or `--control-plane-version` if set; otherwise the latest
-   version matching the project's constraint (`^v2.0.0-up.0` for a v2 project). `spec.crossplane.autoUpgrade.channel`
-   applies here.
+2. Crossplane version: `--control-plane-version` if set, else the test's `spec.crossplane` (a channel without
+   `version` gets the channel's version, ignoring the project's constraint), else the latest version matching
+   the project's constraint (`^v2.0.0-up.0` for a v2 project).
 3. Pushes the built package to the repository, applies `initResources`, installs the Configuration and waits
    for it, then applies `extraResources` without waiting.
 4. Applies the manifests and asserts `defaultConditions` within `timeoutSeconds`.
-5. Tears down after every test, pass or fail, unless `spec.skipDelete: true` or `--skip-control-plane-cleanup`.
+5. Tears down after every test, pass or fail, unless `spec.skipDelete: true` or `--skip-control-plane-cleanup`;
+   a failed control-plane creation or a panic (no `timeoutSeconds`) leaves the control plane in the group.
 
 **Timings:** 30–40 minutes per test was normal in earlier runs of this skill on a Space; not re-measured with
 up v0.55.0.

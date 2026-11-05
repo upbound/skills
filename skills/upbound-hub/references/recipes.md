@@ -1,14 +1,23 @@
 # Recipes
 
+- ["How many resources are unhealthy across the fleet?"](#how-many-resources-are-unhealthy-across-the-fleet)
+- ["What is in the fleet?"](#what-is-in-the-fleet)
+- ["Which control planes are unhealthy?"](#which-control-planes-are-unhealthy)
+- ["Why is this thing broken?"](#why-is-this-thing-broken)
+- ["What changed recently?"](#what-changed-recently)
+- ["What types do we have for AWS?"](#what-types-do-we-have-for-aws)
+- ["Where did this resource come from?"](#where-did-this-resource-come-from)
+- ["Did my change land?"](#did-my-change-land)
+- [When the answer is "Hub does not know"](#when-the-answer-is-hub-does-not-know)
+
 ## "How many resources are unhealthy across the fleet?"
 
 ```bash
 scripts/hub-health | jq '.resources'
 ```
 
-Answer with three numbers, because the API can only produce three: how many are
-assessable, how many are explicitly failing, and how many never reported. Do not
-turn it into one percentage of the total — see [querying.md](querying.md).
+Answer with the three numbers of SKILL.md "Reporting health against the wrong denominator",
+never one percentage of the total (why: [querying.md](querying.md#what-health-actually-means)).
 
 By kind:
 
@@ -63,11 +72,13 @@ scripts/hub-list resources 100 \
      | "\(.type)=\(.reason): \(.message)"] | join("; "))"'
 ```
 
-Filter out paused resources, which are not broken:
+Filter out paused resources, which are not broken, by reason: a paused managed resource's
+condition carries no message.
 
 ```bash
-scripts/hub-list resources 100 \
-  'filter=conditions.synced.status == "False" && !conditions.synced.message.matches("(?i)paused")'
+scripts/hub-list resources 100 'filter=conditions.synced.status == "False"' \
+| jq '[.[] | select(any(.status.conditions[]?;
+    .type == "Synced" and .reason == "ReconcilePaused") | not)]'
 ```
 
 ## "What changed recently?"
@@ -84,10 +95,7 @@ scripts/hub-list resources 100 \
 scripts/hub-types aws.upbound.io
 ```
 
-`summary.resourceCount > 0` means the type is in use somewhere. Do not sum that
-column for a fleet total — it disagrees with `resourcestats`, partly because
-composition fans one logical resource out into several records. Report both
-numbers rather than picking a winner.
+`summary.resourceCount > 0` means the type is in use somewhere.
 
 ## "Where did this resource come from?"
 

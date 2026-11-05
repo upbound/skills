@@ -7,13 +7,14 @@
 #
 #   hub-resources-by-cp prod-1
 #   hub-resources-by-cp prod-1 us-west
-#   hub-resources-by-cp prod-1 --unhealthy    # only resources that aren't Ready
+#   hub-resources-by-cp prod-1 --unhealthy    # only resources whose Ready is False
 #
 # Filtering happens on the server via query parameters, so this pulls only the
 # matching records rather than the whole inventory.
 #
-# HEALTH is one of: Ready, Unhealthy, or "-" when the record carries no
-# conditions at all. "-" means unknown, not healthy.
+# HEALTH is one of: Ready, Unhealthy, Unknown, or "-" when the record carries
+# no conditions at all. "-" means unknown, not healthy. A paused resource
+# (reason ReconcilePaused) is not Unhealthy.
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
@@ -59,7 +60,8 @@ jq -r <<<"$resources" '
     (.status.conditions // []) as $c
     | if ($c | length) == 0 then "-"
       elif ($c | map(select(.type == "Ready" or .type == "Synced" or .type == "Healthy"))
-              | map(select(.status == "False")) | length) > 0 then "Unhealthy"
+              | map(select(.status == "False" and .reason != "ReconcilePaused")) | length) > 0
+        then "Unhealthy"
       elif ($c | map(select(.type == "Ready")) | map(select(.status == "True")) | length) > 0
         then "Ready"
       else "Unknown"

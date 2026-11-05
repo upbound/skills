@@ -74,8 +74,9 @@ esac
 # A pinned group is therefore wrong on one major or the other, whichever is
 # pinned. Resolving both group and version keeps one script correct on both.
 #
-# The pins above are used unchanged when discovery fails, so the request returns
-# the real error rather than one about /apis.
+# The pinned group is kept when discovery fails (its version negotiated when
+# /apis is readable), so the request returns the real error rather than one
+# about /apis.
 if resolved="$(hub_resolve_gv "$dir" "$resource" "$fb_group" "$fb_version")"; then
   group="${resolved%% *}"
   version="${resolved##* }"

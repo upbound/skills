@@ -25,7 +25,8 @@ esac
 controlplanes="$("$dir/hub-list" controlplanes 100)"
 spaces="$("$dir/hub-list" spaces 100)"
 realms="$("$dir/hub-list" realms 100)"
-packages="$("$dir/hub-list" crossplanepackages 100)"
+# crossplanepackages sits behind a feature gate and 404s when it is off.
+packages="$("$dir/hub-list" crossplanepackages 100)" || packages=null
 
 totals="$("$dir/hub-stats")"
 by_ready="$("$dir/hub-stats" ready)"
@@ -67,10 +68,10 @@ jq -n \
       total: ($realms | length),
       note: "Hub exposes no health surface for realms; do not invent one."
     },
-    packages: {
-      total: ($packages | length),
-      note: "Catalog entries, not packages installed in any control plane."
-    },
+    packages: (if $packages == null
+      then {total: null, note: "crossplanepackages unavailable (feature gate off?); see stderr."}
+      else {total: ($packages | length),
+            note: "Catalog entries, not packages installed in any control plane."} end),
     resources: {
       total: ($totals.results.summary.totalCount // null),
       # readyUnknown merges "reported Unknown" with "never reported", so the

@@ -10,7 +10,7 @@
 #   hub-stats                                  # fleet totals
 #   hub-stats kind                             # by kind
 #   hub-stats controlPlane kind                # by control plane, then kind
-#   hub-stats kind -- ready=False              # only resources that aren't Ready
+#   hub-stats kind -- ready=False              # only resources whose Ready is False
 #   hub-stats -- controlPlanes=prod-1,prod-2   # totals for two control planes
 #
 # groupBy dimensions: kind, group, controlPlane, realm, space, ready, synced,

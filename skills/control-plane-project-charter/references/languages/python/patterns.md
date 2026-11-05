@@ -1,8 +1,14 @@
 # Python: composition function patterns
 
-The function bootstrap, building a managed resource, and the Python-specific data-shape traps:
-tag maps, `resource.update()` semantics, a Fatal result, optional XRD objects, namespaces, and
-XRD schemas that generate clean models. The Python index is [`../python.md`](../python.md).
+- [Function bootstrap](#function-bootstrap)
+- [Building a managed resource](#building-a-managed-resource)
+- [Tags and other flexible maps](#tags-and-other-flexible-maps)
+- [`resource.update()` replaces nested keys; it does not merge them](#resourceupdate-replaces-nested-keys-it-does-not-merge-them)
+- [A Fatal result](#a-fatal-result)
+- [An optional XRD object is a `dict` when absent and a model when present](#an-optional-xrd-object-is-a-dict-when-absent-and-a-model-when-present)
+- [Namespaces](#namespaces)
+
+The Python index is [`../python.md`](../python.md).
 
 ## Function bootstrap
 
@@ -72,7 +78,7 @@ resource.update(rsp.desired.resources["rg"], desired_rg)   # the key is the comp
 Two things are Python-specific:
 
 - **`ProviderConfigRef` requires `kind`** in the Pydantic model. That constrains constructing
-  one when the project asks for it; it is not a reason to construct one.
+  one when the project asks for it.
 - **A value equal to the model default does not reach the render under the pinned SDK.** Up to
   0.12.0 (`up function generate` pins 0.11.0; [`../python.md`](../python.md#set-up-the-venv-first))
   `resource.update()` dumps a model with `exclude_defaults`, so even an assigned
@@ -149,6 +155,10 @@ resource already written drops the labels the model set. Put annotations on the 
 `r.resource.get_or_create_struct("metadata").get_or_create_struct("annotations")[key] = value`
 (a `Struct` has no `setdefault`).
 
+A custom XR condition goes in the response
+([why](../../charter/v2-resources.md#what-the-function-returns-for-the-xr)):
+`rsp.conditions.append(fnv1.Condition(type="BucketReady", status=fnv1.STATUS_CONDITION_TRUE, reason="Available", target=fnv1.TARGET_COMPOSITE))`.
+
 ## A Fatal result
 
 ```python
@@ -216,11 +226,8 @@ With a namespaced XR, Crossplane overwrites `metadata.namespace` on every compos
 (managed resources, Secrets, ConfigMaps, child XRs) with the XR's namespace, so do not set it
 ([charter §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs)). You
 need the XR's namespace only for values inside a resource's spec, such as a ProviderConfig's
-`secretRef.namespace` ([`readiness.md`](readiness.md)) or the manifest of a provider-kubernetes
-`Object`:
+`secretRef.namespace` ([`readiness.md`](readiness.md)):
 
 ```python
 parent_ns = observed_xr.metadata.namespace   # for spec values only, never for metadata.namespace
 ```
-
-A cluster-scoped XR is the exception: there, the function chooses the namespace.

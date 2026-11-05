@@ -68,10 +68,33 @@ teardown() { teardown_stubs; }
   [ ! -f "$config_path" ]
 }
 
+@test "hub-kubectl makes a relative HUB_CA_FILE absolute" {
+  # kubectl resolves a relative path against the kubeconfig's own directory,
+  # which is a temporary one; hub-curl resolves it against the cwd.
+  cd "$STUB_DIR"
+  HUB_CA_FILE=ca.pem run "$SKILL_DIR/scripts/hub-kubectl" get controlplanes
+  [ "$status" -eq 0 ]
+  grep -q "certificate-authority: $STUB_DIR/ca.pem" "$STUB_DIR/seen-kubeconfig"
+}
+
 @test "hub-curl does not read the user's curlrc" {
   run "$SKILL_DIR/scripts/hub-curl" /apis
   [ "$status" -eq 0 ]
   grep -q -- "--disable" "$ARGV_LOG"
+}
+
+@test "hub-curl refuses a token-exposing flag bundled with others" {
+  # curl reads -sv as -s -v, and -v prints the Authorization header.
+  run "$SKILL_DIR/scripts/hub-curl" /apis -sv
+  [ "$status" -eq 2 ]
+  ! grep -q "^curl " "$ARGV_LOG"
+}
+
+@test "hub-curl passes a short option's attached value through" {
+  # The rest of -XPOST is the method, not more flags.
+  run "$SKILL_DIR/scripts/hub-curl" /apis -XPOST
+  [ "$status" -eq 0 ]
+  grep -q -- "-XPOST" "$ARGV_LOG"
 }
 
 # --- TLS flags -------------------------------------------------------------
@@ -327,6 +350,12 @@ teardown() { teardown_stubs; }
   grep -q "catalog.hub.upbound.io" "$ARGV_LOG"
 }
 
+@test "hub-health still reports when a feature-gated resource is off" {
+  HUB_STUB_404=crossplanepackages run "$SKILL_DIR/scripts/hub-health"
+  [ "$status" -eq 0 ]
+  [ "$(echo "$output" | sed -n '/^{/,$p' | jq -r '.packages.total')" = "null" ]
+}
+
 @test "hub-stats builds a resourcestats query body" {
   run "$SKILL_DIR/scripts/hub-stats" kind controlPlane -- ready=False controlPlanes=a,b
   [ "$status" -eq 0 ]
@@ -339,6 +368,16 @@ teardown() { teardown_stubs; }
 @test "hub-stats rejects a filter that is not key=value" {
   run "$SKILL_DIR/scripts/hub-stats" kind -- notavalidfilter
   [ "$status" -eq 2 ]
+}
+
+@test "hub-types matches a provider family's v2 .m. groups too" {
+  # Crossplane v2 namespaced MRs live in ec2.aws.m.upbound.io, which does not
+  # end with aws.upbound.io.
+  run "$SKILL_DIR/scripts/hub-types" aws.upbound.io
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ec2.aws.upbound.io"* ]]
+  [[ "$output" == *"ec2.aws.m.upbound.io"* ]]
+  [[ "$output" != *"spaces.upbound.io"* ]]
 }
 
 # --- the agent drives setup, the user does not ------------------------------
@@ -364,6 +403,13 @@ teardown() { teardown_stubs; }
   run "$SKILL_DIR/scripts/hub-setup" --url not-a-url
   [ "$status" -eq 1 ]
   [[ "$output" == *"must be a URL"* ]]
+}
+
+@test "hub-setup does not claim to save a URL it refused" {
+  unset HUB_API_URL HUB_INSECURE
+  run "$SKILL_DIR/scripts/hub-setup" --url http://plain.example.com
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"Saved endpoint"* ]]
 }
 
 @test "saving twice replaces rather than appends" {

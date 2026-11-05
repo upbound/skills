@@ -8,8 +8,14 @@ references:
 
 # Composition Authoring
 
-Author and modify Crossplane composition functions, in any language `up function generate`
-supports, test first.
+Author and modify Crossplane composition functions, in KCL, Python, Go,
+go-templating or (by hand) TypeScript, test first.
+
+## First: load the charter
+
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link or phase below (or read the `SKILL.md` in its directory, beside this one).
+Loading this skill does not load it, and the rules here cite its sections (§1–§10) and files.
 
 ## Before you start
 
@@ -29,9 +35,7 @@ syntax).
 
 ## Binding rules — they hold even if you open nothing else
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory: this skill does not load it, and the charter has the reasons. The project's own API,
-design or gate script wins over these: say where you departed.
+The project's own API, design or gate script wins over these: say where you departed.
 
 1. **Never block on a question nobody can answer.** Interactive, ask only what the project
    can't tell you; unattended, never ask: decide from the spec and state the assumption, or
@@ -43,7 +47,8 @@ design or gate script wins over these: say where you departed.
 3. **Test first: watch each new composition or unit test fail for the reason you intended**;
    for a new E2ETest this is optional. A syntax error, a missing path, `✗ Parsing tests`, a
    compile error or a bug in the test's own logic is a broken test, not RED. Backfill by
-   mutating the implementation, never the expected value (§3).
+   mutating the implementation, never the expected value; a surviving mutant of your change
+   is a missing test (§3).
 4. **In a v2 project, managed resources carry `forProvider` only**, on the `.m.` API groups,
    unless the project's spec or API sets more: no `deletionPolicy`, `managementPolicies` or
    `metadata.namespace`; omit `providerConfigRef` if and only if `ClusterProviderConfig/default`
@@ -54,14 +59,19 @@ design or gate script wins over these: say where you departed.
    `$?` (`cmd > /tmp/x.log 2>&1; echo "exit=$?"`); after a pipe, bash `${PIPESTATUS[0]}`,
    zsh `$pipestatus[1]`. `No test files found` means nothing ran. Name the layer you reached —
    render, composition test, local control plane, cloud — and never claim one you did not
-   reach; for each new test, the change that turns it red, or call it unproven. Comments and
+   reach; for each new composition or unit test, the change that turns it red. Comments and
    docs claim no more (§4, §8).
 
 ## Phase 1: Detect the language and the Crossplane generation — do not ask
 
-**Language:** detect it as charter §10 says and read the language file before writing a line;
-its layout, imports and bootstrap are wrong by default if you guess. No functions yet: take it
-from `upbound.yaml`, else an existing function, else ask — a decision, not a discoverable fact.
+**Language:** detect it as charter §10 says. If they are not open in this session, open its
+index and function file in `control-plane-project-charter/references/languages/` now, before
+you write or change a line, even in a project that already has code (Go: `go.md`, `go/functions.md`; Python: `python.md`, `python/patterns.md`; KCL: `kcl.md`,
+`kcl/patterns.md`; go-templating and YAML: their one file): its
+layout, imports and bootstrap are wrong by default if you guess. No functions yet: take it
+from `upbound.yaml`, else an existing function, else as
+`control-plane-project-charter/references/languages/README.md` says (and when to add a step in
+another language).
 
 **Generation**, which governs more of the guidance than the language does:
 
@@ -71,25 +81,23 @@ apis/*/definition.yaml: apiextensions.crossplane.io/v2  → v2: binding rule 4 a
 ```
 
 A v1 project uses the non-`.m.` models and a cluster-scoped `ProviderConfig`, and its shipped
-function breaks every v2 rule. Read the generation from the XRD, never from the template a
-project started as: the templates differ
-(`control-plane-project-charter/references/charter/generators.md`). Match what the project is; migrating it is `plan-v2-migration`'s work, not cleanup in passing.
+function breaks every v2 rule.
 
 ## Phase 2: Discover — do not ask
 
 Make sure the XRD and a composition exist: the test points at them. Write the XRD yourself
 (`author-configuration-package`;
 `control-plane-project-charter/references/charter/v2-resources.md` has the v2 skeleton).
-Scaffold the composition with `up composition generate`, which emits only an auto-ready step,
-and wire your function in with `up function generate <n> <composition-path>`. Leave the
-function body empty or unchanged.
+Scaffold the composition with `up composition generate`, which does not wire in your function
+(`control-plane-project-charter/references/charter/generators.md`), and wire it in with
+`up function generate <n> <composition-path> --language <lang>` (Phase 1). Leave the function body empty or unchanged.
 
 `control-plane-project-charter` §2 has the general table. The composition-specific additions:
 
 | What you need | How to get it — no question required |
 |---|---|
 | **Models missing** (fresh clone, or only your XR's model missing) | `.up/` is gitignored. Run `up project build`. It resolves and caches the dependencies itself and writes every model, your XR's included (observed with up v0.55.0, with an empty `--cache-dir` and no `.up/`). `up dep update-cache` refreshes only the dependency models |
-| Function layout, import line, class names, field names and types | the generated models under `.up/<language>/`, read as the language file says (Go: `control-plane-project-charter/references/languages/go.md`, "Imports and models") |
+| Function layout, import line, class names, field names and types | the generated models, where and how the language file says (Go: `control-plane-project-charter/references/languages/go.md`, "Imports and models") |
 
 **Python:** before Phase 3, run what
 `control-plane-project-charter/references/languages/python.md` says with this skill's
@@ -109,7 +117,8 @@ the simplest correct behaviour, say so in your summary, and continue.
 
 1. **Layout** — match what the project already uses; never convert one to the other.
 2. **Composition keys** — they become `crossplane.io/composition-resource-name`, and
-   Crossplane derives resource names from them. A rename is a migration.
+   Crossplane derives resource names from them. A rename, like a removed resource, deletes the
+   live one: a migration.
 3. **References before status plumbing.** If resource B needs an ARN or ID from resource A,
    a `*Ref` field makes the provider resolve it, so the composition stays single-pass and
    never reads A's status.
@@ -119,6 +128,10 @@ the simplest correct behaviour, say so in your summary, and continue.
    the existing guard clauses (patterns.md: the guard-clause chain).
 6. **Flexible maps** — tags and labels need `additionalProperties` in the XRD; fixed
    `properties:` produce null-value failures in typed languages.
+7. **Split by concern as the function grows.** Keep the entry point (`RunFunction`) to the
+   orchestration, and give resource builders, rendered documents (e.g. JSON policies) and status
+   their own files in the same package; split the unit tests the same way. One file of many
+   hundred lines is hard to review, maintain and extend.
 
 ## Phase 4: RED — write the failing test before the implementation
 
@@ -140,17 +153,23 @@ fails while the others pass.
 Implement until the test passes, and no further. Re-run `up test run "tests/<t>"` and report
 the RED→GREEN transition, not only the final green.
 
-The language file has the bootstrap and the syntax. Language-independent, in order:
+Not open yet in this session? Open the language's index and function file now (Phase 1 names
+them): they have the bootstrap, the syntax and the failure modes. Language-independent, in order:
 
 1. Parse the observed XR with the language's required bootstrap (Python needs
-   `struct_to_dict`; skipping it fails *silently* on current Up CLI versions. Go: the generated
-   models are not `runtime.Object`s, so convert through JSON, in and out).
+   `struct_to_dict`; skipping it fails at model construction (`AttributeError: get`). Go: the
+   generated models are not `runtime.Object`s, so convert through JSON, in and out).
 2. Create managed resources per binding rule 4.
 3. Convert flexible maps to the language's plain map type before assigning them.
-4. Extract connection details by **composition key**, not by resource name.
+4. Extract connection details by **composition key**, not by resource name; open
+   `control-plane-project-charter/references/charter/v2-resources.md#connection-details-reach-a-function-only-through-writeconnectionsecrettoref`
+   now.
 5. Mark a composed ProviderConfig — anything auto-ready cannot judge — ready explicitly.
 6. Give each optional resource its **own conditional block** rather than another early
    return (patterns.md: the guard-clause chain).
+7. Before you write XR status or conditions, open
+   `control-plane-project-charter/references/charter/v2-resources.md#what-the-function-returns-for-the-xr`
+   now.
 
 For iterating on a crash rather than an assertion, use the fast tier where the language
 offers one (Python: `unittest` in `functions/<n>/tests/`; Go: `go test ./...` in
@@ -165,7 +184,8 @@ repeat. Before you call anything covered (charter §8):
 1. **Check provider validity**, not only v2 conformance, as charter §6 says; write the result
    in your summary.
 2. **Grep your own function** with the two greps in
-   `control-plane-project-charter/references/charter/v2-resources.md` and judge each hit rather
+   `control-plane-project-charter/references/charter/v2-resources.md#grep-your-own-function-before-you-report`
+   and judge each hit rather
    than counting them. Legitimate: a `namespace` chosen by a cluster-scoped XR or set on an
    object embedded inside `forProvider` (a provider-kubernetes `Object` manifest); a
    `providerConfigRef` where the right config is not `ClusterProviderConfig/default`, with a
@@ -173,13 +193,15 @@ repeat. Before you call anything covered (charter §8):
    on a composed Secret or ConfigMap of a namespaced XR is not legitimate: Crossplane overwrites
    it.
 3. **Read the render, not the assertions:** `up test run "tests/test-*" --function-logs`, then
-   read it as `control-plane-project-charter/references/charter/evidence.md` says (the directory
-   the run prints as `Test artifacts written to <dir>`). A run without the flag writes nothing,
+   open `control-plane-project-charter/references/charter/evidence.md#reading-the-render` now
+   and read the render as it says (the directory the run prints as
+   `Test artifacts written to <dir>`). A run without the flag writes nothing,
    and any existing directory is stale. Add each emitted resource to `assertResources`; until you
    do, it is untested even though the suite is green.
-4. **The suite satisfies `control-plane-project-charter/references/charter/evidence.md`
-   "Coverage"**: each input shape including a minimal XR, each observed-state branch, every
-   `status` field on the composite.
+4. **The suite satisfies
+   `control-plane-project-charter/references/charter/evidence.md#coverage-what-the-suite-must-contain`**:
+   each input shape including a minimal XR, each observed-state branch, every `status` field on
+   the composite.
 
 ## Phase 7: Report
 

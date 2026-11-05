@@ -14,8 +14,9 @@ plane.
 
 ## Before you start
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory; this skill does not load it. Every "ask" below follows its §1 (unattended: never
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link below (or read the `SKILL.md` in its directory, beside this one): loading this
+skill does not load it. Every "ask" below follows its §1 (unattended: never
 ask; act on the brief and state the assumption, or stop and report), and its §4 binds every
 summary.
 
@@ -43,19 +44,17 @@ verification. Run `up project build`. If it fails, report the error and stop.
 ## Phase 2: Composition tests, and the render
 
 Run `up test run "tests/test-*"`. If any fail, report the failures and stop. If it prints
-`No test files found`, no test ran, though it exits 0: report that, never a pass (charter §8).
+`No test files found`, report that, never a pass (charter §8).
 Each run pays a full project build (timings:
 `control-plane-project-charter/references/charter/tdd.md`).
 
-Keep the `test-*` glob: `tests/*` also runs the e2e test programs, even without `--e2e`, and
-fails at `✗ Parsing tests` whenever an e2e input is unset. `no valid CompositionTests found`
-means the matched dirs produced no `CompositionTest` (e.g. only `e2etest-*` dirs): a wrong glob,
-not a failing test (charter §7).
+Keep the `test-*` glob (charter §7).
 
 **Read the render, not just the exit code.** `up test run` checks only the resources a test
 asserts: an extra managed resource added to a function left a 2-test suite at 2/2 PASS. When the
 change added or modified a composed resource, re-run with `--function-logs` and list what the
-function emitted as `control-plane-project-charter/references/charter/evidence.md` shows (use
+function emitted as
+`control-plane-project-charter/references/charter/evidence.md#reading-the-render` shows (use
 the directory the run prints). Check that every resource the change should produce is in the
 render and asserted: one rendered but not asserted is a gap to report, not a pass.
 
@@ -124,9 +123,9 @@ run in flight: in many agents a session's jobs die with it, leaving the KIND clu
 
 **Tear down with `up project stop`** from the project root, but only after deleting the XRs you
 applied and waiting until `kubectl get managed -A` is empty: `up project stop` deletes the
-control plane with whatever is still on it, and the cloud resources behind it stay. The steps,
-what to do when deletion hangs, and what a hand-deleted cluster leaves behind:
-`control-plane-project-charter/references/charter/targets.md` (Teardown and leftovers).
+control plane with whatever is still on it, and the cloud resources behind it stay. For the
+steps, what to do when deletion hangs, and what a hand-deleted cluster leaves behind, open
+`control-plane-project-charter/references/charter/targets.md#teardown-and-leftovers` now.
 
 ### Never
 
@@ -145,7 +144,7 @@ what to do when deletion hangs, and what a hand-deleted cluster leaves behind:
 
 Checks for you, not a report format (report what ran, charter §4):
 - Build succeeds (exit 0, package in `_output/`).
-- All composition tests pass ("Failed tests: 0"), the run did not print `No test files found`,
+- All composition tests pass ("Failed tests: 0" and exit 0), the run did not print `No test files found`,
   and every resource the change produces is in the render and asserted.
 - E2E offered (interactive) or handled as the brief says (unattended), unless the project
   rules it out.

@@ -1,9 +1,12 @@
 # Go: composition functions
 
-Imports and the `go.mod` wiring are in [`../go.md`](../go.md#imports-and-models). The models are on
-disk under `.up/go/models/io/upbound/m/<provider>/<service>/<version>/<kind>.go` (no `dev.upbound.io`
-level). What a v2 managed resource needs is in
-[`control-plane-project-charter` §5](../../../SKILL.md#5-crossplane-v2-what-a-composed-resource-actually-needs).
+- [The scaffold, and what to change in it](#the-scaffold-and-what-to-change-in-it)
+- [function-sdk-go v0.5: the calls a composition needs](#function-sdk-go-v05-the-calls-a-composition-needs)
+- [Function template (`functions/<n>/fn.go`)](#function-template-functionsnfngo)
+- [Unit-test template: the fast tier (`functions/<n>/fn_test.go`)](#unit-test-template-the-fast-tier-functionsnfn_testgo)
+- [Failure modes](#failure-modes)
+
+Imports and the `go.mod` wiring are in [`../go.md`](../go.md#imports-and-models).
 
 The scaffold facts below were observed on `up` v0.55.0, which pins `function-sdk-go` v0.5.0; every SDK name
 was checked against that version's source. The function template passes the three tests in
@@ -21,8 +24,7 @@ was checked against that version's source. The function template passes the thre
 | `fn_test.go` | `TestRunFunction` with an **empty `cases` table** | add cases before you trust it. As generated, `go test` prints `ok` and runs nothing, the same vacuous pass as the stub test in charter §8 |
 | `go.mod` | `function-sdk-go v0.5.0`, plus the models `require` and `replace` | keep the `replace` ([`../go.md`](../go.md#gomod-the-models-replace)) |
 
-Compile with `go vet ./...` or `go build -o /dev/null ./...`, never plain `go build ./...` (Failure modes,
-below), and gitignore `functions/<n>/<n>`.
+Gitignore `functions/<n>/<n>` (Failure modes, below).
 
 ## function-sdk-go v0.5: the calls a composition needs
 
@@ -33,7 +35,7 @@ below), and gitignore `functions/<n>/<n>`.
 | `request.GetDesiredComposedResources(req)` | `map[resource.Name]*resource.DesiredComposed`, what earlier steps composed. Add yours to it |
 | `response.SetDesiredComposedResources(rsp, desired)` | writes the map into `rsp`, keyed by composition resource name. Crossplane turns each key into the `crossplane.io/composition-resource-name` annotation at render, so a unit test sees the map key, not the annotation (unit-test template, below). It sets keys and never removes one |
 | `request.GetObservedComposedResources(req)` | `map[resource.Name]resource.ObservedComposed`, keyed by composition resource name: `observed["bucket"].Resource.GetString("status.atProvider.arn")` |
-| `.Resource.GetAnnotations()["crossplane.io/external-name"]` | an annotation. Its key has dots, so the path `metadata.annotations.crossplane.io/…` fails with `no such field`; `GetStringObject("metadata.annotations")[key]` and the bracket path `GetString("metadata.annotations[<key>]")` work too |
+| `.Resource.GetAnnotations()["crossplane.io/external-name"]` | an annotation. Its key has dots, so the path `metadata.annotations.crossplane.io/…` fails with `no such field`; the bracket path `GetString("metadata.annotations[<key>]")` works too |
 | `.Resource.SetValue("metadata.labels[<key>]", v)` | writes one label whose key has dots or slashes; the same bracket segment works for `metadata.annotations[<key>]` and `spec.forProvider.tags[<key>]` (used in a passing v0.5.0 function). `SetLabels`/`SetAnnotations`, from the embedded Kubernetes `Unstructured`, replace the whole map: read it with `GetLabels()`, add the key, write it back |
 | `request.GetDesiredCompositeResource(req)` + `response.SetDesiredCompositeResource(rsp, dxr)` | XR status: `dxr.Resource.SetString("status.bucketArn", arn)` between the two; lists and objects with `SetValue("status.subnetIds", []any{…})`. `composed.Unstructured` has the same `SetValue`; there is no `SetNestedField`. Several fields: one pair per run ([below](#several-status-fields)) |
 | `response.Fatal(rsp, err)`, then `return rsp, nil` | how a function reports an error: as a fatal result in the response, not as Go's `error` |
@@ -210,18 +212,12 @@ field survives then depends on the request: `response.To` shares the request's d
 the response, so it survives when the request carries one, and is lost when it does not, as in a
 unit-test request built with `Observed` only (checked against v0.5.0).
 
-**There is no stale status to clear.** Crossplane starts every pipeline run with an empty desired
-state ("The Function pipeline starts with empty desired state", in the composite controller's
-`composition_functions.go`; `crossplane render` does the same), so the first step starts the XR's
-desired status from nothing on every reconcile; only a later step receives an earlier step's
-desired state. Crossplane then applies the XR status with server-side apply, as the pipeline's
-fully specified intent, so a field the pipeline stops writing is removed, not left behind
-(checked in the Crossplane source, v1.20 to v2.2). Write no code or test that clears status
-left by an earlier reconcile.
+**There is no stale status to clear**
+([why](../../charter/v2-resources.md#what-the-function-returns-for-the-xr)).
 
 ## Unit-test template: the fast tier (`functions/<n>/fn_test.go`)
 
-`go test ./...` in `functions/<n>/` calls `RunFunction` directly: about a second, no project build. It is
+The fast tier ([`../go.md`](../go.md)) is
 also the easiest home for absence: a typed model can't carry `assertResources`' expression key
 (`charter/evidence.md`), and a Go unit test on the desired state compares a whole map. Asserting the
 exact set of resource names catches a surplus resource too.
@@ -381,9 +377,6 @@ does: it passes, and disabling the Fatal branch turns all three checks red.
 | What you do | What happens |
 |---|---|
 | `go build ./...` in `functions/<n>/` | writes `./<n>`, about 55 MB, and `git add functions/<n>` commits it |
-| Leave the scaffold `fn_test.go` as it is | `go test` prints `ok`; zero cases ran |
 | `composed.From(model)` or `resource.AsStruct(x)` with a model or an `any` | compile or vet error: `does not implement runtime.Object (missing method DeepCopyObject)` |
 | Import the non-`.m.` model in a v2 project | compiles; the rendered resource carries the cluster-scoped `apiVersion` |
-| Guess a constant such as `BucketAPIVersions3AwsMUpboundIoV1Beta1` | the spelling varies per kind (`VPCApiVersion…`, `SubnetAPIVersion…`); read the `const (` block of that kind's file |
 | Pass a model constant as a `string` | `cannot use … (constant of string type …) as string value`: the constants are typed, use `string(c)` |
-| Delete the models `replace` as unused | the first model import fails: `unrecognized import path "dev.upbound.io/models"` |

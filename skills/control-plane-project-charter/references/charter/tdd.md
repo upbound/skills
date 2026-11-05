@@ -1,6 +1,6 @@
 # The inner loop, and backfilling tests
 
-How to iterate without paying a full build every time, and how to add tests to code that already works. [`control-plane-project-charter` §3](../../SKILL.md#3-develop-test-first-red--green--refactor) states the discipline.
+[`control-plane-project-charter` §3](../../SKILL.md#3-develop-test-first-red--green--refactor) states the discipline.
 
 ## The two-tier inner loop
 
@@ -62,16 +62,9 @@ Don't revert by editing back: `up test run`, like `up project build`,
 drops its comments (author-configuration-package, Phase 4), so a mutation commented out there
 cannot be found again.
 
-**Mutate the implementation, never the test's expected value.** Changing the expected value
-turns any test red, including one that asserts nothing the code does, so it proves only that
-the comparison runs. The mutation has to be the regression the test exists to catch.
-
-Report which mutation you used and which tests it turned red. *"Moving the lifecycle block
-below the versioning guard turned test 3 red and left the other three green"* is a coverage
-claim with evidence behind it. *"Coverage: complete"* is not.
-
-If a mutation you expected to break the test leaves the suite green, the test does not cover
-what you thought — say so rather than reporting the coverage.
+**The mutation is the regression the test exists to catch**, never an edit of the expected
+value, which turns any test red. Report it and the tests it turned red. A mutation that leaves
+the suite green is a missing test: write it (charter §3, §4).
 
 ## Distinguishing inputs
 

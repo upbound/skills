@@ -1,7 +1,13 @@
 # Python: observed resources, readiness and connection Secrets
 
-Reading observed resources, gating on readiness without deleting what you already made, and
-writing a connection Secret. The Python index is [`../python.md`](../python.md).
+- [Observed resources are keyed by composition resource name](#observed-resources-are-keyed-by-composition-resource-name)
+- [Connection Secrets](#connection-secrets)
+- [Mark a composed ProviderConfig ready](#mark-a-composed-providerconfig-ready)
+- [Create on "ready or already exists", not on "ready"](#create-on-ready-or-already-exists-not-on-ready)
+- [The early-return chain](#the-early-return-chain)
+- [Reading the render](#reading-the-render)
+
+The Python index is [`../python.md`](../python.md).
 
 ## Observed resources are keyed by composition resource name
 
@@ -20,16 +26,15 @@ if "mysql" in req.observed.resources:          # the key, not "mysql-myplatform-
 ```
 
 Values come from three places: `spec.forProvider` (what you set), `status.atProvider` (once the
-cloud resource exists), and `connection_details` (provider-populated secrets, as bytes, only
-from a resource that sets `writeConnectionSecretToRef`: charter §5).
+cloud resource exists), and `connection_details` (provider-populated secrets, as bytes).
 
 ## Connection Secrets
 
 A v2 XRD has no `connectionSecretKeys`, so a v2 XR does not publish connection details: compose a
 Secret yourself (a v1 XR took them through `rsp.desired.composite.connection_details`).
 
-The resource you read them from must name its own connection Secret, or `connection_details`
-stays empty for good. Set it beside `forProvider` when you compose it:
+Set `writeConnectionSecretToRef` beside `forProvider` on the resource you read them from
+(charter §5):
 
 ```python
 spec=mysqlv1beta2.Spec(
@@ -79,9 +84,9 @@ spec:
       version: v1.33.0
 ```
 
-A test reaches this branch only with `observedResources`, and never with a password: no render
-passes connection details. Assert `writeConnectionSecretToRef` on the composed `mysql` instead
-([`charter/v2-resources.md`](../../charter/v2-resources.md)).
+A test reaches this branch only with `observedResources`, and a password only as
+[`charter/v2-resources.md`](../../charter/v2-resources.md) says; assert
+`writeConnectionSecretToRef` on the composed `mysql` either way.
 
 ## Mark a composed ProviderConfig ready
 
