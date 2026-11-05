@@ -853,6 +853,16 @@ def run(patterns, min_corpus=DEFAULT_MIN_CORPUS, out=None, exceptions=None,
         + ("; report only, findings do not fail the run" if report_only else ""),
         file=out,
     )
+    if all_findings or all_review:
+        # Agents run this lint far more often than they open the rules behind it, so its
+        # output names the file that explains each finding.
+        guide = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                             "control-plane-project-charter", "references", "charter",
+                             "xrd-design.md")
+        guide = os.path.normpath(guide) if os.path.isfile(guide) else (
+            "control-plane-project-charter/references/charter/xrd-design.md")
+        print(f"Before you fix or except a finding, open {guide} now: it has the rule "
+              "behind each one and when an exception is right.", file=out)
     if report_only:
         return EXIT_CLEAN
     return EXIT_FINDINGS if all_findings else EXIT_CLEAN

@@ -75,6 +75,7 @@ class CheckXrdSchemaTest(unittest.TestCase):
         assert code == c.EXIT_CLEAN, output
         assert "FAIL:" not in output
         assert "REVIEW:" not in output
+        assert "xrd-design.md" not in output
 
     def test_good_schema_corpus_is_real(self):
         """A clean verdict is only meaningful if something was actually extracted."""
@@ -88,8 +89,11 @@ class CheckXrdSchemaTest(unittest.TestCase):
 
     def test_bad_schema_is_rejected(self):
         bad_xrd = FIXTURES / 'bad.yaml'
-        code, _output = run([bad_xrd])
+        code, output = run([bad_xrd])
         assert code == c.EXIT_FINDINGS
+        # Findings name the file with the rules behind them, by a path that exists.
+        guide = output.split("open ", 1)[1].split(" now:", 1)[0]
+        assert guide.endswith("xrd-design.md") and Path(guide).is_file(), output
 
     def test_collision_check_catches_one_concept_two_spellings(self):
         """projectID beside ProjectId -- registry-free, so no false positive."""
