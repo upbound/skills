@@ -1,5 +1,8 @@
 # The test model, patterns and common mistakes (language-agnostic)
 
+**Open these first, if they are not open in this session:** the `control-plane-project-charter`
+skill, and your test language's tests file (the index below names it).
+
 The syntax is in the charter's language files, indexed by
 `control-plane-project-charter/references/languages/README.md`; writing an `E2ETest` is
 [e2e.md](e2e.md).

@@ -1,5 +1,11 @@
 # Writing an E2ETest
 
+**Open these first, if they are not open in this session:** the `control-plane-project-charter`
+skill, and your test language's file and tests file in
+`control-plane-project-charter/references/languages/` (Go: `go.md`, `go/tests.md`; Python:
+`python.md`, `python/tests.md`; KCL: `kcl.md`, `kcl/tests.md`; go-templating and YAML: their one
+file). This file adds only what is E2E-specific.
+
 - [What happens on the control plane](#what-happens-on-the-control-plane)
 - [Fields](#fields)
 - [`defaultConditions` lists condition types, not expressions](#defaultconditions-lists-condition-types-not-expressions)
