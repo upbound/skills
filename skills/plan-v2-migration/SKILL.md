@@ -14,8 +14,9 @@ carries out: `.agents/plans/CROSSPLANE_V2_MIGRATION.md`.
 
 ## Before you start
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory; this skill does not load it. The only questions are whether to replace an existing
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link below (or read the `SKILL.md` in its directory, beside this one): loading this
+skill does not load it. The only questions are whether to replace an existing
 plan (Phase 1) and Phase 5's decisions, asked only when interactive (charter §1).
 
 - Analysis only: write the plan file and nothing else — no code changes, builds, tests or

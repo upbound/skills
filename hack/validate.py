@@ -452,6 +452,7 @@ PLACEHOLDER_RE = re.compile(
 # one that lacks the section is a finding rather than silently skipped.
 SHARED_SECTIONS: dict[str, tuple[str, ...]] = {
     "## Binding rules": ("author-configuration-package", "author-composition", "author-tests"),
+    "## First: load the charter": ("author-configuration-package", "author-composition", "author-tests"),
 }
 
 

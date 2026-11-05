@@ -14,8 +14,9 @@ plane.
 
 ## Before you start
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory; this skill does not load it. Every "ask" below follows its §1 (unattended: never
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link below (or read the `SKILL.md` in its directory, beside this one): loading this
+skill does not load it. Every "ask" below follows its §1 (unattended: never
 ask; act on the brief and state the assumption, or stop and report), and its §4 binds every
 summary.
 

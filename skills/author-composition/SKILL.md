@@ -11,6 +11,12 @@ references:
 Author and modify Crossplane composition functions, in KCL, Python, Go,
 go-templating or (by hand) TypeScript, test first.
 
+## First: load the charter
+
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link or phase below (or read the `SKILL.md` in its directory, beside this one).
+Loading this skill does not load it, and the rules here cite its sections (§1–§10) and files.
+
 ## Before you start
 
 A composition's *meaning* is language-agnostic; only its *syntax* differs. Read three layers:
@@ -29,9 +35,7 @@ syntax).
 
 ## Binding rules — they hold even if you open nothing else
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory: this skill does not load it, and the charter has the reasons. The project's own API,
-design or gate script wins over these: say where you departed.
+The project's own API, design or gate script wins over these: say where you departed.
 
 1. **Never block on a question nobody can answer.** Interactive, ask only what the project
    can't tell you; unattended, never ask: decide from the spec and state the assumption, or

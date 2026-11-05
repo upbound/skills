@@ -13,8 +13,9 @@ stage by stage, ticking each item as it is done.
 
 ## Before you start
 
-Load `control-plane-project-charter` first, or read its `SKILL.md` beside this skill's
-directory; this skill does not load it. Ask only at the points this skill names, and only when
+If `control-plane-project-charter` is not loaded in this session, load it now, before you
+follow any link below (or read the `SKILL.md` in its directory, beside this one): loading this
+skill does not load it. Ask only at the points this skill names, and only when
 interactive; unattended, take the default named at each point and state it in the summary
 (charter §1). Its §4 binds every summary.
 
