@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 # Explicit, so import order does not matter. Without this, `import validate`
@@ -20,6 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import validate  # noqa: E402
 from support import GOOD_SKILL, CheckCase  # noqa: E402
+
+# The real table, before any test patches it.
+SHARED_SECTIONS = dict(validate.SHARED_SECTIONS)
 
 
 class TestFrontmatterCheck(CheckCase):
@@ -305,8 +309,19 @@ class TestSharedCheck(CheckCase):
             files[f"skills/{name.replace('_', '-')}/SKILL.md"] = text
         return files
 
+    def setUp(self):
+        super().setUp()
+        # The cases below build only the binding rules; compare that one section.
+        patcher = mock.patch.dict(validate.SHARED_SECTIONS, {"## Binding rules": self.OWNERS},
+                                  clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_the_three_named_skills_carry_the_rules(self):
         self.assertEqual(tuple(validate.SHARED_SECTIONS["## Binding rules"]), self.OWNERS)
+
+    def test_the_charter_load_step_is_shared_by_the_same_three(self):
+        self.assertEqual(tuple(SHARED_SECTIONS["## First: load the charter"]), self.OWNERS)
 
     def test_identical_copies_are_clean(self):
         files = self.owners(author_tests=self.skill("author-tests", self.RULES, after=""))

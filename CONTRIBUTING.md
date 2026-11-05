@@ -109,8 +109,9 @@ CI also checks a handful of things the table cannot show:
 - Every script is mentioned in some `.md` in its skill, has a shebang, is executable, and carries an
   `SPDX-License-Identifier` header.
 - Links resolve, are relative, and do not point outside the skill's own directory.
-- A section several skills carry word for word — today the `## Binding rules` block of
-  `author-configuration-package`, `author-composition` and `author-tests` — is present and
+- A section several skills carry word for word — today the `## First: load the charter` and
+  `## Binding rules` blocks of `author-configuration-package`, `author-composition` and
+  `author-tests` — is present and
   identical in each skill `SHARED_SECTIONS` in `hack/validate.py` lists for it; other skills are
   not compared. An agent that loads one skill never sees the others, so the rules are
   duplicated on purpose; edit every copy in the same change.
