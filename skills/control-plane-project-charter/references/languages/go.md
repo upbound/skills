@@ -30,7 +30,7 @@ language new tests use: [charter §10](../../SKILL.md#10-language-dispatch). go-
 
 | | Files | What is in it |
 |---|---|---|
-| Function | `functions/<n>/*.go` | its own module, `package main`: `main.go` (the gRPC server, leave it), `fn.go` (`RunFunction`), `fn_test.go` |
+| Function | `functions/<n>/*.go` | its own module, `package main`: `main.go` (the gRPC server, leave it), `fn.go` (`RunFunction`), `fn_test.go`; more `*.go` and `*_test.go` files by concern as it grows (author-composition Phase 3) |
 | Test | `tests/<t>/go.mod` | its own module, `package main`: `main.go` prints the tests as YAML |
 
 Every function and every test directory is a separate Go module, so run `go` commands from inside it.

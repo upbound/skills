@@ -125,6 +125,10 @@ the simplest correct behaviour, say so in your summary, and continue.
    the existing guard clauses (patterns.md: the guard-clause chain).
 6. **Flexible maps** — tags and labels need `additionalProperties` in the XRD; fixed
    `properties:` produce null-value failures in typed languages.
+7. **Split by concern as the function grows.** Keep the entry point (`RunFunction`) to the
+   orchestration, and give resource builders, rendered documents (e.g. JSON policies) and status
+   their own files in the same package; split the unit tests the same way. One file of many
+   hundred lines is hard to review, maintain and extend.
 
 ## Phase 4: RED — write the failing test before the implementation
 
