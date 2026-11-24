@@ -109,11 +109,14 @@ CI also checks a handful of things the table cannot show:
 - Every script is mentioned in some `.md` in its skill, has a shebang, is executable, and carries an
   `SPDX-License-Identifier` header.
 - Links resolve, are relative, and do not point outside the skill's own directory.
-- A section several skills carry word for word — today the `## Binding rules` block of
-  `author-configuration-package`, `author-composition` and `author-tests` — is present and
+- A section several skills carry word for word — today the `## First: load the charter` and
+  `## Binding rules` blocks of `author-configuration-package`, `author-composition` and
+  `author-tests` — is present and
   identical in each skill `SHARED_SECTIONS` in `hack/validate.py` lists for it; other skills are
   not compared. An agent that loads one skill never sees the others, so the rules are
   duplicated on purpose; edit every copy in the same change.
+- A file in `references/` over 100 lines lists its `##` headings as links, in order, before the first
+  of them. An agent that reads only the top of a file still sees everything it covers.
 - No private hostname, RFC1918 address, private key, or JWT-shaped string appears in any tracked file.
   A redacted transcript containing a `10.x` address will trip this; quote it differently or add a case
   to `hack/denylist/strings-allow.txt`.

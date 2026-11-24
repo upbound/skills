@@ -1,7 +1,13 @@
 # KCL: conditionals, comprehensions and references
 
-Conditional resources, list comprehensions, selector references, merging, optional fields and
-multi-branch logic. Structure and the helpers (`config.metadata`, `config.sanitizeLabels`) are
+- [Conditional resources](#conditional-resources)
+- [List comprehensions](#list-comprehensions)
+- [References between composed resources](#references-between-composed-resources)
+- [Merging with `|`](#merging-with-)
+- [Optional fields](#optional-fields)
+- [Multi-branch logic](#multi-branch-logic)
+
+Structure and the helpers (`config.metadata`, `config.sanitizeLabels`) are
 in [`patterns.md`](patterns.md); the KCL index is [`../kcl.md`](../kcl.md).
 
 ## Conditional resources
@@ -53,7 +59,7 @@ _generateSubnets = lambda config: {str: any} -> [any] {
 ```
 
 The labels are what a sibling selects on (below). Keep the index stable: it is part of the
-composition resource name, so reordering the input list renames, and orphans, live resources.
+composition resource name, so reordering the input list renames, and so deletes, live resources.
 
 ## References between composed resources
 

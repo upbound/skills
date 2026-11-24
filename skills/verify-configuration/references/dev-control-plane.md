@@ -1,8 +1,9 @@
 # Running the project on a dev control plane
 
-`up project run`, step by step: the Space pre-flight, the choice you hand back when a Space
-cannot pull, applying credentials and an example XR, confirming the run reconciled, and what to
-do when a run hangs on `Waiting for package to be ready`. The skill's Phase 5 holds the
+- [The steps](#the-steps)
+- [When a run hangs on "Waiting for package to be ready"](#when-a-run-hangs-on-waiting-for-package-to-be-ready)
+
+The skill's Phase 5 holds the
 never-rules. Where a run lands, the non-interactive `up ctx` forms, what `--public` does, and why
 a private repository wedges the run are in
 `control-plane-project-charter/references/charter/targets.md`: read it with this.
@@ -30,17 +31,17 @@ up project run --timeout=20m     # the --timeout default is 5m, short for a firs
 **3. On a Space? Pre-flight before you spend ten minutes:**
 
 ```bash
-up repository get <repository>              # from upbound.yaml spec.repository; PUBLIC=false and no pull secret => it will wedge
+up repository get <name>     # spec.repository = xpkg.upbound.io/<org>/<name>; the profile's org must be <org>
+                             # PUBLIC=false and no pull secret => it will wedge
+                             # same for each function's <name>_<function> (charter targets.md)
 kubectl get imageconfigs.pkg.crossplane.io
 kubectl -n crossplane-system get secrets | grep -i pull
 ```
 
 If the control plane can pull, run it on the Space: that is the environment they chose.
 
-**4. If the pre-flight says it will wedge, hand the decision back.** Do not fall back to
-`--local` and do not pick an option: they connected to that Space on purpose. Interactive, put
-the choice to the user; unattended, report these three options and their consequences to your
-caller and stop.
+**4. If the pre-flight says it will wedge, hand the decision back** (SKILL.md Phase 5, Never),
+with what each option costs:
 
 | Option | Command | What it costs them |
 |---|---|---|
@@ -48,7 +49,8 @@ caller and stop.
 | **B. Publish the repository** | `up project run --public --timeout=20m` | **Permanently publishes their package**, and does not change a repository that already exists (`control-plane-project-charter/references/charter/targets.md`). A disclosure decision, never made on their behalf |
 | **C. Local KIND control plane** | `up project run --local --timeout=20m` | Nothing is pushed, so the pull failure cannot occur, and it still creates real cloud resources through their provider credentials. But it is not the Space they pointed you at, and Space-specific behaviour goes uncovered |
 
-**5. Run it streaming.** Let the output stream, or `tee` it to a file.
+**5. Run it streaming.** Let the output stream, or `tee` it to a file (exit code:
+`${PIPESTATUS[0]}`/`$pipestatus[1]`, charter §4).
 
 **6. If it wedges anyway**, follow the next section. Another blind attempt costs another ~10
 minutes and usually fails the same way.

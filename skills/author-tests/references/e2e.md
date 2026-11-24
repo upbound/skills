@@ -1,5 +1,20 @@
 # Writing an E2ETest
 
+**Open these first, if they are not open in this session:** the `control-plane-project-charter`
+skill, and your test language's file and tests file in
+`control-plane-project-charter/references/languages/` (Go: `go.md`, `go/tests.md`; Python:
+`python.md`, `python/tests.md`; KCL: `kcl.md`, `kcl/tests.md`; go-templating and YAML: their one
+file). This file adds only what is E2E-specific.
+
+- [What happens on the control plane](#what-happens-on-the-control-plane)
+- [Fields](#fields)
+- [`defaultConditions` lists condition types, not expressions](#defaultconditions-lists-condition-types-not-expressions)
+- [The ProviderConfig the test creates](#the-providerconfig-the-test-creates)
+- [Credentials depend on the target](#credentials-depend-on-the-target)
+- [Go template (`tests/e2etest-<n>/main.go`)](#go-template-testse2etest-nmaingo)
+- [E2E RED](#e2e-red)
+- [What an E2ETest cannot assert](#what-an-e2etest-cannot-assert)
+
 Read before writing or changing any `E2ETest`, in any language. Running one (target, monitoring, report) is
 `e2e-test-configuration`'s job. Facts come from the up v0.55.0 source and runs; they may change between
 versions.
@@ -12,9 +27,9 @@ On any target, in this order:
 2. The control plane is created, then `initResources` are applied, then the package is installed and waited for.
 3. `extraResources` are server-side applied: no wait, no condition check.
 4. The manifests are applied and `defaultConditions` asserted within `timeoutSeconds`.
-5. Teardown follows every test that got past setup, pass or fail: the test's resources, then the control
-   plane. `skipDelete: true` or `--skip-control-plane-cleanup` leaves the control plane up, and a setup failure
-   or a panic skips teardown silently (e2e-test-configuration's `local.md`, Leaks).
+5. Teardown follows every test that got its control plane, pass or fail: the test's resources, then the control
+   plane. `skipDelete: true` or `--skip-control-plane-cleanup` leaves the control plane up, and a failure while
+   creating it or a panic skips teardown silently (e2e-test-configuration's `local.md`, Leaks).
 
 `--function-logs` is rejected with `--e2e`: an e2e run writes no `render.log`, so its output and exit code are
 the only record.
@@ -127,7 +142,9 @@ its fail message: keep both in every copy, since later runs read the program, no
 
 ## Go template (`tests/e2etest-<n>/main.go`)
 
-Compiles and parses (`✓ Parsing tests`); its spec mirrors a Go E2ETest that passed on a local control plane
+With `resourcesToItems`, the helper from the composition-test template in
+`control-plane-project-charter/references/languages/go/tests.md`, it compiles and parses
+(`✓ Parsing tests`); its spec mirrors a Go E2ETest that passed on a local control plane
 with up v0.55.0, and its `ClusterProviderConfig` entry is checked by compiling and running the program only.
 Rename the placeholders; keep the shape.
 
@@ -211,23 +228,15 @@ func fail(format string, args ...any) {
 }
 ```
 
-`resourcesToItems` is the helper from the composition-test template in
-`control-plane-project-charter/references/languages/go/tests.md`. The E2E run is
-`up test run "tests/e2etest-<n>" --e2e …`; the composition gate stays `"tests/test-*"`
-(`control-plane-project-charter/references/charter/container.md`).
-
 ## E2E RED
 
-An e2e RED is optional; when to take one: charter §3.
-
-A valid e2e RED is an **implementation mutation** the control plane rejects or never readies: drop a composed
-resource the others depend on, or break a selector. Not the only composed resource: an XR that composes
+An e2e RED is optional; what counts and when to take one: charter §3 (a mutation the control plane rejects
+counts too). Never drop the only composed resource: an XR that composes
 nothing is Ready at once (Crossplane v2.3.1). Set `timeoutSeconds` just above the green run's measured
 `chainsaw/apply` time: a shorter one fails whatever you mutated. Check the failure is the Ready assertion: the
 error line names `((conditions[?type == 'Ready'])[0])`. The diff's `status: {}` is not the real status. Make
-sure the failure isn't a credential error, then revert with git, after keeping any uncommitted work in the
-mutated file (`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout. Editing
-`defaultConditions` or an expected value is not RED, and an unparsable condition is a broken test.
+sure the failure isn't a credential error, then restore the mutated file from its copy, not from git
+(`control-plane-project-charter/references/charter/tdd.md`), and restore the timeout.
 
 ## What an E2ETest cannot assert
 

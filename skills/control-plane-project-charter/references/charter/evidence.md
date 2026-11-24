@@ -1,10 +1,15 @@
 # Reading a render, and making a suite exhaustive
 
-What a clean `up project build` checks per language, how to find what a function emitted, how `assertResources` matches, the one assertion that catches a surplus resource, and what a suite must contain. [`control-plane-project-charter` §8](../../SKILL.md#8-a-green-run-is-not-evidence) states the rule.
+- [What a clean `up project build` checks](#what-a-clean-up-project-build-checks)
+- [Reading the render](#reading-the-render)
+- [How `assertResources` matches, and how to make a suite exhaustive](#how-assertresources-matches-and-how-to-make-a-suite-exhaustive)
+- [Coverage: what the suite must contain](#coverage-what-the-suite-must-contain)
+
+[`control-plane-project-charter` §8](../../SKILL.md#8-a-green-run-is-not-evidence) states the rule.
 
 ## What a clean `up project build` checks
 
-The package was assembled; a clean build never proves the function *runs*. Per language:
+Per language:
 
 - **KCL and single-file Python:** nothing is imported, type-checked or executed — a function
   with an `AttributeError` on its normal path builds cleanly.
@@ -20,10 +25,8 @@ To find what a function emitted, read the render, not the assertions:
 ```bash
 up test run "tests/<t>" --function-logs
 # the run prints: Test artifacts written to <dir>
-grep -h "composition-resource-name:" <dir>/*/render.log | sort
+grep -h "composition-resource-name:" <dir>/*/render.log | sort -u
 ```
-
-Three things about that path:
 
 - **`--function-logs` is what writes the artifacts.** `--output-dir` alone writes nothing; it
   only changes the base directory. `--function-logs` is rejected outright with `--e2e`. A
@@ -36,9 +39,8 @@ Three things about that path:
   yields `test-storagebucket-bucket-created/` and `test-storagebucket-bucket-not-yet-created/`.
   Glob the run directory; don't guess a name.
 
-That lists every resource the function produced, including the ones nothing asserts; `uniq -c`
-adds nothing, since every name is unique. A new resource is untested until it is named in an
-assertion.
+That lists every resource the function produced, including the ones nothing asserts. A new
+resource is untested until it is named in an assertion.
 
 `--debug` also prints each test's render to stderr once the run ends, with or without
 `--function-logs` (which adds the function logs), and writes no directory. It is a `test run` flag:
@@ -77,11 +79,11 @@ across repeated runs, and the composed names are identical too (`example-2a20761
 every run).
 
 Renaming the XR or a composition resource changes every generated name. That is correct:
-renaming a composition resource orphans resources on a live platform (author-composition's
-`patterns.md`, "The composition key is an API"), and you want a test that says so. The converse
-holds too: the same XR (apiVersion, kind, namespace, name) and composition resource name render
-the same generated name in every suite, since the name is derived from nothing else (Crossplane
-v2.3.1 source).
+renaming a composition resource deletes and re-creates resources on a live platform
+(author-composition's `patterns.md`, "The composition key is an API"), and you want a test that
+says so. The converse holds too: the same XR (apiVersion, kind, namespace, name) and
+composition resource name render the same generated name in every suite, since the name is
+derived from nothing else (Crossplane v2.3.1 source).
 
 A failure to match reads as `no actual resource found: <group>/<version>/<Kind>/<name>`; a
 trailing slash means the expectation named no name. Observed with up v0.55.0, an expectation
@@ -132,9 +134,8 @@ on the desired state (Go, Python).
 The usual first suite is **one** test against the shipped example XR (`xrPath` plus `xrdPath`),
 asserting **only** composed resources. Write that test yourself: `up test generate`'s stub leaves
 `xrPath` empty ([`generators.md`](generators.md)), and the inline-`xr` tests below add to it,
-they don't replace it. Alone, that suite is green over a function that crashes on a minimal XR,
-silently drops status fields, and never runs its readiness branch. "The tests pass" is not a
-verification claim until the suite covers these three shapes. Each language file shows them in its own
+they don't replace it. "The tests pass" is not a verification claim until the suite covers the
+three shapes below (charter §8). Each language file shows them in its own
 syntax (Python: `languages/python/tests.md`; Go: `languages/go/tests.md`; YAML:
 `languages/yaml.md`).
 
@@ -149,9 +150,7 @@ exception: no `CompositionTest` can assert it (author-tests, "A Fatal result").
 Besides `xr`, the test takes these inline fields, all optional: `composition` and `xrd` (inline
 instead of `*Path`), `extraResources`, `context`, and `functionCredentialsPath`.
 
-**2. One test per observed-state branch.** Code gated on observed resources or on readiness
-**never executes** when `observedResources` is empty — it is unexercised, not merely
-unasserted. Supply the observed state explicitly:
+**2. One test per observed-state branch.** Supply the observed state explicitly:
 
 - **Every observed resource needs the `crossplane.io/composition-resource-name` annotation.** It
   is the key that matches a mock to the composed resource the function stores under that name;
@@ -161,15 +160,18 @@ unasserted. Supply the observed state explicitly:
   The renderer looks mocks up in the XR's namespace, so one without it is silently not observed:
   no error, the function sees no observed resources, and the test fails only on its own
   assertions, as if the function were wrong (observed with up v0.55.0).
-- **The mock's `metadata.name` becomes the composed resource's name.** Any valid name is
-  observed, and the render keeps it instead of generating one, in the resource and in the
-  composite's `resourceRefs`; an invalid name fails the render. So in a mocked case, assert the
+- **Every mock needs a `metadata.name`, and it becomes the composed resource's name.** Without
+  one the mock is silently not observed, like one outside the XR's namespace (up v0.55.1). Any
+  valid name is observed, and the render keeps it instead of generating one, in the resource and
+  in the composite's `resourceRefs`; an invalid name fails the render. So in a mocked case, assert the
   mock's names. To keep them equal to an unmocked case's generated names, copy those from that
   case's `render.log` (above). Checking that the mock names appear in the render proves nothing:
   they always do (Crossplane v2.3.1 source, the renderer up v0.55.0 runs; observed).
 - **Prove the mocks are used** with a case that fails when they are ignored: assert a value only
   an observed resource can supply, such as a status field copied from a mock. A case that
-  expects empty or default status passes whether the mocks are observed or not.
+  expects empty or default status passes whether the mocks are observed or not. A resource the
+  function keeps from observed state needs a mock with a value the fresh render lacks (a label,
+  a `forProvider` field), or kept and fresh look the same.
 - Without `status.conditions` the resource is observed but **not** ready, which is its own
   useful test case. Add `Ready` and `Synced` conditions with status `True` to drive the ready
   branch.
@@ -186,7 +188,7 @@ composed resource is observed ready, else `"False"`. That proves the function, o
 function-auto-ready, marks readiness.
 
 **3. Assert every `status` field the function writes, on the composite.** `assertResources`
-matches the composite ([§8](../../SKILL.md#8-a-green-run-is-not-evidence)). Without this, a
+matches the composite too. Without this, a
 status write that clobbers nested keys — writing the status more than once can drop all but the
 last (Go: `languages/go/functions.md`, several status fields) — passes silently, and you blame
 the provider.
@@ -195,13 +197,10 @@ the provider.
 
 1. A test for the omitted case asserting the resources that *should* be there. This catches
    crashes on that branch — the common failure — and is a real regression guard.
-2. A **`resourceRefs` assertion on the composite** (above), which turns absence into a real
-   automated guard: a surplus resource fails the list comparison.
+2. A **`resourceRefs` assertion on the composite** (above).
 3. A read of `render.log` confirming the conditional resource is absent, quoted in your
    summary — that is where you get the `resourceRefs` order from anyway.
 
-Report it accurately. With a `resourceRefs` assertion: *"test 4 covers the
-omitted-lifecycleRules branch; the composite's resourceRefs assertion fails if a lifecycle
-resource appears."* Without one: *"absence was confirmed once by reading render.log and is not
-asserted by the suite."* Never *"validates that no lifecycle resource is created"* unless
-something actually fails when one is.
+Report it as *"test 4 covers the omitted-lifecycleRules branch; the composite's resourceRefs
+assertion fails if a lifecycle resource appears"*, never as *"validates that no lifecycle
+resource is created"* unless something fails when one is (charter §3, §4).

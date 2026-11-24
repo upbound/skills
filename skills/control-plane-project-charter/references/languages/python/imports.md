@@ -1,7 +1,6 @@
 # Python: import paths
 
-Deriving the import path for any Kind, and the class names inside a generated model. The Python
-index is [`../python.md`](../python.md).
+The Python index is [`../python.md`](../python.md).
 
 ## Resolve it, do not derive it
 

@@ -1,7 +1,10 @@
 # Python: test templates
 
-Composition-test and E2E-test templates in Python, SDK and embedded. What a suite must contain is
-in [`tests.md`](tests.md) and [`charter/evidence.md`](../../charter/evidence.md); the Python index
+- [Composition test, SDK layout (`tests/test-<n>/test/__main__.py`)](#composition-test-sdk-layout-teststest-ntest__main__py)
+- [Composition test, embedded layout (`tests/test-<n>/main.py`)](#composition-test-embedded-layout-teststest-nmainpy)
+- [E2E test (`tests/e2etest-<n>/test/__main__.py`)](#e2e-test-testse2etest-ntest__main__py)
+
+What a suite must contain is in [`tests.md`](tests.md) and [`charter/evidence.md`](../../charter/evidence.md); the Python index
 is [`../python.md`](../python.md).
 
 ## Composition test, SDK layout (`tests/test-<n>/test/__main__.py`)
@@ -57,6 +60,9 @@ test_network = compositiontest.CompositionTest(
 # Top-level test: exclude_none=True. The runner expects an "items" list.
 print(yaml.dump({"items": [test_network.model_dump(by_alias=True, exclude_none=True)]}))
 ```
+
+A growing suite gets modules, not directories (author-tests, Phase 2): `test/<concern>.py`,
+imported in `__main__.py` as `from test import <concern>`.
 
 ## Composition test, embedded layout (`tests/test-<n>/main.py`)
 

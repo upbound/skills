@@ -1,8 +1,5 @@
 # Language references
 
-One file per language, shared by every skill in this plugin, covering composition functions and
-tests. Language-neutral rules are in [`control-plane-project-charter`](../../SKILL.md), not here.
-
 ## Detecting the language
 
 Detect each directory on its own: the composition language from `functions/<n>/`, the test
@@ -24,9 +21,14 @@ Order matters in two places. For **tests**, `kcl.mod` is checked first and `pypr
 before `kcl.mod`. A Python SDK function also has `function/main.py`; only a `main.py` at the
 directory root means embedded.
 
-A test directory that matches no row is skipped without a message. One that matches but produces
-no `CompositionTest` or `E2ETest` — a Go program printing `items: []` — contributes zero tests
-(charter §8).
+A test directory that matches no row is skipped without a message.
+
+## Choosing the composition language
+
+Unless the spec or an existing function sets it: **go-templating** while the function renders
+the XR into resources (mapping, loops, conditionals on `spec`); **Go or Python** once it compares,
+classifies or merges observed state. When a template outgrows that, add a Go or Python function
+as another pipeline step (a project may mix function languages) rather than growing it.
 
 ## Choosing the test language for new tests
 
@@ -35,9 +37,7 @@ The language of *new* tests is a choice, not a detection.
 detail:
 
 1. Tests already exist in the project → write new ones in the same language. Only a test dir
-   that produces a `CompositionTest` or `E2ETest` counts. A program that emits none — a Go
-   program printing `items: []`, a linter over repo files — is not a test (charter §8) and does
-   not set the language.
+   that produces a `CompositionTest` or `E2ETest` counts.
 2. Otherwise use the **composition language**, whenever `up` supports it as a test language:
    `kcl`, `python`, `go`, `go-templating` — every language `up function generate` produces.
    Why: one toolchain and one set of idioms per project, whoever maintains the function can

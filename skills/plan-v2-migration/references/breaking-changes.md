@@ -1,5 +1,20 @@
 # Crossplane v1 → v2: the breaking changes
 
+- [Summary](#summary)
+- [Project file](#project-file)
+- [XRD](#xrd)
+- [Kind and the X prefix](#kind-and-the-x-prefix)
+- [Provider API groups](#provider-api-groups)
+- [deletionPolicy](#deletionpolicy)
+- [providerConfigRef](#providerconfigref)
+- [Secret references](#secret-references)
+- [Connection secrets](#connection-secrets)
+- [Composition](#composition)
+- [Examples](#examples)
+- [Tests](#tests)
+- [Directory and function names](#directory-and-function-names)
+- [Installed v1 APIs](#installed-v1-apis)
+
 What changes when a v1 control-plane project moves to Crossplane v2, in language-neutral YAML.
 How a function or test spells it (import paths, model types, the XR bootstrap) is in the
 project's language file in the charter —
@@ -88,8 +103,8 @@ apiextensions.crossplane.io/v2` and `XR connection secrets aren't supported in
 apiextensions.crossplane.io/v2`. `defaultCompositeDeletePolicy` only governs claims; remove it
 too. The schema under `versions[]` carries over, apart from the parameters in
 [deletionPolicy](#deletionpolicy) and [Secret references](#secret-references). Schema quality
-(open-ended maps such as tags as `additionalProperties`, `required`, `status`) is
-`control-plane-project-charter/references/charter/xrd-design.md`.
+(`required`, `status`) is `control-plane-project-charter/references/charter/xrd-design.md`;
+open-ended maps such as tags are `additionalProperties` (author-configuration-package's SKILL.md).
 
 ## Kind and the X prefix
 
@@ -185,9 +200,9 @@ provider-kubernetes `Object`, is the exception: nothing fills in its namespace, 
 ## Connection secrets
 
 Only legacy cluster-scoped XRs write connection secrets. For a namespaced XR,
-`connectionSecretKeys` (XRD), `writeConnectionSecretToRef` (XR) and
-`writeConnectionSecretsToNamespace` (Composition) do nothing. To keep exposing connection
-details, the function composes a `Secret`:
+`writeConnectionSecretToRef` (XR) and `writeConnectionSecretsToNamespace` (Composition) do
+nothing, and the Composition's `publishConnectionDetailsWithStoreConfigRef` is gone (v2 has no
+external secret stores). To keep exposing connection details, the function composes a `Secret`:
 
 ```yaml
 apiVersion: v1
@@ -204,9 +219,8 @@ data:
   connection details to the function only when that resource sets `writeConnectionSecretToRef`
   (keep it, without `namespace`: Secret references, above), and a function must not fall back to
   an empty value when one is missing (`control-plane-project-charter` §5). Cover the status
-  values with `observedResources` in a test; the connection details reach no render, so assert
-  the reference and report the values as unverified
-  (`control-plane-project-charter/references/charter/v2-resources.md`).
+  values with `observedResources` in a test, and the connection details and the reference as
+  `control-plane-project-charter/references/charter/v2-resources.md` says.
 - `data` is base64. How each SDK exposes observed connection details (KCL sees them already
   base64-encoded) is in the language file.
 - Several composed resources can feed one Secret.
@@ -281,8 +295,9 @@ spec:
 ## Directory and function names
 
 Keep them: `functions/xnetwork/` and `tests/test-xnetwork-basic/` work in v2. A function's
-directory name is part of its published package name and must match `functionRef.name` and
-`step` in the composition, so renaming one publishes a new package. Rename only together with a
+directory name is the suffix of its published package name and of `functionRef.name`
+(`<org>-<repo><dir>`, `control-plane-project-charter/references/charter/generators.md`), so
+renaming one publishes a new package. Rename only together with a
 deliberate Kind rename, and never add a language suffix (`-python`, `-kcl`, `-go`).
 
 ## Installed v1 APIs

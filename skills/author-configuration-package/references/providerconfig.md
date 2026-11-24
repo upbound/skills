@@ -1,7 +1,6 @@
 # The project's ProviderConfig (Phase 8)
 
-Why every project needs one, the default manifest, the two things to confirm rather than
-guess, and the credential prerequisite for the README. The skill's Phase 8 states the rule.
+The skill's Phase 8 states the rule.
 
 ---
 

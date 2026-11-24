@@ -1,9 +1,9 @@
 # Go
 
-Everything Go-specific for a control-plane project: composition functions and tests.
-
-The language-agnostic rules are in [`control-plane-project-charter`](../../SKILL.md); this file and
-[`go/`](go/) say how Go expresses them.
+- [Where everything is](#where-everything-is)
+- [Layout](#layout)
+- [Imports and models](#imports-and-models)
+- [Where Go runs](#where-go-runs)
 
 Go tests produce the same `CompositionTest` and `E2ETest` objects as every other language. Which
 language new tests use: [charter §10](../../SKILL.md#10-language-dispatch). go-templating tests
@@ -15,7 +15,7 @@ language new tests use: [charter §10](../../SKILL.md#10-language-dispatch). go-
 | Scaffold a test | `up test generate <n> --language go` (add `--e2e`) — then read [`go/tests.md`](go/tests.md) |
 | Models | `.up/go/models`, written by `up project build`. `.up/` is gitignored, so on a fresh clone run `up project build` |
 | Fast tier | `go test ./...` in `functions/<n>/` — calls `RunFunction` directly, about a second, no project build |
-| Run a test | `up test run tests/test-<n>` runs `go run .` with the test dir as CWD; the program must print `items: [<CompositionTest>…]`. `items: []` is zero tests, and a run with zero tests prints `No test files found` and exits 0 — nothing ran |
+| Run a test | `up test run tests/test-<n>` runs `go run .` with the test dir as CWD; the program must print `items: [<CompositionTest>…]` |
 | Compile | `go vet ./...` or `go build -o /dev/null ./...` — plain `go build ./...` in a single-package module (every generated function and test) writes the executable into that directory (`tests/<t>/<t>` too), and it ends up committed |
 | Before committing | `gofmt -l .` (prints nothing), `go vet ./...`, `go mod tidy` in every function and test module |
 
@@ -30,7 +30,7 @@ language new tests use: [charter §10](../../SKILL.md#10-language-dispatch). go-
 
 | | Files | What is in it |
 |---|---|---|
-| Function | `functions/<n>/*.go` | its own module, `package main`: `main.go` (the gRPC server, leave it), `fn.go` (`RunFunction`), `fn_test.go` |
+| Function | `functions/<n>/*.go` | its own module, `package main`: `main.go` (the gRPC server, leave it), `fn.go` (`RunFunction`), `fn_test.go`; more `*.go` and `*_test.go` files by concern as it grows (author-composition Phase 3) |
 | Test | `tests/<t>/go.mod` | its own module, `package main`: `main.go` prints the tests as YAML |
 
 Every function and every test directory is a separate Go module, so run `go` commands from inside it.
@@ -100,9 +100,7 @@ replace dev.upbound.io/models => ../../.up/go/models
   then ports to KCL and Python, and one `grep UP_` lists what a run needs
   ([`charter/container.md`](../charter/container.md)). A test that works locally may depend on
   something no CI runner has: name everything it reads.
-- **Every matched test program runs on every `up test run`**, e2e ones included, so the
-  composition gate is `up test run "tests/test-*"` (charter §7; [`go/tests.md`](go/tests.md#e2e-tests)).
 - **The function itself runs in a container** at render time, like every language, with no
   forwarded environment and no host mounts.
 - **`up project build` compiles Go** (`go mod tidy` and `ko`), so a function that does not compile
-  fails the build; it still does not prove the function runs (charter §8).
+  fails the build.

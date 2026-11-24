@@ -1,5 +1,15 @@
 # Recipes
 
+- ["How many resources are unhealthy across the fleet?"](#how-many-resources-are-unhealthy-across-the-fleet)
+- ["What is in the fleet?"](#what-is-in-the-fleet)
+- ["Which control planes are unhealthy?"](#which-control-planes-are-unhealthy)
+- ["Why is this thing broken?"](#why-is-this-thing-broken)
+- ["What changed recently?"](#what-changed-recently)
+- ["What types do we have for AWS?"](#what-types-do-we-have-for-aws)
+- ["Where did this resource come from?"](#where-did-this-resource-come-from)
+- ["Did my change land?"](#did-my-change-land)
+- [When the answer is "Hub does not know"](#when-the-answer-is-hub-does-not-know)
+
 ## "How many resources are unhealthy across the fleet?"
 
 ```bash

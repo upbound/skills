@@ -1,5 +1,10 @@
 # API surface
 
+- [Core resources](#core-resources)
+- [Other groups](#other-groups)
+- [Subresource paths](#subresource-paths)
+- [Reading an error](#reading-an-error)
+
 Versions differ by group, and by deployment. The tables below are what to expect,
 not a guarantee: a Hub serving `authentication.hub.upbound.io` at v1alpha1 and
 v1beta1 but not v1 exists, so `hub-list` asks `/apis` and drops a pinned version

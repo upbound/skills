@@ -1,15 +1,22 @@
 # Running E2E on a local kind control plane (`--local`)
 
-Read before running `up test run --e2e --local`. [SKILL.md](../SKILL.md) has what both targets share:
-preconditions, the run idiom, stuck detection and the report. Facts below come from the up v0.55.0 source and
-runs, and may change between versions.
+- [Preconditions](#preconditions)
+- [Target flags](#target-flags)
+- [What the run does](#what-the-run-does)
+- [Timings (observed with up v0.55.0)](#timings-observed-with-up-v0550)
+- [Reaching the cluster while it runs](#reaching-the-cluster-while-it-runs)
+- [Evidence and cleanup](#evidence-and-cleanup)
+- [Leaks](#leaks)
+
+Read before running `up test run --e2e --local`. [SKILL.md](../SKILL.md) has what both targets share.
+Facts below come from the up v0.55.0 source and runs, and may change between versions.
 
 ## Preconditions
 
 - **Docker must be reachable** (`docker info` exits 0). `up` creates the cluster itself through the kind
   library; you need the `kind` CLI only to look inside or clean up.
 - **List `kind get clusters` and `docker ps -a` before the run, and keep the lists.** Anything already there
-  is not this run's, even with this project's `<project>-uptest-` name (SKILL.md, Never): report it.
+  is not this run's, even with this project's `<project>-uptest-` name (SKILL.md, Never and Phase 2): report it.
 - **Don't run `up ctx`, or check a repository, `--public` or the group.** `--local` needs no context or
   profile, and it sideloads the package instead of pushing it
   (`control-plane-project-charter/references/charter/targets.md`), so a failing `up ctx . --short` is not a
@@ -20,7 +27,7 @@ runs, and may change between versions.
   on kind. The shapes, the AWS credentials-file format and how to build it in memory are in author-tests'
   `e2e.md` reference.
 - **Why the default umask (SKILL.md Phase 2).** `up` writes the local registry's TLS certificate and key
-  (`/tmp/up-local-registry/<cluster>/.certs/`) with your umask, and the registry container runs as a
+  (`${TMPDIR:-/tmp}/up-local-registry/<cluster>/.certs/`) with your umask, and the registry container runs as a
   non-root user. Under `umask 077` it can't read them and exits; the run waits at `Waiting for package to
   be ready` until `context deadline exceeded`, about 10 min later (observed with up v0.55.0). `docker logs
   <cluster>-registry` shows `open /registry-data/.certs/tls.crt: permission denied`. To protect a credentials
@@ -56,9 +63,9 @@ inside the run idiom in SKILL.md Phase 4. Optional:
 4. Applies `initResources`, **then** installs the Configuration and waits for its packages, **then** applies
    `extraResources` (Namespace, Secret, ProviderConfig) without waiting for them.
 5. Applies the manifests and asserts `defaultConditions` within `timeoutSeconds`.
-6. **Tears down after every test that got past setup, pass or fail:** the test's resources, then the kind
+6. **Tears down after every test that got through steps 1-2, pass or fail:** the test's resources, then the kind
    cluster, the registry and its directory. `spec.skipDelete: true` or `--skip-control-plane-cleanup` skips it,
-   and so, silently, does a setup failure or a panic ([Leaks](#leaks)).
+   and so, silently, does a failure in those steps, or a panic ([Leaks](#leaks)).
 
 The first progress line is `Creating local development control plane...`.
 
@@ -98,8 +105,8 @@ fi
 
 Once the run has exited **and the [Leaks](#leaks) check is clean**, `rm -f <kubeconfig>`: the cluster it
 points at is gone, and the file is this run's leftover (charter §9). Until then keep it: a run that leaked (a
-setup failure, a panic, a killed run, `--skip-control-plane-cleanup`) left the cluster running, and cleaning it
-up needs this kubeconfig.
+failure creating it, a panic, a killed run, `--skip-control-plane-cleanup`) left the cluster running, and
+cleaning it up needs this kubeconfig.
 
 Use `kind get kubeconfig`, not a kubeconfig `up` leaves in `/tmp`: observed with up v0.55.0,
 `/tmp/up-*.kubeconfig` was empty (0 bytes), and the test's own `/tmp/<test><random>/kubeconfig.yaml` was gone by
@@ -143,9 +150,8 @@ before `EXIT=` is in the log, start it again (it prints the current state first)
 way, one watch per object.
 
 Quote it as **"read-back, not asserted"**, with its `Ready` condition: a read while `Ready` is `False` can be
-partial. It is not a provider read. If the window was missed, report "not read back" rather than re-running a
-green e2e for it or for a provider read ([SKILL.md](../SKILL.md), Never). It is report evidence, never a
-pass condition (author-tests' `e2e.md` reference).
+partial. It is not a provider read. A missed window: [SKILL.md](../SKILL.md), Never. It is report
+evidence, never a pass condition (author-tests' `e2e.md` reference).
 
 The resource tables the log prints during the assert are progress output, not a read-back: in the runs observed
 with up v0.55.0, none showed the XR `Ready` although the assert passed. Quote the assert's `PASS` line, never a
@@ -175,8 +181,7 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
   cluster was deleted with managed resources on it: their cloud resources are orphaned (what to report:
   `control-plane-project-charter/references/charter/targets.md`, Teardown and leftovers). `N` counts only
   what outlived the test's own delete step: `0 remaining` doesn't prove the cloud is clean.
-- **A provider read taken during the run**, quoted. A resource it missed is "not verified at the provider":
-  never re-run a green e2e for it.
+- **A provider read taken during the run**, quoted.
 - **Leftovers, checked in the provider's API** by the names or tags the test used, not in Kubernetes. Don't
   assume a provider CLI exists: `command -v <cli>` first, then use whatever is installed (observed: no `aws`
   CLI, but an SDK such as boto3). If neither is available, say the leftovers were not checked. A name or tag
@@ -185,13 +190,14 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
 
 ## Leaks
 
-- **A setup failure leaks the cluster, silently.** Once kind has created the cluster, any later setup failure
-  makes `up` skip teardown with no message. The failures include the UXP install (a bad
-  `--control-plane-version` or Helm value), the license, the pull secret, the registry, the image config,
-  `setupTimeoutSeconds` running out, or an interrupt during `Creating local development control plane`. The
-  kind cluster, `<cluster>-registry` and `/tmp/up-local-registry/<cluster>/` stay behind (observed with up
-  v0.55.0: `✗ Creating local development control plane`, and no `Tearing down` line). kind cleans up after a
-  failure inside its own create. An `E2ETest` without `timeoutSeconds` panics after setup (exit 2) and leaks
+- **A failure while creating the control plane leaks the cluster, silently.** Once kind has created
+  the cluster, a failure before `up` has its control plane back skips teardown with no message: the UXP
+  install (a bad `--control-plane-version` or Helm value), the license, the pull secret, the registry, the
+  image config, `setupTimeoutSeconds` running out, or an interrupt, all during `Creating local development
+  control plane`. The kind cluster, `<cluster>-registry` and `${TMPDIR:-/tmp}/up-local-registry/<cluster>/` stay
+  behind (observed with up v0.55.0: `✗ Creating local development control plane`, and no `Tearing down`
+  line). kind cleans up after a failure inside its own create. A later setup failure (sideload,
+  `initResources`, the package wait, `extraResources`) is torn down. An `E2ETest` without `timeoutSeconds` panics after setup (exit 2) and leaks
   the same way, as does a run killed by a command timeout. After any run whose log has no
   `Tearing down test control plane` line, run `kind get clusters` and `docker ps -a`.
 - **Remove only what this run created:** the cluster `kind get clusters` lists for this run, with
@@ -201,4 +207,4 @@ After the run the cluster is gone, so `kubectl get managed` no longer works. The
 - **`kind delete cluster` leaves the registry container behind**
   (`control-plane-project-charter/references/charter/targets.md`). If you delete a leaked cluster by hand, check
   `docker ps -a` for this run's registry container (`upbound/olareg`) and remove it with
-  `docker rm -f -v <container>`, then `rm -rf /tmp/up-local-registry/<cluster>`.
+  `docker rm -f -v <container>`, then `rm -rf ${TMPDIR:-/tmp}/up-local-registry/<cluster>`.

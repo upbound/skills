@@ -35,14 +35,6 @@ The XRD declares tags with fixed `properties`. Use `additionalProperties: {type:
 `up project build` to regenerate the models.
 
 ```
-pydantic_core._pydantic_core.ValidationError: 1 validation error for Spec
-  Extra inputs are not permitted [input_value=...]
-```
-
-The models do not match the field: check the provider version in `upbound.yaml`, then
-`up project build`.
-
-```
 ModuleNotFoundError: No module named 'models.io.example.platform.network.network'
 ```
 
