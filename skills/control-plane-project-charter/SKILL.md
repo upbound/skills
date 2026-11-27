@@ -244,6 +244,12 @@ provider has written that Secret, and always empty without the reference above, 
 (`""`, `None`) publishes a Secret with an empty password that looks like success. Compose the
 Secret only once every value it needs is present.
 
+**An object in the control plane's own cluster needs no provider-kubernetes `Object`.**
+Crossplane v2 composes any Kubernetes kind, so the function returns it like any composed
+resource, and the table above applies to it. An `Object` is for another cluster, or for what
+only an `Object` does (author-composition's `patterns.md`, "compose local objects, wrap only
+remote ones").
+
 **The table is about the composed resource's own metadata, not about objects inside
 `forProvider`.** A Kubernetes object embedded in a managed resource — the `manifest` of a
 provider-kubernetes `Object`, for instance — is input to the provider, and nothing fills in its

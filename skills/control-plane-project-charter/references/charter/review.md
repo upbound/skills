@@ -68,6 +68,10 @@ no test names is untested, though the suite is green; only an exact
 - Guard-clause order: a return above the new resource does not gate it unintentionally.
 - A composed ProviderConfig, or anything else auto-ready cannot judge, is marked ready
   explicitly.
+- A provider-kubernetes `Object` whose ProviderConfig reaches the control plane itself
+  (`InjectedIdentity`, or a kubeconfig for its own API server) wraps an object the function
+  can compose directly. Flag it unless it uses what only an `Object` has: author-composition's
+  `patterns.md`, "compose local objects, wrap only remote ones".
 
 ## The v2 fields
 

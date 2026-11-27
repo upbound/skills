@@ -158,6 +158,58 @@ user-supplied tags before using them as labels.
 
 ---
 
+## Pattern: compose local objects, wrap only remote ones
+
+Crossplane v2 composes any Kubernetes kind, and its docs name provider-kubernetes `Object`s
+among the abstractions that removes ("What's new in v2"). An object that belongs in the control
+plane's own cluster, such as a Secret, ConfigMap or Deployment in the XR's namespace, is a
+composed resource like any other: return it from the function. Wrapped in an `Object`, each
+write leaves Crossplane, goes through provider-kubernetes, a ProviderConfig and its
+credentials, and comes back into the same cluster.
+
+**The tell is a ProviderConfig that reaches the control plane itself:** `InjectedIdentity`,
+which is the provider pod's in-cluster config (`rest.InClusterConfig()`), or a kubeconfig for
+the control plane's own API server.
+
+**Keep the `Object` when the target is another cluster** (a Space, another control plane, a
+workload cluster), or for what only an `Object` has:
+
+| You need | `Object` field |
+|---|---|
+| to observe an object without creating or deleting it, or to keep it when the XR goes | `managementPolicies` (`Observe`, or without `Delete`) |
+| a field of another object copied into the manifest | `references[].patchesFrom` |
+| readiness from the object's conditions or a CEL query | `readiness.policy` |
+| fields of the object as connection details | `connectionDetails` |
+
+A composed object has none of these. The XR is its controller owner, so it goes with the XR,
+and Crossplane deletes it when the function stops returning it (Crossplane's
+`composition_render.go` and `composition_functions.go`).
+
+**What composing it directly changes:**
+
+- **RBAC:** Crossplane's service account must be allowed to write the kind. The upstream chart
+  grants Secrets, ConfigMaps, Services, ServiceAccounts and Deployments (its
+  `clusterrole.yaml`); any other kind needs a ClusterRole labelled
+  `rbac.crossplane.io/aggregate-to-crossplane: "true"` (Crossplane docs, "Compositions").
+  Upbound Spaces control planes were not checked.
+- **Readiness:** `function-auto-ready` marks a Secret, ConfigMap, ServiceAccount or Namespace
+  ready once it exists, and judges Deployments, Jobs, Services and other core kinds by their
+  status (its `healthchecks/` package). Marking them ready yourself is redundant; a composed
+  ProviderConfig still needs it (below).
+- **Namespace:** omit it, as on any composed resource (below). Inside an `Object`'s manifest
+  it was required (charter §5).
+
+**Replacing an existing `Object` is a migration** (composition keys, top of this file). Give the
+composed object a new key. Under the `Object`'s key, Crossplane gives the new object the
+`Object`'s name, whatever name the function sets, and never garbage-collects the `Object`,
+because its key is still desired: it stays until the XR is deleted. Under a new key the
+`Object` is garbage-collected, and with `Delete` in its `managementPolicies`, the default,
+provider-kubernetes then deletes the object it wrote, which is the one the new key composes if
+the name is the same (`composition_functions.go`). Ship a version whose `Object` drops `Delete`
+first and let every XR run it, or recreate the XRs.
+
+---
+
 ## Pattern: merging
 
 Where a language offers a merge (KCL's `|`, a spread, a dict update), **the later operand
